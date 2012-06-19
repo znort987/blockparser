@@ -33,7 +33,7 @@ blockparser
             sudo apt-get install libssl-dev build-essential g++-4.4 libboost-all-dev libsparsehash-dev git-core perl
             git clone git://github.com/znort987/blockparser.git
             cd blockparser
-            ./make
+            make
 
     Try it:
     -------

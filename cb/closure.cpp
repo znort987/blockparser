@@ -147,7 +147,7 @@ struct Closure:public Callback
         const uint8_t *p
     )
     {
-        printf("done, %.2f secs.\n\n", usecs() - startTime);
+        printf("done, %.2f secs.\n\n", 1e-6*(usecs() - startTime));
 
         size_t size = boost::num_vertices(gGraph);
         printf("Clustering %d addresses ... \n", (int)size);
@@ -156,15 +156,15 @@ struct Closure:public Callback
         std::vector<uint64_t> cc(size);
         size_t nbCC = boost::connected_components(gGraph, &cc[0]);
         printf(
-            "done, %.2f secs, %d clusters.\n\n",
-            usecs() - startTime,
+            "done, %.2f secs, found %d clusters.\n\n",
+            1e-6*(usecs() - startTime),
             (int)nbCC
         );
 
         const uint8_t *keyHash = loadKeyHash();
-        printf("Showing address cluster for address 0x");
+        printf("Address cluster for address ");
         showHex(keyHash, sizeof(uint160_t), false);
-        printf("\n");
+        printf(":\n");
 
         auto i = gAddrMap.find(keyHash);
         if(gAddrMap.end()==i)

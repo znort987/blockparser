@@ -493,7 +493,7 @@ int main(
             blockMapFileName.c_str()
         );
 
-    printf("Done in %.3f seconds\n", (usecs()-start)*1e-6);
+    printf("done in %.3f seconds\n", (usecs()-start)*1e-6);
     printf("\n");
     return 0;
 }

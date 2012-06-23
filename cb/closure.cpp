@@ -175,10 +175,16 @@ struct Closure:public Callback
         for(size_t i=0; i<cc.size(); ++i) {
             uint64_t componentIndex = cc[i];
             if(homeComponentIndex==componentIndex) {
+
                 Addr *addr = gAllAddrs[i];
-                printf("    0x");
+
+                uint8_t b58[128];
+                hash160ToAddr(b58, addr->v);
+                printf("%s ", b58);
+
                 showHex(addr->v, sizeof(uint160_t), false);
                 printf("\n");
+
             }
         }
     }

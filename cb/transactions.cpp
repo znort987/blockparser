@@ -116,7 +116,11 @@ struct Transactions:public Callback
 
         printf("Dumping all transactions for address ");
         showHex(loadKeyHash(), kRIPEMD160ByteSize, false);
-        printf("\n\n");
+
+        uint8_t b58[128];
+        hash160ToAddr(b58, loadKeyHash());
+        printf(" %s\n\n", b58);
+
         printf("    Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
         printf("    ===============================================================================================================================================\n");
     }

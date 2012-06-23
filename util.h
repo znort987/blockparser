@@ -143,6 +143,12 @@
         sha256(sha, sha, kSHA256ByteSize);
     }
 
+    void hash160ToAddr(
+              uint8_t *addr,
+        const uint8_t *hash160,
+              uint8_t type = '1'
+    );
+
     const uint8_t *loadKeyHash(
         const uint8_t *hexHash = 0
     );

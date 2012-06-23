@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <openssl/bn.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
 
@@ -178,6 +179,9 @@ int solveOutputScript(
         return -2;
 
 #if 0
+
+    // TODO : some scripts are solved by satoshi's client and not by the above. track them
+
     // Unknown output script type -- very likely lost coins, but hit the satoshi script solver to make sure
     int result = extractAddress(pubKeyHash, script, scriptSize);
     if(result) return -1;
@@ -195,7 +199,6 @@ const uint8_t *loadKeyHash(
     static bool loaded = false;
     static uint8_t hash[kRIPEMD160ByteSize];
     const char *someHexHash = "0568015a9facccfd09d70d409b6fc1a5546cecc6"; // 1VayNert3x1KzbpzMGt2qdqrAThiRovi8 deepbit's very large address
-    //const char *someHexHash = "0568015a9facccfd09d70d409b6fc1a5546cecc7"; // Doesn't exist
 
     if(!loaded) {
 
@@ -211,6 +214,71 @@ const uint8_t *loadKeyHash(
     }
 
     return hash;
+}
+
+void hash160ToAddr(
+          uint8_t *addr,    // 32 bytes is safe
+    const uint8_t *hash160,
+          uint8_t type
+)
+{
+    *(addr++) = type;
+
+    uint8_t buf[4 + 1 + kRIPEMD160ByteSize + kSHA256ByteSize];
+    const uint32_t size = 1 + kRIPEMD160ByteSize + 4;
+    buf[ 0] = (size>>24) & 0xff;
+    buf[ 1] = (size>>16) & 0xff;
+    buf[ 2] = (size>> 8) & 0xff;
+    buf[ 3] = (size>> 0) & 0xff;
+    buf[ 4] = 0;
+    memcpy(4 + 1 + buf, hash160, kRIPEMD160ByteSize);
+    sha256Twice(
+        4 + 1 + kRIPEMD160ByteSize + buf,
+        4 + buf,
+        1 + kRIPEMD160ByteSize
+    );
+
+    static BIGNUM *b58 = 0;
+    static BIGNUM *num = 0;
+    static BIGNUM *div = 0;
+    static BIGNUM *rem = 0;
+    static BN_CTX *ctx = 0;
+    static const uint8_t b58Code[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+    if(!ctx) {
+        ctx = BN_CTX_new();
+        BN_CTX_init(ctx);
+
+        b58 = BN_new();
+        num = BN_new();
+        div = BN_new();
+        rem = BN_new();
+        BN_set_word(b58, 58);
+    }
+
+    BN_mpi2bn(buf, 4+size, num);
+
+    uint8_t *p = addr;
+    while(!BN_is_zero(num)) {
+        int r = BN_div(div, rem, num, b58, ctx);
+        if(!r) errFatal("BN_div failed");
+        BN_copy(num, div);
+
+        uint32_t digit = BN_get_word(rem);
+        *(p++) = b58Code[digit];
+    }
+
+    const uint8_t *s = hash160;
+    const uint8_t *e = kRIPEMD160ByteSize + hash160;
+    while(!*(s++) && s<e) *(p++) = b58Code[0];
+    *(p--) = 0;
+
+    while(addr<p) {
+        uint8_t a = *addr;
+        uint8_t b = *p;
+        *(addr++) = b;
+        *(p--) = a;
+    }
 }
 
 template<> uint8_t *PagedAllocator<Block>::pool = 0;

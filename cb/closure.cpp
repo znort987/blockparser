@@ -122,10 +122,8 @@ struct Closure:public Callback
         printf(":\n");
 
         auto i = gAddrMap.find(keyHash);
-        if(unlikely(gAddrMap.end()==i)) {
+        if(unlikely(gAddrMap.end()==i))
             warning("specified key was not found");
-            continue;
-        }
 
         uint64_t addrIndex = i->second;
         uint64_t homeComponentIndex = cc[addrIndex];

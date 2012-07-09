@@ -12,42 +12,16 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-struct Hash256Hasher
-{
-    uint64_t operator()(
-        const Hash256 &hash
-    ) const
-    {
-        return *reinterpret_cast<const uint64_t*>(hash);
-    }
-};
-
-struct Hash256Equal
-{
-    bool operator()(
-        const Hash256 &ha,
-        const Hash256 &hb
-    ) const
-    {
-        const uint64_t *a = reinterpret_cast<const uint64_t *>(ha);
-        const uint64_t *b = reinterpret_cast<const uint64_t *>(hb);
-        if(unlikely(a[0]!=b[0])) return false;
-        if(unlikely(a[1]!=b[1])) return false;
-        if(unlikely(a[2]!=b[2])) return false;
-        if(unlikely(a[3]!=b[3])) return false;
-        return true;
-    }
-};
-
 typedef GoogMap<Hash256, const uint8_t*, Hash256Hasher, Hash256Equal>::Map TXMap;
 typedef GoogMap<Hash256,         Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
 
-static TXMap gTXMap;
-static BlockMap gBlockMap;
+
+static bool gNeedTXHash;
 static Callback *gCallback;
 
-static Hash256 gHexHash;
-static bool gNeedTXHash;
+static TXMap gTXMap;
+static BlockMap gBlockMap;
+
 static Block *gMaxBlock;
 static Block *gNullBlock;
 static uint64_t gMaxHeight;
@@ -56,23 +30,19 @@ static uint256_t gNullHash;
 static const uint8_t *gMapEnd;
 static const uint8_t *gMapStart;
 
-static inline uint8_t *allocHash256() { return         PagedAllocator<uint256_t>::alloc(); }
-static inline   Block *allocBlock()   { return (Block*)PagedAllocator<    Block>::alloc(); }
-
 #define DO(x) x
 
-    static inline void   startBlock(const uint8_t *p) { DO(gCallback->startBlock(p));   }
-    static inline void     endBlock(const uint8_t *p) { DO(gCallback->endBlock(p));     }
-
-    static inline void      startTX(const uint8_t *p) { DO(gCallback->startTX(p));      }
-    static inline void        endTX(const uint8_t *p) { DO(gCallback->endTX(p));        }
-    static inline void  startInputs(const uint8_t *p) { DO(gCallback->startInputs(p));  }
-    static inline void    endInputs(const uint8_t *p) { DO(gCallback->endInputs(p));    }
-    static inline void   startInput(const uint8_t *p) { DO(gCallback->startInput(p));   }
-    static inline void     endInput(const uint8_t *p) { DO(gCallback->endInputs(p));    }
-    static inline void startOutputs(const uint8_t *p) { DO(gCallback->startOutputs(p)); }
-    static inline void   endOutputs(const uint8_t *p) { DO(gCallback->endOutputs(p));   }
-    static inline void  startOutput(const uint8_t *p) { DO(gCallback->startOutput(p));  }
+    static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));   }
+    static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));     }
+    static inline void      startTX(const uint8_t *p, const uint8_t *hash) { DO(gCallback->startTX(p, hash));}
+    static inline void        endTX(const uint8_t *p)                      { DO(gCallback->endTX(p));        }
+    static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));  }
+    static inline void    endInputs(const uint8_t *p)                      { DO(gCallback->endInputs(p));    }
+    static inline void   startInput(const uint8_t *p)                      { DO(gCallback->startInput(p));   }
+    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInputs(p));    }
+    static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p)); }
+    static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));   }
+    static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));  }
 
 #undef DO
 
@@ -281,17 +251,17 @@ static void parseTX(
     const uint8_t *&p
 )
 {
-    if(!skip) startTX(p);
+    uint8_t *txHash = 0;
+    const uint8_t *txStart = p;
 
-        uint8_t *txHash = 0;
-        const uint8_t *txStart = p;
+    if(gNeedTXHash && !skip) {
+        const uint8_t *txEnd = p;
+        parseTX<true>(txEnd);
+        txHash = allocHash256();
+        sha256Twice(txHash, txStart, txEnd - txStart);
+    }
 
-        if(gNeedTXHash && !skip) {
-            const uint8_t *txEnd = p;
-            parseTX<true>(txEnd);
-            txHash = allocHash256();
-            sha256Twice(txHash, txStart, txEnd - txStart);
-        }
+    if(!skip) startTX(p, txHash);
 
         SKIP(uint32_t, version, p);
 

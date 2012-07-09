@@ -22,6 +22,8 @@ struct Transactions:public Callback
         char *argv[]
     )
     {
+        sum = 0;
+
         bool ok = (0==argc || 1==argc);
         if(!ok) return -1;
 
@@ -41,11 +43,12 @@ struct Transactions:public Callback
         uint8_t addrType[3];
         uint8_t pubKeyHash[kRIPEMD160ByteSize];
         int type = solveOutputScript(pubKeyHash, script, scriptSize, addrType);
-        if(type<0)
+        if(unlikely(type<0))
             return;
 
         const uint8_t *targetKeyHash = loadKeyHash();
-        if(0==memcmp(targetKeyHash, pubKeyHash, sizeof(pubKeyHash))) {
+        bool match = (0==memcmp(targetKeyHash, pubKeyHash, sizeof(pubKeyHash)));
+        if(unlikely(match)) {
 
             printf("    ");
             showHex(downTXHash ? downTXHash : txHash);
@@ -103,12 +106,6 @@ struct Transactions:public Callback
         );
     }
 
-    Transactions()
-    {
-        sum = 0;
-        Callback::add("transactions", this);
-    }
-
     virtual void startMap(
         const uint8_t *p
     )
@@ -139,19 +136,10 @@ struct Transactions:public Callback
         );
     }
 
-    virtual void   startBlock(const uint8_t *p) {}
-    virtual void     endBlock(const uint8_t *p) {}
-    virtual void      startTX(const uint8_t *p) {}
-    virtual void        endTX(const uint8_t *p) {}
-    virtual void  startInputs(const uint8_t *p) {}
-    virtual void    endInputs(const uint8_t *p) {}
-    virtual void   startInput(const uint8_t *p) {}
-    virtual void     endInput(const uint8_t *p) {}
-    virtual void startOutputs(const uint8_t *p) {}
-    virtual void   endOutputs(const uint8_t *p) {}
-    virtual void  startOutput(const uint8_t *p) {}
-    virtual void   startBlock(  const Block *b) {}
-    virtual void     endBlock(  const Block *b) {}
+    virtual const char *name()
+    {
+        return "transactions";
+    }
 };
 
 static Transactions transactions;

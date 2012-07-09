@@ -1,5 +1,6 @@
 
 #include <util.h>
+#include <alloca.h>
 #include <common.h>
 #include <errlog.h>
 #include <rmd160.h>
@@ -13,11 +14,42 @@
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
 
+const uint8_t hexDigits[] = "0123456789abcdef";
+const uint8_t b58Digits[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
 double usecs()
 {
     struct timeval t;
     gettimeofday(&t, 0);
     return t.tv_usec + 1000000*((uint64_t)t.tv_sec);
+}
+
+void toHex(
+          uint8_t *dst,     // 2*size +1
+    const uint8_t *src,     // size
+    size_t        size,
+    bool          rev
+)
+{
+    int incr = 1;
+    const uint8_t *p = src;
+    const uint8_t *e = size + src;
+    if(rev)
+    {
+        p = e-1;
+        e = src-1;
+        incr = -1;
+    }
+    
+    while(likely(p!=e))
+    {
+        uint8_t c = p[0];
+        dst[0] = hexDigits[c>>4];
+        dst[1] = hexDigits[c&0xF];
+        p += incr;
+        dst += 2;
+    }
+    dst[0] = 0;
 }
 
 void showHex(
@@ -26,18 +58,20 @@ void showHex(
     bool          rev
 )
 {
-    for(size_t i=0; i<size; ++i)
-        printf("%02x", p[rev ? (size-i-1): i]);
+    uint8_t* buf = (uint8_t*)alloca(2*size + 1);
+    toHex(buf, p, size, rev);
+    printf("%s", buf);
 }
 
 uint8_t fromHexDigit(
     uint8_t h
 )
 {
-    if('0'<=h && h<='9') return      (h - '0');
-    if('A'<=h && h<='F') return 10 + (h - 'A');
-    if('a'<=h && h<='f') return 10 + (h - 'a');
-    abort();
+    if(likely('0'<=h && h<='9')) return      (h - '0');
+    if(likely('a'<=h && h<='f')) return 10 + (h - 'a');
+    if(likely('A'<=h && h<='F')) return 10 + (h - 'A');
+    errFatal("incorrect hex digit %c", h);
+    return 0xff;
 }
 
 void fromHex(
@@ -49,12 +83,14 @@ void fromHex(
 {
     int incr = 2;
     uint8_t *end = dstSize + dst;
-    if(rev) {
+    if(rev)
+    {
         src += 2*(dstSize-1);
         incr = -2;
     }
 
-    while(dst<end) {
+    while(likely(dst<end))
+    {
         uint8_t hi = fromHexDigit(src[0]);
         uint8_t lo = fromHexDigit(src[1]);
         *(dst++) = (hi<<4) + lo;
@@ -68,12 +104,14 @@ void showScript(
 )
 {
     const uint8_t *e = scriptSize + p;
-    while(p<e) {
+    while(likely(p<e))
+    {
         LOAD(uint8_t, c, p);
         bool isImmediate = (0<c && c<79) ;
         if(!isImmediate)
             printf("    0x%02X %s\n", c, getOpcodeName(c));
-        else {
+        else
+        {
             uint64_t dataSize = 0;
                  if(likely(c<=75)) {                       dataSize = c; }
             else if(likely(76==c)) { LOAD( uint8_t, v, p); dataSize = v; }
@@ -94,13 +132,11 @@ void decompressPublicKey(
 {
     EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
     EC_KEY *r = o2i_ECPublicKey(&key, &compressedKey, 33);
-    if(!r)
-        errFatal("o2i_ECPublicKey failed");
+    if(!r) errFatal("o2i_ECPublicKey failed");
 
     EC_KEY_set_conv_form(key, POINT_CONVERSION_UNCOMPRESSED);
     size_t size = i2o_ECPublicKey(key, &result);
-    if(65!=size)
-        errFatal("i2o_ECPublicKey failed");
+    if(65!=size) errFatal("i2o_ECPublicKey failed");
 
     EC_KEY_free(key);
 }
@@ -114,12 +150,31 @@ int solveOutputScript(
 {
     type[0] = 0;
 
+    // The most common output script type, pays to hash160(pubKey)
+    if(
+        likely(
+            0x76==script[0]              &&  // OP_DUP
+            0xA9==script[1]              &&  // OP_HASH160
+              20==script[2]              &&  // OP_PUSHDATA(20)
+            0x88==script[scriptSize-2]   &&  // OP_EQUALVERIFY
+            0xAC==script[scriptSize-1]   &&  // OP_CHECKSIG
+              25==scriptSize
+        )
+    )
+    {
+        memcpy(pubKeyHash, 3+script, kRIPEMD160ByteSize);
+        return 2;
+    }
+
     // Output script commonly found in block reward TX, pays to explicit pubKey
     if(
-          65==script[0]             &&  // OP_PUSHDATA(65)
-        0xAC==script[scriptSize-1]  &&  // OP_CHECKSIG
-          67==scriptSize
-    ) {
+        likely(
+              65==script[0]             &&  // OP_PUSHDATA(65)
+            0xAC==script[scriptSize-1]  &&  // OP_CHECKSIG
+              67==scriptSize
+        )
+    )
+    {
         uint256_t sha;
         sha256(sha.v, 1+script, 65);
         rmd160(pubKeyHash, sha.v, kSHA256ByteSize);
@@ -128,10 +183,13 @@ int solveOutputScript(
 
     // Unusual output script, pays to compressed pubKeys
     if(
-          33==script[0]            &&  // OP_PUSHDATA(33)
-        0xAC==script[scriptSize-1] &&  // OP_CHECKSIG
-          35==scriptSize
-    ) {
+        likely(
+              33==script[0]            &&  // OP_PUSHDATA(33)
+            0xAC==script[scriptSize-1] &&  // OP_CHECKSIG
+              35==scriptSize
+        )
+    )
+    {
         uint8_t pubKey[65];
         decompressPublicKey(pubKey, 1+script);
 
@@ -141,26 +199,16 @@ int solveOutputScript(
         return 1;
     }
 
-    // The most common output script type, pays to hash160(pubKey)
-    if(
-        0x76==script[0]              &&  // OP_DUP
-        0xA9==script[1]              &&  // OP_HASH160
-          20==script[2]              &&  // OP_PUSHDATA(20)
-        0x88==script[scriptSize-2]   &&  // OP_EQUALVERIFY
-        0xAC==script[scriptSize-1]   &&  // OP_CHECKSIG
-          25==scriptSize
-    ) {
-        memcpy(pubKeyHash, 3+script, kRIPEMD160ByteSize);
-        return 2;
-    }
-
     // Recent output script type, pays to hash160(script)
     if(
-        0xA9==script[0]             &&  // OP_HASH160
-          20==script[1]             &&  // OP_PUSHDATA(20)
-        0x87==script[scriptSize-1]  &&  // OP_EQUAL
-          23==scriptSize
-    ) {
+        likely(
+            0xA9==script[0]             &&  // OP_HASH160
+              20==script[1]             &&  // OP_PUSHDATA(20)
+            0x87==script[scriptSize-1]  &&  // OP_EQUAL
+              23==scriptSize
+        )
+    )
+    {
         memcpy(pubKeyHash, 2+script, kRIPEMD160ByteSize);
         type[0] = 'S';
         type[1] = 0;
@@ -200,8 +248,8 @@ const uint8_t *loadKeyHash(
     static uint8_t hash[kRIPEMD160ByteSize];
     const char *someHexHash = "0568015a9facccfd09d70d409b6fc1a5546cecc6"; // 1VayNert3x1KzbpzMGt2qdqrAThiRovi8 deepbit's very large address
 
-    if(!loaded) {
-
+    if(unlikely(!loaded))
+    {
         if(0==hexHash)
             hexHash = reinterpret_cast<const uint8_t *>(someHexHash);
 
@@ -210,10 +258,119 @@ const uint8_t *loadKeyHash(
 
         fromHex(hash, hexHash, sizeof(hash), false);
         loaded = true;
-
     }
 
     return hash;
+}
+
+uint8_t fromB58Digit(
+    uint8_t digit,
+       bool abortOnErr
+)
+{
+    if('1'<=digit && digit<='9') return (digit - '1') +   0;
+    if('A'<=digit && digit<='H') return (digit - 'A') +   9;
+    if('J'<=digit && digit<='N') return (digit - 'J') +  17;
+    if('P'<=digit && digit<='Z') return (digit - 'P') +  22;
+    if('a'<=digit && digit<='k') return (digit - 'a') +  33;
+    if('m'<=digit && digit<='z') return (digit - 'm') +  44;
+    if(abortOnErr) errFatal("incorrect base58 digit %c", digit);
+    return 0xff;
+}
+
+bool addrToHash160(
+          uint8_t *hash160,
+    const uint8_t *addr,
+             bool checkHash
+)
+{
+    bool ok = ('1'==addr[0] || '3'==addr[0]);
+    if(unlikely(!ok))
+    {
+        warning("unknonw address type %s\n", addr);
+        return false;
+    }
+    ++addr;
+
+    static BIGNUM *sum = 0;
+    static BN_CTX *ctx = 0;
+    if(unlikely(!ctx))
+    {
+        ctx = BN_CTX_new();
+        BN_CTX_init(ctx);
+        sum = BN_new();
+    }
+
+    BN_zero(sum);
+    while(1)
+    {
+        uint8_t c = *(addr++);
+        if(unlikely(0==c)) break;
+
+        uint8_t dg = fromB58Digit(c);
+        BN_mul_word(sum, 58);
+        BN_add_word(sum, dg);
+    }
+
+    uint8_t buf[4 + 1 + kRIPEMD160ByteSize + 4];
+    size_t size = BN_bn2mpi(sum, 0);
+    if(sizeof(buf)<size)
+    {
+        warning(
+            "BN_bn2mpi returned weird buffer size %d, expected %d\n",
+            (int)size,
+            (int)sizeof(buf)
+        );
+        return false;
+    }
+    BN_bn2mpi(sum, buf);
+
+    uint32_t recordedSize = 
+        (buf[0]<<24)    |
+        (buf[1]<<16)    |
+        (buf[2]<< 8)    |
+        (buf[3]<< 0);
+    if(size!=(4+recordedSize))
+    {
+        warning(
+            "BN_bn2mpi returned bignum size %d, expected %d\n",
+            (int)recordedSize,
+            (int)size-4
+        );
+        return false;
+    }
+
+    uint8_t *bigNumEnd;
+    uint8_t *dataEnd = size + buf;
+    uint8_t *bigNumStart = 4 + buf;
+    uint8_t *checkSumStart = bigNumEnd = (-4 + dataEnd);
+    while(0==bigNumStart[0] && bigNumStart<checkSumStart) ++bigNumStart;
+
+    ptrdiff_t bigNumSize = bigNumEnd - bigNumStart;
+    ptrdiff_t padSize = kRIPEMD160ByteSize - bigNumSize;
+    if(padSize<0) errFatal("things went very wrong");
+
+    memcpy(padSize + hash160, bigNumStart, bigNumSize);
+    if(0<padSize) memset(hash160, 0, padSize);
+
+    bool hashOK = true;
+    if(checkHash)
+    {
+        uint8_t data[1+kRIPEMD160ByteSize];
+        memcpy(1+data, hash160, kRIPEMD160ByteSize);
+        data[0] = 0;
+
+        uint8_t sha[kSHA256ByteSize];
+        sha256Twice(sha, data, 1+kRIPEMD160ByteSize);
+
+        hashOK =
+            sha[0]==checkSumStart[0]  &&
+            sha[1]==checkSumStart[1]  &&
+            sha[2]==checkSumStart[2]  &&
+            sha[3]==checkSumStart[3];
+    }
+
+    return hashOK;
 }
 
 void hash160ToAddr(
@@ -243,9 +400,9 @@ void hash160ToAddr(
     static BIGNUM *div = 0;
     static BIGNUM *rem = 0;
     static BN_CTX *ctx = 0;
-    static const uint8_t b58Code[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
-    if(!ctx) {
+    if(!ctx)
+    {
         ctx = BN_CTX_new();
         BN_CTX_init(ctx);
 
@@ -259,21 +416,23 @@ void hash160ToAddr(
     BN_mpi2bn(buf, 4+size, num);
 
     uint8_t *p = addr;
-    while(!BN_is_zero(num)) {
+    while(!BN_is_zero(num))
+    {
         int r = BN_div(div, rem, num, b58, ctx);
         if(!r) errFatal("BN_div failed");
         BN_copy(num, div);
 
         uint32_t digit = BN_get_word(rem);
-        *(p++) = b58Code[digit];
+        *(p++) = b58Digits[digit];
     }
 
     const uint8_t *s = hash160;
     const uint8_t *e = kRIPEMD160ByteSize + hash160;
-    while(!*(s++) && s<e) *(p++) = b58Code[0];
+    while(!*s && s<e) { *(p++) = b58Digits[0]; ++s; }
     *(p--) = 0;
 
-    while(addr<p) {
+    while(addr<p)
+    {
         uint8_t a = *addr;
         uint8_t b = *p;
         *(addr++) = b;
@@ -286,4 +445,8 @@ template<> uint8_t *PagedAllocator<Block>::poolEnd = 0;
 
 template<> uint8_t *PagedAllocator<uint256_t>::pool = 0;
 template<> uint8_t *PagedAllocator<uint256_t>::poolEnd = 0;
+
+template<> uint8_t *PagedAllocator<uint160_t>::pool = 0;
+template<> uint8_t *PagedAllocator<uint160_t>::poolEnd = 0;
+
 

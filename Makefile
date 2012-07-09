@@ -60,6 +60,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/simpleStats.cpp -o .objs/simpleStats.o
 	@mv .objs/simpleStats.d .deps
 
+.objs/taint.o : cb/taint.cpp
+	@echo c++ -- cb/taint.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/taint.cpp -o .objs/taint.o
+	@mv .objs/taint.d .deps
+
 .objs/transactions.o : cb/transactions.cpp
 	@echo c++ -- cb/transactions.cpp
 	@mkdir -p .deps
@@ -113,6 +120,7 @@ OBJS=                       \
     .objs/allBalances.o     \
     .objs/closure.o         \
     .objs/simpleStats.o     \
+    .objs/taint.o           \
     .objs/transactions.o    \
     .objs/callback.o        \
     .objs/opcodes.o         \

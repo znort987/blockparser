@@ -5,7 +5,6 @@
 #include <util.h>
 #include <common.h>
 #include <callback.h>
-typedef unsigned int uint128_t __attribute__((mode(TI)));
 
 static std::string pr128(
     const uint128_t &y
@@ -18,7 +17,7 @@ static std::string pr128(
     uint128_t x = y;
     while(1) {
         *(p--) = (char)((x % 10) + '0');
-        if(0==x) break;
+        if(unlikely(0==x)) break;
         x /= 10;
     }
     ++p;
@@ -73,20 +72,6 @@ struct SimpleStats:public Callback
         volume += value;
     }
 
-    virtual void edge(
-        uint64_t      value,
-        const uint8_t *upTXHash,
-        uint64_t      outputIndex,
-        const uint8_t *outputScript,
-        uint64_t      outputScriptSize,
-        const uint8_t *downTXHash,
-        uint64_t      inputIndex,
-        const uint8_t *inputScript,
-        uint64_t      inputScriptSize
-    )
-    {
-    }
-
     virtual void endMap(
         const uint8_t *p
     )
@@ -112,25 +97,16 @@ struct SimpleStats:public Callback
         #undef P
     }
 
+    virtual void   startBlock(const uint8_t *p                     ) { ++nbBlocks;      }
+    virtual void      startTX(const uint8_t *p, const uint8_t *hash) { ++nbTransactions;}
+    virtual void   startInput(const uint8_t *p                     ) { ++nbInputs;      }
+    virtual void  startOutput(const uint8_t *p                     ) { ++nbOutputs;     }
+    virtual void   startBlock(  const Block *b                     ) { ++nbValidBlocks; }
 
-    SimpleStats()
+    virtual const char *name()
     {
-        Callback::add("simpleStats", this);
+        return "simpleStats";
     }
-
-    virtual void   startBlock(const uint8_t *p) { ++nbBlocks;       }
-    virtual void     endBlock(const uint8_t *p) {                   }
-    virtual void      startTX(const uint8_t *p) { ++nbTransactions; }
-    virtual void        endTX(const uint8_t *p) {                   }
-    virtual void  startInputs(const uint8_t *p) {                   }
-    virtual void    endInputs(const uint8_t *p) {                   }
-    virtual void   startInput(const uint8_t *p) { ++nbInputs;       }
-    virtual void     endInput(const uint8_t *p) {                   }
-    virtual void startOutputs(const uint8_t *p) {                   }
-    virtual void   endOutputs(const uint8_t *p) {                   }
-    virtual void  startOutput(const uint8_t *p) { ++nbOutputs;      }
-    virtual void   startBlock(  const Block *b) { ++nbValidBlocks; }
-    virtual void     endBlock(  const Block *b) {                   }
 };
 
 static SimpleStats simpleStats;

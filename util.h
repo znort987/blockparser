@@ -2,10 +2,57 @@
     #define __UTIL_H__
 
     #include <common.h>
+    #include <rmd160.h>
     #include <sha256.h>
 
+    typedef const uint8_t *Hash160;
     typedef const uint8_t *Hash256;
-    struct uint256_t { uint8_t v[kSHA256ByteSize]; };
+    struct uint160_t { uint8_t v[kRIPEMD160ByteSize]; };
+    struct uint256_t { uint8_t v[   kSHA256ByteSize]; };
+    typedef signed int int128_t __attribute__((mode(TI)));
+    typedef unsigned int uint128_t __attribute__((mode(TI)));
+    struct Hash160Hasher { uint64_t operator()( const Hash160 &hash160) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash160); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
+    struct Hash256Hasher { uint64_t operator()( const Hash256 &hash256) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash256); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
+
+    struct Hash160Equal
+    {
+        bool operator()(
+            const Hash160 &ha,
+            const Hash160 &hb
+        ) const
+        {
+            uintptr_t ia = reinterpret_cast<uintptr_t>(ha);
+            uintptr_t ib = reinterpret_cast<uintptr_t>(hb);
+
+            const uint64_t *a0 = reinterpret_cast<const uint64_t *>(ia);
+            const uint64_t *b0 = reinterpret_cast<const uint64_t *>(ib);
+            if(unlikely(a0[0]!=b0[0])) return false;
+            if(unlikely(a0[1]!=b0[1])) return false;
+
+            const uint32_t *a1 = reinterpret_cast<const uint32_t *>(ia);
+            const uint32_t *b1 = reinterpret_cast<const uint32_t *>(ib);
+            if(unlikely(a1[4]!=b1[4])) return false;
+
+            return true;
+        }
+    };
+
+    struct Hash256Equal
+    {
+        bool operator()(
+            const Hash256 &ha,
+            const Hash256 &hb
+        ) const
+        {
+            const uint64_t *a = reinterpret_cast<const uint64_t *>(ha);
+            const uint64_t *b = reinterpret_cast<const uint64_t *>(hb);
+            if(unlikely(a[0]!=b[0])) return false;
+            if(unlikely(a[1]!=b[1])) return false;
+            if(unlikely(a[2]!=b[2])) return false;
+            if(unlikely(a[3]!=b[3])) return false;
+            return true;
+        }
+    };
 
     struct Block
     {
@@ -14,6 +61,33 @@
         Block         *prev;
         Block         *next;
     };
+
+    template<
+        typename T,
+        size_t   kPageSize = 16384
+    >
+    struct PagedAllocator
+    {
+        static uint8_t *pool;
+        static uint8_t *poolEnd;
+        enum { kPageByteSize = sizeof(T)*kPageSize };
+
+        static uint8_t *alloc()
+        {
+            if(unlikely(poolEnd<=pool)) {
+                pool = (uint8_t*)malloc(kPageByteSize);
+                poolEnd = kPageByteSize + pool;
+            }
+
+            uint8_t *result = pool;
+            pool += sizeof(T);
+            return result;
+        }
+    };
+
+    static inline Block   *allocBlock()   { return (Block*)PagedAllocator<    Block>::alloc(); }
+    static inline uint8_t *allocHash256() { return         PagedAllocator<uint256_t>::alloc(); }
+    static inline uint8_t *allocHash160() { return         PagedAllocator<uint160_t>::alloc(); }
 
     #define WANT_DENSE
     #if defined(WANT_DENSE)
@@ -104,8 +178,15 @@
 
     double usecs();
 
+    void toHex(
+              uint8_t *dst,
+        const uint8_t *src,
+        size_t        size = kSHA256ByteSize,
+        bool          rev = true
+    );
+
     void showHex(
-        const uint8_t *p,
+        const uint8_t *src,
         size_t        size = kSHA256ByteSize,
         bool          rev = true
     );
@@ -117,7 +198,7 @@
     void fromHex(
               uint8_t *dst,
         const uint8_t *src,
-        size_t        dstSize,
+        size_t        dstSize = kSHA256ByteSize,
         bool          rev = true
     );
 
@@ -143,38 +224,29 @@
         sha256(sha, sha, kSHA256ByteSize);
     }
 
+    extern const uint8_t hexDigits[];
+    extern const uint8_t b58Digits[];
+
+    uint8_t fromB58Digit(
+        uint8_t digit,
+        bool abortOnErr = true
+    );
+
     void hash160ToAddr(
               uint8_t *addr,
         const uint8_t *hash160,
               uint8_t type = '1'
     );
 
+    bool addrToHash160(
+              uint8_t *hash160,
+        const uint8_t *addr,
+                 bool checkHash = false
+    );
+
     const uint8_t *loadKeyHash(
         const uint8_t *hexHash = 0
     );
-
-    template<
-        typename T,
-        size_t   kPageSize = 16384
-    >
-    struct PagedAllocator
-    {
-        static uint8_t *pool;
-        static uint8_t *poolEnd;
-        enum { kPageByteSize = sizeof(T)*kPageSize };
-
-        static inline uint8_t *alloc()
-        {
-            if(unlikely(poolEnd<=pool)) {
-                pool = (uint8_t*)malloc(kPageByteSize);
-                poolEnd = kPageByteSize + pool;
-            }
-
-            uint8_t *result = pool;
-            pool += sizeof(T);
-            return result;
-        }
-    };
 
 #endif // __UTIL_H__
 

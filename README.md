@@ -17,9 +17,9 @@ blockparser
 
         . Few dependencies: openssl-dev, boost
 
-        . Understand how the data structure underlying bitcoin works.
-
         . Very quickly extract information from the entire blockchain.
+
+        . Code is simple and helps to understand how the data structure underlying bitcoin works.
 
     Build it:
     ---------
@@ -54,6 +54,10 @@ blockparser
 
             ./parser allBalances >allBalances.txt
 
+        . See how much of the BTC 10K pizza tainted each of the TX in the chain
+
+            ./parser taint >pizzaTaint.txt
+
     Caveats:
     --------
 
@@ -85,6 +89,7 @@ blockparser
         . cb/closure.cpp        :   code to compute the transitive closure of an address.
         . cb/allBalances.cpp    :   code to all balance of all addresses.
         . cb/simpleStats.cpp    :   code to compute simple stats.
+        . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
 
         . You can add your own custom callback. You can use the existing callbacks in
@@ -102,5 +107,5 @@ blockparser
     License:
     --------
 
-        Entire codebase is in the public domain.
+        Code is in the public domain.
 

@@ -6,26 +6,26 @@
     struct Block;
     struct Callback
     {
-        virtual bool   needTXHash() = 0;
-        virtual int          init(int argc, char *argv[]) = 0;
+        Callback();
+        virtual const char  *name() = 0;
 
-        virtual void     startMap(const uint8_t *p) = 0;
-        virtual void       endMap(const uint8_t *p) = 0;
-        virtual void   startBlock(const uint8_t *p) = 0;
-        virtual void     endBlock(const uint8_t *p) = 0;
-
-        virtual void      startTX(const uint8_t *p) = 0;
-        virtual void        endTX(const uint8_t *p) = 0;
-        virtual void  startInputs(const uint8_t *p) = 0;
-        virtual void    endInputs(const uint8_t *p) = 0;
-        virtual void   startInput(const uint8_t *p) = 0;
-        virtual void     endInput(const uint8_t *p) = 0;
-        virtual void startOutputs(const uint8_t *p) = 0;
-        virtual void   endOutputs(const uint8_t *p) = 0;
-        virtual void  startOutput(const uint8_t *p) = 0;
-
-        virtual void   startBlock(  const Block *b) = 0;
-        virtual void     endBlock(  const Block *b) = 0;
+        virtual int          init(int argc, char *argv[]               ) { return 0;     }
+        virtual bool   needTXHash(                                     ) { return false; }
+        virtual void     startMap(const uint8_t *p                     ) {               }
+        virtual void       endMap(const uint8_t *p                     ) {               }
+        virtual void   startBlock(const uint8_t *p                     ) {               }
+        virtual void     endBlock(const uint8_t *p                     ) {               }
+        virtual void      startTX(const uint8_t *p, const uint8_t *hash) {               }
+        virtual void        endTX(const uint8_t *p                     ) {               }
+        virtual void  startInputs(const uint8_t *p                     ) {               }
+        virtual void    endInputs(const uint8_t *p                     ) {               }
+        virtual void   startInput(const uint8_t *p                     ) {               }
+        virtual void     endInput(const uint8_t *p                     ) {               }
+        virtual void startOutputs(const uint8_t *p                     ) {               }
+        virtual void   endOutputs(const uint8_t *p                     ) {               }
+        virtual void  startOutput(const uint8_t *p                     ) {               }
+        virtual void   startBlock(  const Block *b                     ) {               }
+        virtual void     endBlock(  const Block *b                     ) {               }
 
         virtual void endOutput(
             const uint8_t *p,
@@ -34,7 +34,9 @@
             uint64_t      outputIndex,
             const uint8_t *outputScript,
             uint64_t      outputScriptSize
-        ) = 0;
+        )
+        {
+        }
 
         virtual void edge(
             uint64_t      value,
@@ -46,9 +48,10 @@
             uint64_t      inputIndex,
             const uint8_t *inputScript,
             uint64_t      inputScriptSize
-        ) = 0;
+        )
+        {
+        }
 
-        static void add(const char *name, Callback *callback);
         static Callback *find(const char *name);
     };
 

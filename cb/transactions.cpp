@@ -15,6 +15,7 @@ enum  optionIndex { kUnknown, kPlus };
 static const option::Descriptor usageDescriptor[] =
 {
     { kUnknown, 0, "",      "", option::Arg::None,                       CBNAME ":\n" },
+    { kPlus,    0, "p", "plus", option::Arg::None, "  --plus, -p    Increment count." },
     { 0,        0,  0,  0,                 0,        0     }
 };
 
@@ -176,8 +177,8 @@ struct Transactions:public Callback
         const uint8_t *p
     )
     {
-        printf("Dumping all transactions for %d addresse(s) -- times are GMT\n\n", (int)rootHashes.size());
-        printf("    Time                        Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
+        printf("Dumping all transactions for %d addresse(s)\n\n", (int)rootHashes.size());
+        printf("    Time (GMT)                  Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
         printf("    =======================================================================================================================================================================================================================\n");
     }
 

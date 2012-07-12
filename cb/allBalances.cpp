@@ -10,6 +10,14 @@
 #include <vector>
 #include <string.h>
 
+#define CBNAME "allBalances"
+enum  optionIndex { kUnknown };
+static const option::Descriptor usageDescriptor[] =
+{
+    { kUnknown, 0, "", "", option::Arg::None, CBNAME ":\n" },
+    { 0,        0,  0,  0,                 0,        0     }
+};
+
 struct Addr
 {
     uint64_t sum;
@@ -51,7 +59,16 @@ struct AllBalances:public Callback
         char *argv[]
     )
     {
-        if(0!=argc) return -1;
+        option::Stats  stats(usageDescriptor, argc, argv);
+        option::Option *buffer  = new option::Option[stats.buffer_max];
+        option::Option *options = new option::Option[stats.options_max];
+        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
+
+        if(parse.error())
+            exit(1);
+
+        delete [] options;
+        delete [] buffer;
         return 0;
     }
 
@@ -63,6 +80,13 @@ struct AllBalances:public Callback
         gAddrMap.setEmptyKey(emptyKey);
         gAddrMap.resize(15 * 1000 * 1000);
         gAllAddrs.reserve(15 * 1000 * 1000);
+    }
+
+    virtual void endBlock(
+        const uint8_t *p
+    )
+    {
+        gLastBlock = p;
     }
 
     void move(
@@ -160,11 +184,13 @@ struct AllBalances:public Callback
         std::sort(s, e, compare);
 
         uint64_t i = 0;
+        uint64_t nonZeroCnt = 0;
         uint64_t n = gAllAddrs.size() - 5000;
         while(likely(s<e)) {
             Addr *addr = *(s++);
             printf("%24.8f ", (1e-8)*addr->sum);
             showHex(addr->hash.v, kRIPEMD160ByteSize, false);
+            if(0<addr->sum) ++nonZeroCnt;
 
             if(n<i) {
                 uint8_t buf[64];
@@ -174,11 +200,19 @@ struct AllBalances:public Callback
             printf("\n");
             ++i;
         }
+
+        printf("found %" PRIu64 " addresses with non zero balance\n", nonZeroCnt);
+        printf("found %" PRIu64 " addresses\n", (uint64_t)gAllAddrs.size());
     }
 
-    virtual const char *name()
+    virtual const option::Descriptor *usage() const
     {
-        return "allBalances";
+        return usageDescriptor;
+    }
+
+    virtual const char *name() const
+    {
+        return CBNAME;
     }
 };
 

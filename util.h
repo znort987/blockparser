@@ -1,6 +1,7 @@
 #ifndef __UTIL_H__
     #define __UTIL_H__
 
+    #include <vector>
     #include <common.h>
     #include <rmd160.h>
     #include <sha256.h>
@@ -192,7 +193,8 @@
     );
 
     uint8_t fromHexDigit(
-        uint8_t h
+        uint8_t h,
+        bool abortOnErr = true
     );
 
     void fromHex(
@@ -241,11 +243,24 @@
     bool addrToHash160(
               uint8_t *hash160,
         const uint8_t *addr,
-                 bool checkHash = false
+                 bool checkHash = false,
+                 bool verbose = true
+    );
+
+    bool guessHash160(
+              uint8_t *hash160,
+        const uint8_t *addr
     );
 
     const uint8_t *loadKeyHash(
-        const uint8_t *hexHash = 0
+        const uint8_t *hexHash = 0,
+        bool verbose = false
+    );
+
+    void loadKeyList(
+        std::vector<uint160_t> &result,
+        const char *fileName,
+        bool verbose = false
     );
 
 #endif // __UTIL_H__

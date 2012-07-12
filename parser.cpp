@@ -15,7 +15,6 @@
 typedef GoogMap<Hash256, const uint8_t*, Hash256Hasher, Hash256Equal>::Map TXMap;
 typedef GoogMap<Hash256,         Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
 
-
 static bool gNeedTXHash;
 static Callback *gCallback;
 
@@ -387,29 +386,28 @@ int main(
     char    *argv[]
 )
 {
+    argv += (0<argc);
+    argc -= (0<argc);
+
     const char *homeDir = getenv("HOME");
     if(0==homeDir) {
         warning("could not getenv(\"HOME\"), using \".\" instead.");
         homeDir = ".";
     }
 
-    if(3<argc)
-        errFatal("usage: parser [[public key hash]\n");
-
-    const char *methodName = argv[1];
-    if(0==methodName) {
-        methodName = "simpleStats";
-        ++argc;
-        --argv;
+    const char *methodName = 0;
+    if(0<argc) {
+        methodName = argv[0];
+        ++argv;
+        --argc;
     }
 
+    if(0==methodName) methodName = "simpleStats";
     gCallback = Callback::find(methodName);
-    if(0==gCallback)
-        errFatal("unknown callback : %s\n", methodName);
+    if(0==gCallback) errFatal("unknown callback : %s\n", methodName);
 
-    int ir = gCallback->init(argc-2, argv+2);
-    if(ir<0)
-        errFatal("callback init failed");
+    int ir = gCallback->init(argc, argv);
+    if(ir<0) errFatal("callback init failed");
 
     double start = usecs();
     gNeedTXHash = gCallback->needTXHash();

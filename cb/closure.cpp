@@ -1,5 +1,5 @@
 
-// Dump the transitive closure of all addresses
+// Dump the transitive closure of a bunch of addresses
 
 #include <util.h>
 #include <common.h>
@@ -25,6 +25,7 @@ struct Closure:public Callback
 {
     double startTime;
     std::vector<uint64_t> vertices;
+    std::vector<uint160_t> rootHashes;
 
     virtual bool needTXHash()
     {
@@ -36,10 +37,9 @@ struct Closure:public Callback
         char *argv[]
     )
     {
-        bool ok = (0==argc || 1==argc);
-        if(!ok) return -1;
 
-        loadKeyHash((const uint8_t*)argv[0]);
+        loadKeyList(rootHashes, argv[0]);
+        if(0==rootHashes.size()) errFatal("no addresses to work from");
         return 0;
     }
 
@@ -115,31 +115,30 @@ struct Closure:public Callback
             (int)nbCC
         );
 
-        const uint8_t *keyHash = loadKeyHash();
+        auto e = rootHashes.end();
+        auto i = rootHashes.begin();
+        while(e!=i) {
+            const uint8_t *keyHash = (i++)->v;
 
-        printf("Address cluster for address ");
-        showHex(keyHash, sizeof(uint160_t), false);
-        printf(":\n");
+            printf("Address cluster for address ");
+            showHex(keyHash, sizeof(uint160_t), false);
+            printf(":\n");
 
-        auto i = gAddrMap.find(keyHash);
-        if(unlikely(gAddrMap.end()==i))
-            warning("specified key was not found");
+            auto j = gAddrMap.find(keyHash);
+            if(unlikely(gAddrMap.end()==j))
+                warning("specified key was never used in a TX output");
 
-        uint64_t addrIndex = i->second;
-        uint64_t homeComponentIndex = cc[addrIndex];
-        for(size_t i=0; likely(i<cc.size()); ++i) {
-            uint64_t componentIndex = cc[i];
-            if(unlikely(homeComponentIndex==componentIndex)) {
-
-                Addr *addr = gAllAddrs[i];
-
-                uint8_t b58[128];
-                hash160ToAddr(b58, addr->v);
-                printf("%s ", b58);
-
-                showHex(addr->v, sizeof(uint160_t), false);
-                printf("\n");
-
+            uint64_t addrIndex = j->second;
+            uint64_t homeComponentIndex = cc[addrIndex];
+            for(size_t k=0; likely(k<cc.size()); ++k) {
+                uint64_t componentIndex = cc[k];
+                if(unlikely(homeComponentIndex==componentIndex)) {
+                    uint8_t b58[128];
+                    Addr *addr = gAllAddrs[k];
+                    showHex(addr->v, sizeof(uint160_t), false);
+                    hash160ToAddr(b58, addr->v);
+                    printf(" %s\n", b58);
+                }
             }
         }
     }
@@ -166,7 +165,12 @@ struct Closure:public Callback
         }
     }
 
-    virtual const char *name()
+    virtual const option::Descriptor *usage() const
+    {
+        return 0;
+    }
+
+    virtual const char *name() const
     {
         return "closure";
     }

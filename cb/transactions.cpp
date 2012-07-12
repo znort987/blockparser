@@ -1,16 +1,35 @@
 
 // Dump all transactions affecting a specific address
 
+#include <time.h>
 #include <util.h>
+#include <vector>
 #include <common.h>
 #include <rmd160.h>
 #include <string.h>
+#include <errlog.h>
 #include <callback.h>
+
+#define CBNAME "transactions"
+enum  optionIndex { kUnknown, kPlus };
+static const option::Descriptor usageDescriptor[] =
+{
+    { kUnknown, 0, "",      "", option::Arg::None,                       CBNAME ":\n" },
+    { 0,        0,  0,  0,                 0,        0     }
+};
+
+typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map AddrMap;
+static uint8_t emptyKey[kRIPEMD160ByteSize] = { 0x52 };
 
 struct Transactions:public Callback
 {
     uint64_t sum;
+    uint64_t adds;
+    uint64_t subs;
     uint64_t nbTX;
+    uint64_t bTime;
+    AddrMap addrMap;
+    std::vector<uint160_t> rootHashes;
 
     virtual bool needTXHash()
     {
@@ -23,11 +42,29 @@ struct Transactions:public Callback
     )
     {
         sum = 0;
+        adds = 0;
+        subs = 0;
+        nbTX = 0;
 
-        bool ok = (0==argc || 1==argc);
-        if(!ok) return -1;
+        option::Stats  stats(usageDescriptor, argc, argv);
+        option::Option *buffer  = new option::Option[stats.buffer_max];
+        option::Option *options = new option::Option[stats.options_max];
+        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
+        if(parse.error()) exit(1);
 
-        loadKeyHash((const uint8_t*)argv[0]);
+        for(int i=0; i<parse.nonOptionsCount(); ++i) loadKeyList(rootHashes, parse.nonOption(i));
+        if(0==rootHashes.size()) errFatal("no addresses to work with");
+
+        auto e = rootHashes.end();
+        auto i = rootHashes.begin();
+        addrMap.setEmptyKey(emptyKey);
+        while(e!=i) {
+            const uint160_t &h = *(i++);
+            addrMap[h.v] = 1;
+        }
+
+        delete [] options;
+        delete [] buffer;
         return 0;
     }
 
@@ -41,17 +78,34 @@ struct Transactions:public Callback
     )
     {
         uint8_t addrType[3];
-        uint8_t pubKeyHash[kRIPEMD160ByteSize];
-        int type = solveOutputScript(pubKeyHash, script, scriptSize, addrType);
+        uint160_t pubKeyHash;
+        int type = solveOutputScript(pubKeyHash.v, script, scriptSize, addrType);
         if(unlikely(type<0))
             return;
 
-        const uint8_t *targetKeyHash = loadKeyHash();
-        bool match = (0==memcmp(targetKeyHash, pubKeyHash, sizeof(pubKeyHash)));
+        bool match = (addrMap.end() != addrMap.find(pubKeyHash.v));
         if(unlikely(match)) {
 
             printf("    ");
+
+            struct tm gmTime;
+            time_t blockTime = bTime;
+            gmtime_r(&blockTime, &gmTime);
+
+            char timeBuf[256];
+            asctime_r(&gmTime, timeBuf);
+
+            size_t sz =strlen(timeBuf);
+            if(0<sz) timeBuf[sz-1] = 0;
+            printf("%s    ", timeBuf);
+
+            showHex(pubKeyHash.v, kRIPEMD160ByteSize, false);
+
+            printf("    ");
             showHex(downTXHash ? downTXHash : txHash);
+
+            if(add) adds += value;
+            else    subs += value;
 
             int64_t newSum = sum + value*(add ? 1 : -1);
             printf(
@@ -106,20 +160,25 @@ struct Transactions:public Callback
         );
     }
 
+    virtual void startBlock(
+        const Block *b
+    )
+    {
+        const uint8_t *p = b->data;
+        SKIP(uint32_t, version, p);
+        SKIP(uint256_t, prevBlkHash, p);
+        SKIP(uint256_t, blkMerkleRoot, p);
+        LOAD(uint32_t, blkTime, p);
+        bTime = blkTime;
+    }
+
     virtual void startMap(
         const uint8_t *p
     )
     {
-
-        printf("Dumping all transactions for address ");
-        showHex(loadKeyHash(), kRIPEMD160ByteSize, false);
-
-        uint8_t b58[128];
-        hash160ToAddr(b58, loadKeyHash());
-        printf(" %s\n\n", b58);
-
-        printf("    Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
-        printf("    ===============================================================================================================================================\n");
+        printf("Dumping all transactions for %d addresse(s) -- times are GMT\n\n", (int)rootHashes.size());
+        printf("    Time                        Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
+        printf("    =======================================================================================================================================================================================================================\n");
     }
 
     virtual void endMap(
@@ -127,18 +186,28 @@ struct Transactions:public Callback
     )
     {
         printf(
-            "    ===============================================================================================================================================\n"
+            "    =======================================================================================================================================================================================================================\n"
             "\n"
-            "    %" PRIu64 " transactions, final balance = %.08f\n"
+            "    transactions  = %" PRIu64 "\n"
+            "    received      = %17.08f\n"
+            "    spent         = %17.08f\n"
+            "    balance       = %17.08f\n"
             "\n",
             nbTX,
+            adds*1e-8,
+            subs*1e-8,
             sum*1e-8
         );
     }
 
-    virtual const char *name()
+    virtual const option::Descriptor *usage() const
     {
-        return "transactions";
+        return usageDescriptor;
+    }
+
+    virtual const char *name() const
+    {
+        return CBNAME;
     }
 };
 

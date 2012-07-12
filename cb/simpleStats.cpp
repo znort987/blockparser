@@ -44,7 +44,6 @@ struct SimpleStats:public Callback
         char *argv[]
     )
     {
-        if(0!=argc) return -1;
         return 0;
     }
 
@@ -103,7 +102,12 @@ struct SimpleStats:public Callback
     virtual void  startOutput(const uint8_t *p                     ) { ++nbOutputs;     }
     virtual void   startBlock(  const Block *b                     ) { ++nbValidBlocks; }
 
-    virtual const char *name()
+    virtual const option::Descriptor *usage() const
+    {
+        return 0;
+    }
+
+    virtual const char *name() const
     {
         return "simpleStats";
     }

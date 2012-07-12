@@ -2,12 +2,14 @@
     #define __CALLBACK_H__
 
     #include <common.h>
+    #include <option.h>
 
     struct Block;
     struct Callback
     {
         Callback();
-        virtual const char  *name() = 0;
+        virtual const char                *name() const = 0;
+        virtual const option::Descriptor *usage() const = 0;
 
         virtual int          init(int argc, char *argv[]               ) { return 0;     }
         virtual bool   needTXHash(                                     ) { return false; }
@@ -52,6 +54,7 @@
         {
         }
 
+        static void showAllHelps();
         static Callback *find(const char *name);
     };
 

@@ -17,6 +17,15 @@
 const uint8_t hexDigits[] = "0123456789abcdef";
 const uint8_t b58Digits[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
+template<> uint8_t *PagedAllocator<Block>::pool = 0;
+template<> uint8_t *PagedAllocator<Block>::poolEnd = 0;
+
+template<> uint8_t *PagedAllocator<uint256_t>::pool = 0;
+template<> uint8_t *PagedAllocator<uint256_t>::poolEnd = 0;
+
+template<> uint8_t *PagedAllocator<uint160_t>::pool = 0;
+template<> uint8_t *PagedAllocator<uint160_t>::poolEnd = 0;
+
 double usecs()
 {
     struct timeval t;
@@ -64,13 +73,14 @@ void showHex(
 }
 
 uint8_t fromHexDigit(
-    uint8_t h
+    uint8_t h,
+    bool abortOnErr
 )
 {
     if(likely('0'<=h && h<='9')) return      (h - '0');
     if(likely('a'<=h && h<='f')) return 10 + (h - 'a');
     if(likely('A'<=h && h<='F')) return 10 + (h - 'A');
-    errFatal("incorrect hex digit %c", h);
+    if(abortOnErr) errFatal("incorrect hex digit %c", h);
     return 0xff;
 }
 
@@ -281,13 +291,14 @@ uint8_t fromB58Digit(
 bool addrToHash160(
           uint8_t *hash160,
     const uint8_t *addr,
-             bool checkHash
+             bool checkHash,
+             bool verbose
 )
 {
     bool ok = ('1'==addr[0] || '3'==addr[0]);
     if(unlikely(!ok))
     {
-        warning("unknonw address type %s\n", addr);
+        if(verbose) warning("unknown address type %s\n", addr);
         return false;
     }
     ++addr;
@@ -440,13 +451,89 @@ void hash160ToAddr(
     }
 }
 
-template<> uint8_t *PagedAllocator<Block>::pool = 0;
-template<> uint8_t *PagedAllocator<Block>::poolEnd = 0;
+bool guessHash160(
+          uint8_t *hash160,
+    const uint8_t *addr,
+             bool verbose
+)
+{
+    const uint8_t *p = addr;
+    while(1) {
+        uint8_t c = *p;
+        uint8_t h = fromHexDigit(c, false);
+        if(0xff==h) break;
+        ++p;
+    }
 
-template<> uint8_t *PagedAllocator<uint256_t>::pool = 0;
-template<> uint8_t *PagedAllocator<uint256_t>::poolEnd = 0;
+    ptrdiff_t size = p - addr;
+    if(2*kRIPEMD160ByteSize==size) {
+        fromHex(hash160, addr, kRIPEMD160ByteSize, false);
+        return true;
+    }
 
-template<> uint8_t *PagedAllocator<uint160_t>::pool = 0;
-template<> uint8_t *PagedAllocator<uint160_t>::poolEnd = 0;
+    return addrToHash160(hash160, addr, true, verbose);
+}
 
+static bool addAddr(
+    std::vector<uint160_t> &result,
+    const uint8_t *buf,
+    bool verbose
+)
+{
+    uint160_t h160;
+    bool ok = guessHash160(h160.v, buf, verbose);
+    if(ok) result.push_back(h160);
+    return ok;
+}
+
+void loadKeyList(
+    std::vector<uint160_t> &result,
+    const char *str,
+    bool verbose
+)
+{
+    bool isFile = (
+        'f'==str[0] &&
+        'i'==str[1] &&
+        'l'==str[2] &&
+        'e'==str[3] &&
+        ':'==str[4]
+    );
+    if(!isFile) {
+        addAddr(result, (uint8_t*)str, true);
+        return;
+    }
+
+    const char *fileName = 5+str;
+    FILE *f = fopen(fileName, "r");
+    if(!f) {
+        warning("couldn't open %s for reading\n", fileName);
+        return;
+    }
+
+    size_t lineCount = 0;
+    while(1) {
+
+        char buf[1024];
+        char *r = fgets(buf, sizeof(buf), f);
+        if(r==0) break;
+        ++lineCount;
+
+        size_t sz = strlen(buf);
+        if('\n'==buf[sz-1]) buf[sz-1] = 0;
+
+        uint160_t h160;
+        bool ok = addAddr(result, (uint8_t*)buf, verbose);
+        if(!ok && verbose) {
+            warning(
+                "in file %s, line %d, %s is not an address\n",
+                fileName,
+                lineCount,
+                buf
+            );
+        }
+
+    }
+    fclose(f);
+}
 

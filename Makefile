@@ -31,13 +31,20 @@ COPT =                          \
         -Wno-unused-parameter   \
 
 LOPT =                          \
-        -s                      \
+    -s                          \
 
 LIBS =                          \
     -lcrypto                    \
     -ldl                        \
 
 all:parser
+
+.objs/callback.o : callback.cpp
+	@echo c++ -- callback.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c callback.cpp -o .objs/callback.o
+	@mv .objs/callback.d .deps
 
 .objs/allBalances.o : cb/allBalances.cpp
 	@echo c++ -- cb/allBalances.cpp
@@ -52,6 +59,13 @@ all:parser
 	@mkdir -p .objs
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/closure.cpp -o .objs/closure.o
 	@mv .objs/closure.d .deps
+
+.objs/help.o : cb/help.cpp
+	@echo c++ -- cb/help.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/help.cpp -o .objs/help.o
+	@mv .objs/help.d .deps
 
 .objs/simpleStats.o : cb/simpleStats.cpp
 	@echo c++ -- cb/simpleStats.cpp
@@ -73,13 +87,6 @@ all:parser
 	@mkdir -p .objs
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/transactions.cpp -o .objs/transactions.o
 	@mv .objs/transactions.d .deps
-
-.objs/callback.o : callback.cpp
-	@echo c++ -- callback.cpp
-	@mkdir -p .deps
-	@mkdir -p .objs
-	@${CPLUS} -MD ${INC} ${COPT}  -c callback.cpp -o .objs/callback.o
-	@mv .objs/callback.d .deps
 
 .objs/opcodes.o : opcodes.cpp
 	@echo c++ -- opcodes.cpp
@@ -117,12 +124,13 @@ all:parser
 	@mv .objs/util.d .deps
 
 OBJS=                       \
+    .objs/callback.o        \
     .objs/allBalances.o     \
     .objs/closure.o         \
+    .objs/help.o            \
     .objs/simpleStats.o     \
     .objs/taint.o           \
     .objs/transactions.o    \
-    .objs/callback.o        \
     .objs/opcodes.o         \
     .objs/parser.o          \
     .objs/rmd160.o          \

@@ -129,7 +129,12 @@ struct Taint:public Callback
         txTotal += value;
     }
 
-    virtual const char *name()
+    virtual const option::Descriptor *usage() const
+    {
+        return 0;
+    }
+
+    virtual const char *name() const
     {
         return "taint";
     }

@@ -99,7 +99,7 @@ struct Transactions:public Callback
                 showHex(downTXHash ? downTXHash : txHash);
                 printf(
                     "\",%17.08f,%17.08f\n",
-                    (add ? -1e-8 : 1e-8)*value,
+                    (add ? 1e-8 : -1e-8)*value,
                     newSum*1e-8
                 );
             } else {

@@ -11,19 +11,20 @@
 #include <callback.h>
 
 #define CBNAME "transactions"
-enum  optionIndex { kUnknown, kPlus };
+enum  optionIndex { kUnknown, kCSV };
 static const option::Descriptor usageDescriptor[] =
 {
-    { kUnknown, 0, "",      "", option::Arg::None,                       CBNAME ":\n" },
-    { kPlus,    0, "p", "plus", option::Arg::None, "  --plus, -p    Increment count." },
-    { 0,        0,  0,  0,                 0,        0     }
+    { kUnknown, 0, "",    "", option::Arg::None,                               CBNAME ":\n" },
+    { kCSV,     0, "", "csv", option::Arg::None, "--csv      Dump CSV instead of formatted" },
+    { 0,        0,  0,     0,                 0,                                          0 }
 };
 
-typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map AddrMap;
 static uint8_t emptyKey[kRIPEMD160ByteSize] = { 0x52 };
+typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map AddrMap;
 
 struct Transactions:public Callback
 {
+    bool csv;
     uint64_t sum;
     uint64_t adds;
     uint64_t subs;
@@ -52,6 +53,8 @@ struct Transactions:public Callback
         option::Option *options = new option::Option[stats.options_max];
         option::Parser parse(usageDescriptor, argc, argv, options, buffer);
         if(parse.error()) exit(1);
+
+        csv = (0<options[kCSV].count());
 
         for(int i=0; i<parse.nonOptionsCount(); ++i) loadKeyList(rootHashes, parse.nonOption(i));
         if(0==rootHashes.size()) errFatal("no addresses to work with");
@@ -87,35 +90,46 @@ struct Transactions:public Callback
         bool match = (addrMap.end() != addrMap.find(pubKeyHash.v));
         if(unlikely(match)) {
 
-            printf("    ");
-
-            struct tm gmTime;
-            time_t blockTime = bTime;
-            gmtime_r(&blockTime, &gmTime);
-
-            char timeBuf[256];
-            asctime_r(&gmTime, timeBuf);
-
-            size_t sz =strlen(timeBuf);
-            if(0<sz) timeBuf[sz-1] = 0;
-            printf("%s    ", timeBuf);
-
-            showHex(pubKeyHash.v, kRIPEMD160ByteSize, false);
-
-            printf("    ");
-            showHex(downTXHash ? downTXHash : txHash);
-
-            if(add) adds += value;
-            else    subs += value;
-
             int64_t newSum = sum + value*(add ? 1 : -1);
-            printf(
-                " %24.08f %c %24.08f = %24.08f\n",
-                sum*1e-8,
-                add ? '+' : '-',
-                value*1e-8,
-                newSum*1e-8
-            );
+
+            if(csv) {
+                printf("%10" PRIu64 ", \"", bTime/86400 + 25569);
+                showHex(downTXHash ? downTXHash : txHash);
+                printf("\", \"");
+                showHex(downTXHash ? downTXHash : txHash);
+                printf(
+                    "\",%17.08f,%17.08f\n",
+                    (add ? -1e-8 : 1e-8)*value,
+                    newSum*1e-8
+                );
+            } else {
+
+                struct tm gmTime;
+                time_t blockTime = bTime;
+                gmtime_r(&blockTime, &gmTime);
+
+                char timeBuf[256];
+                asctime_r(&gmTime, timeBuf);
+
+                size_t sz =strlen(timeBuf);
+                if(0<sz) timeBuf[sz-1] = 0;
+
+                printf("    %s    ", timeBuf);
+                showHex(pubKeyHash.v, kRIPEMD160ByteSize, false);
+
+                printf("    ");
+                showHex(downTXHash ? downTXHash : txHash);
+
+                printf(
+                    " %24.08f %c %24.08f = %24.08f\n",
+                    sum*1e-8,
+                    add ? '+' : '-',
+                    value*1e-8,
+                    newSum*1e-8
+                );
+            }
+
+            (add ? adds : subs) += value;
             sum = newSum;
             ++nbTX;
         }
@@ -177,28 +191,42 @@ struct Transactions:public Callback
         const uint8_t *p
     )
     {
-        printf("Dumping all transactions for %d addresse(s)\n\n", (int)rootHashes.size());
-        printf("    Time (GMT)                  Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
-        printf("    =======================================================================================================================================================================================================================\n");
+        if(csv) {
+            printf(
+                "    \"Time\","
+                " \"Address\","
+                "                                                          \"TXId\","
+                "                                                                   \"TXAmount\","
+                "     \"NewBalance\""
+                "\n"
+            );
+        }
+        else {
+            printf("Dumping all transactions for %d addresse(s)\n\n", (int)addrMap.size());
+            printf("    Time (GMT)                  Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
+            printf("    =======================================================================================================================================================================================================================\n");
+        }
     }
 
     virtual void endMap(
         const uint8_t *p
     )
     {
-        printf(
-            "    =======================================================================================================================================================================================================================\n"
-            "\n"
-            "    transactions  = %" PRIu64 "\n"
-            "    received      = %17.08f\n"
-            "    spent         = %17.08f\n"
-            "    balance       = %17.08f\n"
-            "\n",
-            nbTX,
-            adds*1e-8,
-            subs*1e-8,
-            sum*1e-8
-        );
+        if(false==csv) {
+            printf(
+                "    =======================================================================================================================================================================================================================\n"
+                "\n"
+                "    transactions  = %" PRIu64 "\n"
+                "    received      = %17.08f\n"
+                "    spent         = %17.08f\n"
+                "    balance       = %17.08f\n"
+                "\n",
+                nbTX,
+                adds*1e-8,
+                subs*1e-8,
+                sum*1e-8
+            );
+        }
     }
 
     virtual const option::Descriptor *usage() const

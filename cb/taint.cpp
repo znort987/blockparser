@@ -27,6 +27,7 @@
 #include <common.h>
 #include <errlog.h>
 #include <callback.h>
+
 typedef long double Number;
 typedef GoogMap<Hash256, Number, Hash256Hasher, Hash256Equal >::Map TaintMap;
 
@@ -74,9 +75,7 @@ struct Taint:public Callback
         return 0;
     }
 
-    virtual void endMap(
-        const uint8_t *p
-    )
+    virtual void wrapup()
     {
         printf("\n");
         printf("found %" PRIu64 " tainted transactions.\n", (uint64_t)taintMap.size());

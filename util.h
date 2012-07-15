@@ -1,6 +1,7 @@
 #ifndef __UTIL_H__
     #define __UTIL_H__
 
+    #include <string>
     #include <vector>
     #include <common.h>
     #include <rmd160.h>
@@ -261,6 +262,10 @@
         std::vector<uint160_t> &result,
         const char *fileName,
         bool verbose = false
+    );
+
+    std::string pr128(
+        const uint128_t &y
     );
 
 #endif // __UTIL_H__

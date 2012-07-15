@@ -1,32 +1,13 @@
 
 // Very simple blockchain stats
 
-#include <string>
 #include <util.h>
 #include <common.h>
 #include <callback.h>
 
-static std::string pr128(
-    const uint128_t &y
-)
-{
-    static char result[1024];
-    char *p = 1023+result;
-    *(p--) = 0;
-
-    uint128_t x = y;
-    while(1) {
-        *(p--) = (char)((x % 10) + '0');
-        if(unlikely(0==x)) break;
-        x /= 10;
-    }
-    ++p;
-
-    return std::string(p[0]!='0' ? p : (1022+result==p) ? p : p+1);
-}
-
 struct SimpleStats:public Callback
 {
+    uint128_t nbMaps;
     uint128_t volume;
     uint128_t nbBlocks;
     uint128_t nbInputs;
@@ -44,19 +25,14 @@ struct SimpleStats:public Callback
         char *argv[]
     )
     {
-        return 0;
-    }
-
-    virtual void startMap(
-        const uint8_t *p
-    )
-    {
+        nbMaps = 0;
         volume = 0;
         nbBlocks = 0;
         nbInputs = 0;
         nbOutputs = 0;
         nbValidBlocks = 0;
         nbTransactions = 0;
+        return 0;
     }
 
     virtual void endOutput(
@@ -71,15 +47,14 @@ struct SimpleStats:public Callback
         volume += value;
     }
 
-    virtual void endMap(
-        const uint8_t *p
-    )
+    virtual void wrapup()
     {
         printf("\n");
         #define P(x) (pr128(x).c_str())
+            printf("    nbMaps = %s\n", P(nbMaps));
             printf("    nbBlocks = %s\n", P(nbBlocks));
             printf("    nbValidBlocks = %s\n", P(nbValidBlocks));
-            printf("    nbOrphanedBlocks in file = %s\n", P(nbBlocks - nbValidBlocks));
+            printf("    nbOrphanedBlocks in maps = %s\n", P(nbBlocks - nbValidBlocks));
             printf("\n");
 
             printf("    nbInputs = %s\n", P(nbInputs));
@@ -96,6 +71,7 @@ struct SimpleStats:public Callback
         #undef P
     }
 
+    virtual void     startMap(const uint8_t *p                     ) { ++nbMaps;        }
     virtual void   startBlock(const uint8_t *p                     ) { ++nbBlocks;      }
     virtual void      startTX(const uint8_t *p, const uint8_t *hash) { ++nbTransactions;}
     virtual void   startInput(const uint8_t *p                     ) { ++nbInputs;      }

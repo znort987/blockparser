@@ -39,16 +39,17 @@ struct CompareAddr
     }
 };
 
-typedef GoogMap<Hash160, Addr*, Hash160Hasher, Hash160Equal>::Map AddrMap;
 static uint8_t emptyKey[kRIPEMD160ByteSize] = { 0x52 };
-static std::vector<Addr*> gAllAddrs;
-static AddrMap gAddrMap;
-
-static const uint8_t *gLastBlock;
-static const uint8_t *gFirstBlock;
+typedef GoogMap<Hash160, Addr*, Hash160Hasher, Hash160Equal>::Map AddrMap;
 
 struct AllBalances:public Callback
 {
+    AddrMap addrMap;
+    const Block *curBlock;
+    const Block *lastBlock;
+    const Block *firstBlock;
+    std::vector<Addr*> allAddrs;
+
     virtual bool needTXHash()
     {
         return true;
@@ -59,34 +60,23 @@ struct AllBalances:public Callback
         char *argv[]
     )
     {
+        curBlock = 0;
+        lastBlock = 0;
+        firstBlock = 0;
+
+        addrMap.setEmptyKey(emptyKey);
+        addrMap.resize(15 * 1000 * 1000);
+        allAddrs.reserve(15 * 1000 * 1000);
+
         option::Stats  stats(usageDescriptor, argc, argv);
         option::Option *buffer  = new option::Option[stats.buffer_max];
         option::Option *options = new option::Option[stats.options_max];
         option::Parser parse(usageDescriptor, argc, argv, options, buffer);
-
-        if(parse.error())
-            exit(1);
+        if(parse.error()) exit(1);
 
         delete [] options;
         delete [] buffer;
         return 0;
-    }
-
-    virtual void startMap(
-        const uint8_t *p
-    )
-    {
-        gFirstBlock = p;
-        gAddrMap.setEmptyKey(emptyKey);
-        gAddrMap.resize(15 * 1000 * 1000);
-        gAllAddrs.reserve(15 * 1000 * 1000);
-    }
-
-    virtual void endBlock(
-        const uint8_t *p
-    )
-    {
-        gLastBlock = p;
     }
 
     void move(
@@ -104,16 +94,16 @@ struct AllBalances:public Callback
             return;
 
         Addr *addr;
-        auto i = gAddrMap.find(pubKeyHash.v);
-        if(unlikely(gAddrMap.end()!=i))
+        auto i = addrMap.find(pubKeyHash.v);
+        if(unlikely(addrMap.end()!=i))
             addr = i->second;
         else {
             addr = allocAddr();
             memcpy(addr->hash.v, pubKeyHash.v, kRIPEMD160ByteSize);
             addr->sum = 0;
 
-            gAddrMap[addr->hash.v] = addr;
-            gAllAddrs.push_back(addr);
+            addrMap[addr->hash.v] = addr;
+            allAddrs.push_back(addr);
         }
 
         addr->sum += value;
@@ -121,16 +111,25 @@ struct AllBalances:public Callback
         static uint64_t cnt = 0;
         if(unlikely(0==((cnt++)&0xFFFFF))) {
 
-            double progress = (script-gFirstBlock)/(double)(gLastBlock-gFirstBlock);
-            printf(
-                "%8.3f MMoves , "
-                "%8.3f MAddrs , "
-                "%5.2f%%"
-                "\n",
-                cnt*1e-6,
-                gAddrMap.size()*1e-6,
-                100.0*progress
-            );
+            if(
+                curBlock   &&
+                lastBlock  &&
+                firstBlock
+            )
+            {
+                double progress = curBlock->height/(double)lastBlock->height;
+                printf(
+                    "%8" PRIu64 " blocks, "
+                    "%8.3f MMoves , "
+                    "%8.3f MAddrs , "
+                    "%5.2f%%"
+                    "\n",
+                    curBlock->height,
+                    cnt*1e-6,
+                    addrMap.size()*1e-6,
+                    100.0*progress
+                );
+            }
         }
     }
 
@@ -172,20 +171,18 @@ struct AllBalances:public Callback
         );
     }
 
-    virtual void endMap(
-        const uint8_t *p
-    )
+    virtual void wrapup()
     {
         printf("sorting by balance ...\n");
 
         CompareAddr compare;
-        auto e = gAllAddrs.end();
-        auto s = gAllAddrs.begin();
+        auto e = allAddrs.end();
+        auto s = allAddrs.begin();
         std::sort(s, e, compare);
 
         uint64_t i = 0;
         uint64_t nonZeroCnt = 0;
-        uint64_t n = gAllAddrs.size() - 5000;
+        uint64_t n = allAddrs.size() - 5000;
         while(likely(s<e)) {
             Addr *addr = *(s++);
             printf("%24.8f ", (1e-8)*addr->sum);
@@ -202,7 +199,23 @@ struct AllBalances:public Callback
         }
 
         printf("found %" PRIu64 " addresses with non zero balance\n", nonZeroCnt);
-        printf("found %" PRIu64 " addresses\n", (uint64_t)gAllAddrs.size());
+        printf("found %" PRIu64 " addresses\n", (uint64_t)allAddrs.size());
+    }
+
+    virtual void start(
+        const Block *s,
+        const Block *e
+    )
+    {
+        firstBlock = s;
+        lastBlock = e;
+    }
+
+    virtual void startBlock(
+        const Block *b
+    )
+    {
+        curBlock = b;
     }
 
     virtual const option::Descriptor *usage() const

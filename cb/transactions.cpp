@@ -187,8 +187,9 @@ struct Transactions:public Callback
         bTime = blkTime;
     }
 
-    virtual void startMap(
-        const uint8_t *p
+    virtual void start(
+        const Block *,
+        const Block *
     )
     {
         if(csv) {
@@ -208,9 +209,7 @@ struct Transactions:public Callback
         }
     }
 
-    virtual void endMap(
-        const uint8_t *p
-    )
+    virtual void wrapup()
     {
         if(false==csv) {
             printf(

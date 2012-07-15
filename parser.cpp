@@ -5,6 +5,7 @@
 #include <callback.h>
 
 #include <string>
+#include <vector>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,22 +13,31 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+struct Map
+{
+    int fd;
+    uint64_t size;
+    const uint8_t *p;
+    std::string name;
+};
+
 typedef GoogMap<Hash256, const uint8_t*, Hash256Hasher, Hash256Equal>::Map TXMap;
 typedef GoogMap<Hash256,         Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
 
 static bool gNeedTXHash;
 static Callback *gCallback;
 
+static const Map *gCurMap;
+static std::vector<Map> mapVec;
+
 static TXMap gTXMap;
 static BlockMap gBlockMap;
+static uint8_t empty[kSHA256ByteSize] = { 0x42 };
 
 static Block *gMaxBlock;
 static Block *gNullBlock;
 static uint64_t gMaxHeight;
 static uint256_t gNullHash;
-
-static const uint8_t *gMapEnd;
-static const uint8_t *gMapStart;
 
 #define DO(x) x
 
@@ -42,6 +52,7 @@ static const uint8_t *gMapStart;
     static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p)); }
     static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));   }
     static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));  }
+    static inline void        start(const Block *s, const Block *e)        { DO(gCallback->start(s, e));     }
 
 #undef DO
 
@@ -301,6 +312,8 @@ static void parseBlock(
 static void parseLongestChain()
 {
     Block *blk = gNullBlock->next;
+
+    start(blk, gMaxBlock);
     while(blk) {
         parseBlock(blk);
         blk = blk->next;
@@ -328,7 +341,7 @@ static void parseBlock(
         LOAD(uint32_t, magic, p);
         LOAD(uint32_t, size, p);
         if(unlikely(0xd9b4bef9!=magic))
-            errFatal("at offset %" SCNuPTR " should have found block magic.", p - gMapStart);
+            errFatal("at offset %" SCNuPTR " should have found block magic.", p - gCurMap->p);
 
         auto i = gBlockMap.find(p+4);
         if(unlikely(gBlockMap.end()==i))
@@ -354,46 +367,13 @@ static void parseBlock(
     endBlock(p);
 }
 
-static void parseAllBlocks(
-    const uint8_t *&p
-)
-{
-    gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
-    gNullBlock->height = -1;
-    gNullBlock->prev = 0;
-    gNullBlock->next = 0;
-    gNullBlock->data = 0;
-
-    while(unlikely(p<gMapEnd))
-        parseBlock(p);
-}
-
-static void parseMap(
-    const uint8_t *&p
-)
-{
-    startMap(p);
-
-        parseAllBlocks(p);
-        findLongestChain();
-        parseLongestChain();
-
-    endMap(p);
-}
-
-int main(
+static void initCallback(
     int     argc,
     char    *argv[]
 )
 {
     argv += (0<argc);
     argc -= (0<argc);
-
-    const char *homeDir = getenv("HOME");
-    if(0==homeDir) {
-        warning("could not getenv(\"HOME\"), using \".\" instead.");
-        homeDir = ".";
-    }
 
     const char *methodName = 0;
     if(0<argc) {
@@ -402,67 +382,150 @@ int main(
         --argc;
     }
 
-    if(0==methodName) methodName = "simpleStats";
+    if(0==methodName) methodName = "help";
     gCallback = Callback::find(methodName);
     if(0==gCallback) errFatal("unknown callback : %s\n", methodName);
 
     int ir = gCallback->init(argc, argv);
     if(ir<0) errFatal("callback init failed");
-
-    double start = usecs();
     gNeedTXHash = gCallback->needTXHash();
-    printf("\nStarting method \"%s\" on whole block chain\n\n", methodName);
 
-    std::string blockMapFileName = homeDir + std::string("/.bitcoin/blk0001.dat");
-    int blockMapFD = open(blockMapFileName.c_str(), O_DIRECT | O_RDONLY);
-    if(blockMapFD<0)
-        sysErrFatal(
-            "failed to open block chain file %s",
-            blockMapFileName.c_str()
-        );
+    printf(
+        "\n"
+        "Starting method \"%s\" on whole block chain\n"
+        "\n",
+        methodName
+    );
+}
 
-    struct stat statBuf;
-    int r = fstat(blockMapFD, &statBuf);
-    if(r<0)
-        sysErrFatal(
-            "failed to fstat block chain file %s",
-            blockMapFileName.c_str()
-        );
+static void mapBlockChainFiles()
+{
+    const char *homeDir = getenv("HOME");
+    if(0==homeDir) {
+        warning("could not getenv(\"HOME\"), using \".\" instead.");
+        homeDir = ".";
+    }
 
-    size_t mapSize = statBuf.st_size;
-    void *pMap = mmap(0, mapSize, PROT_READ, MAP_PRIVATE, blockMapFD, 0);
-    if(((void*)-1)==pMap)
-        sysErrFatal(
-            "failed to mmap block chain file %s",
-            blockMapFileName.c_str()
-        );
+    int blkDatId = 0;
+    while(1) {
 
-    static uint8_t empty[kSHA256ByteSize] = { 0x42 };
-    gBlockMap.setEmptyKey(empty);
+        char buf[64];
+        sprintf(buf, "%04d", ++blkDatId);
+
+        std::string blockMapFileName =
+            homeDir                      +
+            std::string("/.bitcoin/blk") +
+            std::string(buf)             +
+            std::string(".dat");
+
+        int blockMapFD = open(blockMapFileName.c_str(), O_DIRECT | O_RDONLY);
+        if(blockMapFD<0) {
+            if(1<blkDatId) break;
+            sysErrFatal(
+                "failed to open block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
+
+        struct stat statBuf;
+        int r = fstat(blockMapFD, &statBuf);
+        if(r<0) sysErrFatal( "failed to fstat block chain file %s", blockMapFileName.c_str());
+
+        size_t mapSize = statBuf.st_size;
+        void *pMap = mmap(0, mapSize, PROT_READ, MAP_PRIVATE, blockMapFD, 0);
+        if(((void*)-1)==pMap) sysErrFatal( "failed to mmap block chain file %s", blockMapFileName.c_str());
+
+        Map map;
+        map.size = mapSize;
+        map.fd = blockMapFD;
+        map.name = blockMapFileName;
+        map.p = (const uint8_t*)pMap;
+        mapVec.push_back(map);
+    }
+}
+
+static void initHashtables()
+{
     gTXMap.setEmptyKey(empty);
+    gBlockMap.setEmptyKey(empty);
 
+    auto e = mapVec.end();
+    uint64_t totalSize = 0;
+    auto i = mapVec.begin();
+    while(i!=e) totalSize += (i++)->size;
 
     double txPerBytes = (3976774.0 / 1713189944.0);
-    size_t nbTxEstimate = (1.5 * txPerBytes * mapSize);
+    size_t nbTxEstimate = (1.5 * txPerBytes * totalSize);
     gTXMap.resize(nbTxEstimate);
 
     double blocksPerBytes = (184284.0 / 1713189944.0);
-    size_t nbBlockEstimate = (1.5 * blocksPerBytes * mapSize);
+    size_t nbBlockEstimate = (1.5 * blocksPerBytes * totalSize);
     gBlockMap.resize(nbBlockEstimate);
+}
 
-    const uint8_t *p = gMapStart = (const uint8_t*)pMap;
-    gMapEnd = mapSize + gMapStart;
-    parseMap(p);
+static void firstPass()
+{
+    gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
+    gNullBlock->height = -1;
+    gNullBlock->prev = 0;
+    gNullBlock->next = 0;
+    gNullBlock->data = 0;
 
-    r = munmap(pMap, mapSize);
-    if(r<0)
-        sysErr(
-            "failed to unmap block chain file %s",
-            blockMapFileName.c_str()
-        );
+    auto e = mapVec.end();
+    auto i = mapVec.begin();
+    while(i!=e) {
 
-    printf("done in %.3f seconds\n", (usecs()-start)*1e-6);
-    printf("\n");
+        const Map *map = gCurMap = &(*(i++));
+        const uint8_t *end = map->size + map->p;
+        const uint8_t *p = map->p;
+        startMap(p);
+
+            while(unlikely(p<end)) parseBlock(p);
+
+        endMap(p);
+    }
+}
+
+static void secondPass()
+{
+    findLongestChain();
+    parseLongestChain();
+    gCallback->wrapup();
+}
+
+static void cleanMaps()
+{
+    auto e = mapVec.end();
+    auto i = mapVec.begin();
+    while(i!=e) {
+
+        const Map &map = *(i++);
+
+        int r = munmap((void*)map.p, map.size);
+        if(r<0) sysErr("failed to unmap block chain file %s", map.name.c_str());
+
+        r = close(map.fd);
+        if(r<0) sysErr("failed to unmap block chain file %s", map.name.c_str());
+
+    }
+}
+
+int main(
+    int     argc,
+    char    *argv[]
+)
+{
+    double start = usecs();
+
+        initCallback(argc, argv);
+        mapBlockChainFiles();
+        initHashtables();
+        firstPass();
+        secondPass();
+        cleanMaps();
+
+    double elapsed = (usecs()-start)*1e-6;
+    printf("all done in %.3f seconds\n\n", elapsed);
     return 0;
 }
 

@@ -7,6 +7,7 @@
 #include <sha256.h>
 #include <opcodes.h>
 
+#include <string>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -535,5 +536,24 @@ void loadKeyList(
 
     }
     fclose(f);
+}
+
+std::string pr128(
+    const uint128_t &y
+)
+{
+    static char result[1024];
+    char *p = 1023+result;
+    *(p--) = 0;
+
+    uint128_t x = y;
+    while(1) {
+        *(p--) = (char)((x % 10) + '0');
+        if(unlikely(0==x)) break;
+        x /= 10;
+    }
+    ++p;
+
+    return std::string(p[0]!='0' ? p : (1022+result==p) ? p : p+1);
 }
 

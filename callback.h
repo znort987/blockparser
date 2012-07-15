@@ -13,10 +13,13 @@
 
         virtual int          init(int argc, char *argv[]               ) { return 0;     }
         virtual bool   needTXHash(                                     ) { return false; }
+
         virtual void     startMap(const uint8_t *p                     ) {               }
         virtual void       endMap(const uint8_t *p                     ) {               }
         virtual void   startBlock(const uint8_t *p                     ) {               }
         virtual void     endBlock(const uint8_t *p                     ) {               }
+
+        virtual void        start(  const Block *s, const Block *e     ) {               }
         virtual void      startTX(const uint8_t *p, const uint8_t *hash) {               }
         virtual void        endTX(const uint8_t *p                     ) {               }
         virtual void  startInputs(const uint8_t *p                     ) {               }
@@ -28,6 +31,7 @@
         virtual void  startOutput(const uint8_t *p                     ) {               }
         virtual void   startBlock(  const Block *b                     ) {               }
         virtual void     endBlock(  const Block *b                     ) {               }
+        virtual void       wrapup(                                     ) {               }
 
         virtual void endOutput(
             const uint8_t *p,

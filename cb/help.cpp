@@ -29,11 +29,10 @@ struct Help:public Callback
         option::Option *buffer  = new option::Option[stats.buffer_max];
         option::Option *options = new option::Option[stats.options_max];
         option::Parser parse(usageDescriptor, argc, argv, options, buffer);
-
-        if(parse.error())
-            exit(1);
+        if(parse.error()) exit(1);
 
         Callback::showAllHelps();
+
         delete [] options;
         delete [] buffer;
         exit(0);

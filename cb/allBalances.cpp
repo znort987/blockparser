@@ -22,6 +22,7 @@ struct Addr
 {
     uint64_t sum;
     uint160_t hash;
+    uint32_t lastTouched;
 };
 
 template<> uint8_t *PagedAllocator<Addr>::pool = 0;
@@ -45,6 +46,7 @@ typedef GoogMap<Hash160, Addr*, Hash160Hasher, Hash160Equal>::Map AddrMap;
 struct AllBalances:public Callback
 {
     AddrMap addrMap;
+    uint32_t blockTime;
     const Block *curBlock;
     const Block *lastBlock;
     const Block *firstBlock;
@@ -90,8 +92,7 @@ struct AllBalances:public Callback
         uint8_t addrType[3];
         uint160_t pubKeyHash;
         int type = solveOutputScript(pubKeyHash.v, script, scriptSize, addrType);
-        if(unlikely(type<0))
-            return;
+        if(unlikely(type<0)) return;
 
         Addr *addr;
         auto i = addrMap.find(pubKeyHash.v);
@@ -106,6 +107,7 @@ struct AllBalances:public Callback
             allAddrs.push_back(addr);
         }
 
+        addr->lastTouched = blockTime;
         addr->sum += value;
 
         static uint64_t cnt = 0;
@@ -194,7 +196,18 @@ struct AllBalances:public Callback
                 hash160ToAddr(buf, addr->hash.v);
                 printf(" %s", buf);
             }
-            printf("\n");
+
+            struct tm gmTime;
+            time_t last = addr->lastTouched;
+            gmtime_r(&last, &gmTime);
+
+            char timeBuf[256];
+            asctime_r(&gmTime, timeBuf);
+
+            size_t sz =strlen(timeBuf);
+            if(0<sz) timeBuf[sz-1] = 0;
+
+            printf(" %s\n", timeBuf);
             ++i;
         }
 
@@ -216,6 +229,13 @@ struct AllBalances:public Callback
     )
     {
         curBlock = b;
+
+        const uint8_t *p = b->data;
+        SKIP(uint32_t, version, p);
+        SKIP(uint256_t, prevBlkHash, p);
+        SKIP(uint256_t, blkMerkleRoot, p);
+        LOAD(uint32_t, bTime, p);
+        blockTime = bTime;
     }
 
     virtual const option::Descriptor *usage() const

@@ -247,6 +247,13 @@ struct AllBalances:public Callback
     {
         return CBNAME;
     }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    )
+    {
+        v.push_back("balances");
+    }
 };
 
 static AllBalances allBalances;

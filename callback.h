@@ -1,6 +1,7 @@
 #ifndef __CALLBACK_H__
     #define __CALLBACK_H__
 
+    #include <vector>
     #include <common.h>
     #include <option.h>
 
@@ -10,6 +11,7 @@
         Callback();
         virtual const char                *name() const = 0;
         virtual const option::Descriptor *usage() const = 0;
+        virtual void                    aliases(std::vector<const char *> &v) {          }
 
         virtual int          init(int argc, char *argv[]               ) { return 0;     }
         virtual bool   needTXHash(                                     ) { return false; }

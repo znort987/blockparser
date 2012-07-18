@@ -87,6 +87,13 @@ struct SimpleStats:public Callback
     {
         return "simpleStats";
     }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    )
+    {
+        v.push_back("stats");
+    }
 };
 
 static SimpleStats simpleStats;

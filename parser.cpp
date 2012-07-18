@@ -382,7 +382,7 @@ static void initCallback(
         --argc;
     }
 
-    if(0==methodName) methodName = "help";
+    if(0==methodName) methodName = "";
     gCallback = Callback::find(methodName);
     if(0==gCallback) errFatal("unknown callback : %s\n", methodName);
 
@@ -394,7 +394,7 @@ static void initCallback(
         "\n"
         "Starting method \"%s\" on whole block chain\n"
         "\n",
-        methodName
+        gCallback->name()
     );
 }
 

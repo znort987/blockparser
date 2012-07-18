@@ -137,6 +137,13 @@ struct Taint:public Callback
     {
         return "taint";
     }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    )
+    {
+        v.push_back("trace");
+    }
 };
 
 static Taint taint;

@@ -159,6 +159,14 @@ struct Closure:public Callback
     {
         return "closure";
     }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    )
+    {
+        v.push_back("wallet");
+        v.push_back("cluster");
+    }
 };
 
 static Closure closure;

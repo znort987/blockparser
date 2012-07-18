@@ -237,6 +237,15 @@ struct Transactions:public Callback
     {
         return CBNAME;
     }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    )
+    {
+        v.push_back("txs");
+        v.push_back("book");
+        v.push_back("tally");
+    }
 };
 
 static Transactions transactions;

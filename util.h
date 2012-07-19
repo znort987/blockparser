@@ -46,8 +46,12 @@
             const Hash256 &hb
         ) const
         {
-            const uint64_t *a = reinterpret_cast<const uint64_t *>(ha);
-            const uint64_t *b = reinterpret_cast<const uint64_t *>(hb);
+            uintptr_t ia = reinterpret_cast<uintptr_t>(ha);
+            uintptr_t ib = reinterpret_cast<uintptr_t>(hb);
+
+            const uint64_t *a = reinterpret_cast<const uint64_t *>(ia);
+            const uint64_t *b = reinterpret_cast<const uint64_t *>(ib);
+
             if(unlikely(a[0]!=b[0])) return false;
             if(unlikely(a[1]!=b[1])) return false;
             if(unlikely(a[2]!=b[2])) return false;
@@ -119,7 +123,7 @@
                     const Key &empty
                 )
                 {
-                    set_empty_key(empty);
+                    this->set_empty_key(empty);
                 }
             };
         };

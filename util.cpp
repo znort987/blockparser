@@ -184,7 +184,7 @@ int solveOutputScript(
     )
     {
         memcpy(pubKeyHash, 3+script, kRIPEMD160ByteSize);
-        return 2;
+        return 0;
     }
 
     // Output script commonly found in block reward TX, pays to explicit pubKey
@@ -199,7 +199,7 @@ int solveOutputScript(
         uint256_t sha;
         sha256(sha.v, 1+script, 65);
         rmd160(pubKeyHash, sha.v, kSHA256ByteSize);
-        return 0;
+        return 1;
     }
 
     // Unusual output script, pays to compressed pubKeys
@@ -217,7 +217,7 @@ int solveOutputScript(
         uint256_t sha;
         sha256(sha.v, pubKey, 65);
         rmd160(pubKeyHash, sha.v, kSHA256ByteSize);
-        return 1;
+        return 2;
     }
 
     // Recent output script type, pays to hash160(script)

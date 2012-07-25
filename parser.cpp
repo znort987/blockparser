@@ -303,7 +303,7 @@ static void parseBlock(
         SKIP(uint32_t, blkNonce, p);
 
         LOAD_VARINT(nbTX, p);
-        for(uint64_t txIndex=0; txIndex<nbTX; ++txIndex)
+        for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex)
             parseTX<false>(p);
 
     endBlock(block);
@@ -314,7 +314,7 @@ static void parseLongestChain()
     Block *blk = gNullBlock->next;
 
     start(blk, gMaxBlock);
-    while(blk) {
+    while(likely(0!=blk)) {
         parseBlock(blk);
         blk = blk->next;
     }
@@ -324,9 +324,8 @@ static void findLongestChain()
 {
     Block *block = gMaxBlock;
     while(1) {
-
         Block *prev = block->prev;
-        if(0==prev) break;
+        if(unlikely(0==prev)) break;
         prev->next = block;
         block = prev;
     }
@@ -354,7 +353,7 @@ static void parseBlock(
         block->data = p;
         block->next = 0;
 
-        if(gMaxHeight<block->height) {
+        if(likely(gMaxHeight<block->height)) {
             gMaxHeight = block->height;
             gMaxBlock = block;
         }

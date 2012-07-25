@@ -211,7 +211,8 @@
 
     void showScript(
         const uint8_t *p,
-        size_t        scriptSize
+        size_t        scriptSize,
+        const char    *header = 0
     );
 
     int solveOutputScript(

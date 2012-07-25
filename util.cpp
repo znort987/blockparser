@@ -110,17 +110,25 @@ void fromHex(
 }
 
 void showScript(
-    const uint8_t   *p,
-    size_t          scriptSize
+    const uint8_t *p,
+    size_t        scriptSize,
+    const char    *header
 )
 {
+    bool first = true;
     const uint8_t *e = scriptSize + p;
     while(likely(p<e))
     {
         LOAD(uint8_t, c, p);
         bool isImmediate = (0<c && c<79) ;
-        if(!isImmediate)
-            printf("    0x%02X %s\n", c, getOpcodeName(c));
+        if(!isImmediate) {
+            printf(
+                "    0x%02X %s%s\n",
+                c,
+                getOpcodeName(c),
+                (first && header) ? header : ""
+            );
+        }
         else
         {
             uint64_t dataSize = 0;
@@ -130,9 +138,11 @@ void showScript(
             else if(likely(78==c)) { LOAD(uint32_t, v, p); dataSize = v; }
             printf("         OP_PUSHDATA(%" PRIu64 ", 0x", dataSize);
             showHex(p, dataSize, false);
-            printf(")\n");
+
+            printf(")%s\n", (first && header) ? header : "");
             p += dataSize;
         }
+        first = false;
     }
 }
 

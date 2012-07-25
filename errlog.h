@@ -8,16 +8,19 @@
     #include <stdlib.h>
 
     static inline void vError(
-        bool fatal,
+        int level,
         bool system,
         const char *format,
         va_list vaList
     )
     {
+        bool fatal = (level==0);
+        bool warning = (level==2);
+
         fprintf(
             stdout,
             "%s: %s%s",
-            fatal ? "fatal" : "error",
+            fatal ? "fatal" : warning ? "warning" : "error",
             system ? strerror(errno) : "",
             system ? ": " : ""
         );
@@ -39,7 +42,7 @@
     {
         va_list vaList;
         va_start(vaList, format);
-            vError(false, true, format, vaList);
+            vError(1, true, format, vaList);
         va_end(vaList);
     }
 
@@ -50,7 +53,7 @@
     {
         va_list vaList;
         va_start(vaList, format);
-            vError(true, false, format, vaList);
+            vError(0, false, format, vaList);
         va_end(vaList);
     }
 
@@ -61,7 +64,7 @@
     {
         va_list vaList;
         va_start(vaList, format);
-            vError(true, true, format, vaList);
+            vError(0, true, format, vaList);
         va_end(vaList);
     }
 
@@ -72,7 +75,7 @@
     {
         va_list vaList;
         va_start(vaList, format);
-            vError(false, false, format, vaList);
+            vError(2, false, format, vaList);
         va_end(vaList);
     }
 

@@ -272,5 +272,9 @@
         const uint128_t &y
     );
 
+    void showFullAddr(
+        const Hash160 &addr
+    );
+
 #endif // __UTIL_H__
 

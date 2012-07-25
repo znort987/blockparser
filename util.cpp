@@ -557,3 +557,13 @@ std::string pr128(
     return std::string(p[0]!='0' ? p : (1022+result==p) ? p : p+1);
 }
 
+void showFullAddr(
+    const Hash160 &addr
+)
+{
+    uint8_t b58[128];
+    showHex(addr, sizeof(uint160_t), false);
+    hash160ToAddr(b58, addr);
+    printf(" %s\n", b58);
+}
+

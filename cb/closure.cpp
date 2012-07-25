@@ -85,7 +85,7 @@ struct Closure:public Callback
         printf("done, %.2f secs.\n\n", 1e-6*(usecs() - startTime));
 
         size_t size = boost::num_vertices(graph);
-        printf("Clustering %d addresses ... \n", (int)size);
+        printf("Clustering %d addresse(s) ... \n", (int)size);
         startTime = usecs();
 
         std::vector<uint64_t> cc(size);
@@ -108,23 +108,23 @@ struct Closure:public Callback
             printf(":\n");
 
             auto j = addrMap.find(keyHash);
-            if(unlikely(addrMap.end()==j))
-                warning("specified key was never used in a TX output");
-
-            uint64_t addrIndex = j->second;
-            uint64_t homeComponentIndex = cc[addrIndex];
-            for(size_t k=0; likely(k<cc.size()); ++k) {
-                uint64_t componentIndex = cc[k];
-                if(unlikely(homeComponentIndex==componentIndex)) {
-                    uint8_t b58[128];
-                    Addr *addr = allAddrs[k];
-                    showHex(addr->v, sizeof(uint160_t), false);
-                    hash160ToAddr(b58, addr->v);
-                    printf(" %s\n", b58);
-                    ++count;
+            if(unlikely(addrMap.end()==j)) {
+                warning("specified key was never used to spend coins");
+                showFullAddr(keyHash);
+                count = 1;
+            } else {
+                uint64_t addrIndex = j->second;
+                uint64_t homeComponentIndex = cc[addrIndex];
+                for(size_t k=0; likely(k<cc.size()); ++k) {
+                    uint64_t componentIndex = cc[k];
+                    if(unlikely(homeComponentIndex==componentIndex)) {
+                        Addr *addr = allAddrs[k];
+                        showFullAddr(addr->v);
+                        ++count;
+                    }
                 }
             }
-            printf("%" PRIu64 " addresses\n", count);
+            printf("%" PRIu64 " addresse(s)\n", count);
         }
     }
 
@@ -142,7 +142,7 @@ struct Closure:public Callback
     {
         size_t size = vertices.size();
         if(likely(1<size)) {
-            for(size_t i=1; i<size; ++i) {
+            for(size_t i=1; unlikely(i<size); ++i) {
                 uint64_t a = vertices[i-1];
                 uint64_t b = vertices[i-0];
                 boost::add_edge(a, b, graph);

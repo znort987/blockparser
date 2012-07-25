@@ -1,6 +1,7 @@
 
 // Dump help
 
+#include <stdio.h>
 #include <common.h>
 #include <option.h>
 #include <callback.h>
@@ -9,8 +10,8 @@
 enum  optionIndex { kUnknown };
 static const option::Descriptor usageDescriptor[] =
 {
-    { kUnknown, 0, "", "", option::Arg::None, CBNAME ":\n" },
-    { 0,        0,  0,  0,                 0,        0     }
+    { kUnknown, 0, "", "", option::Arg::None, "\n\n        print this help message" },
+    { 0,        0,  0,  0,                 0,                                            0 }
 };
 
 struct Help:public Callback
@@ -30,6 +31,15 @@ struct Help:public Callback
         option::Option *options = new option::Option[stats.options_max];
         option::Parser parse(usageDescriptor, argc, argv, options, buffer);
         if(parse.error()) exit(1);
+
+        printf("\n");
+        printf("Usage: parser <command> <command options> <command data>\n");
+        printf("\n");
+        printf("    Note that <command> can be abbreviated and has mutlipled aliases.\n");
+        printf("    For example, \"parser tx\", \"parser tr\", and \"parser transactions\" are equivalent.\n");
+        printf("\n");
+        printf("Available commands:\n");
+        printf("\n");
 
         Callback::showAllHelps();
 

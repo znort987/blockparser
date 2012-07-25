@@ -14,8 +14,8 @@
 enum  optionIndex { kUnknown, kCSV };
 static const option::Descriptor usageDescriptor[] =
 {
-    { kUnknown, 0, "",    "", option::Arg::None,                               CBNAME ":\n" },
-    { kCSV,     0, "", "csv", option::Arg::None, "--csv      Dump CSV instead of formatted" },
+    { kUnknown, 0, "",    "", option::Arg::None, "[--csv] <addresses>\n" },
+    { kCSV,     0, "", "csv", option::Arg::None, "        --csv      Dump CSV instead of formatted" },
     { 0,        0,  0,     0,                 0,                                          0 }
 };
 
@@ -84,8 +84,7 @@ struct Transactions:public Callback
         uint8_t addrType[3];
         uint160_t pubKeyHash;
         int type = solveOutputScript(pubKeyHash.v, script, scriptSize, addrType);
-        if(unlikely(type<0))
-            return;
+        if(unlikely(type<0)) return;
 
         bool match = (addrMap.end() != addrMap.find(pubKeyHash.v));
         if(unlikely(match)) {

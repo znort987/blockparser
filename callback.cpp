@@ -37,7 +37,7 @@ Callback *Callback::find(
         while(i!=e) {
             const char *nm = *(i++);
             size_t x = std::min(sz, strlen(nm));
-            if(0==memcmp(nm, name, x)) found[(uintptr_t)c] = c;
+            if(0==strncasecmp(nm, name, x)) found[(uintptr_t)c] = c;
         }
     }
     if(1==found.size()) return found.begin()->second;
@@ -94,19 +94,20 @@ struct Writer {
 
 void Callback::showAllHelps()
 {
+    Writer writer;
     auto e = callbacks->end();
     auto i = callbacks->begin();
     std::sort(i, e, Cmp());
 
     while(i!=e) {
         Callback *c = *(i++);
+        printf("    parser %s", c->name());
         const option::Descriptor *usage = c->usage();
 
         if(usage) {
-            Writer writer;
-            printf("\n");
             option::printUsage(&writer, usage);
         }
+        printf("\n");
     }
     printf("\n");
 }

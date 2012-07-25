@@ -5,20 +5,20 @@
 
         - Each input i of a given TX has a value Vi and a "taint" Ti (taint = fraction of Vi that's "bad")
 
-        - Each transaction mixer gets from each input:
+        - The TX mixer gets from each input:
 
                 Vi * (  Ti)     "bad content"
                 Vi * (1-Ti)     "good content"
 
-        - Mixer final taint is :  (sum of all "bad content" in inputs) / (sum of all content in inputs)
+        The TX mixer final taint is :  (sum of all "bad content" in inputs) / (sum of all content in inputs)
 
         - In other words:
 
                 taint = Sum(i, Vi * Ti)/Sum(i, Vi)
 
-        - Finally outputs of a given TX have the exact same taint (fraction of the mixer that's "bad content")
+        - All outputs of TX have the exact same taint (fraction of the TX mixer that's "bad")
 
-        - Apply this recursively from initial TX that's the source of taint
+        - Apply this recursively from initial TX that's the source of taint to all downstream TX
 
 */
 
@@ -59,8 +59,8 @@ struct Taint:public Callback
         bool ok = (0==argc || 1==argc);
         if(!ok) return -1;
 
-        //const uint8_t *defaultTX = (const uint8_t*)"34b84108a142ad7b6c36f0f3549a3e83dcdbb60e0ba0df96cd48f852da0b1acb"; // Linode slush hack
-        const uint8_t *defaultTX = (const uint8_t*)"a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
+        //const uint8_t *defaultTX = (const uint8_t*)"a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
+        const uint8_t *defaultTX = (const uint8_t*)"34b84108a142ad7b6c36f0f3549a3e83dcdbb60e0ba0df96cd48f852da0b1acb"; // Linode slush hack
         const uint8_t *tx = argc ? (const uint8_t*)argv[0] : defaultTX;
 
         size_t sz = strlen((const char*)tx);

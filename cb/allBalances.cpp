@@ -14,8 +14,8 @@
 enum  optionIndex { kUnknown };
 static const option::Descriptor usageDescriptor[] =
 {
-    { kUnknown, 0, "", "", option::Arg::None, CBNAME ":\n" },
-    { 0,        0,  0,  0,                 0,        0     }
+    { kUnknown, 0, "", "", option::Arg::None, "\n\n        dump balance of all addresses ever used." },
+    { 0,        0,  0,  0,                 0,        0    }
 };
 
 struct Addr

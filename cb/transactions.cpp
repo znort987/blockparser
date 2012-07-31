@@ -57,7 +57,11 @@ struct Transactions:public Callback
         csv = (0<options[kCSV].count());
 
         for(int i=0; i<parse.nonOptionsCount(); ++i) loadKeyList(rootHashes, parse.nonOption(i));
-        if(0==rootHashes.size()) errFatal("no addresses to work with");
+        if(0==rootHashes.size()) {
+            const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
+            warning("no addresses specified, using satoshi's dice address %s", addr);
+            loadKeyList(rootHashes, addr);
+        }
 
         auto e = rootHashes.end();
         auto i = rootHashes.begin();
@@ -92,8 +96,8 @@ struct Transactions:public Callback
             int64_t newSum = sum + value*(add ? 1 : -1);
 
             if(csv) {
-                printf("%10" PRIu64 ", \"", bTime/86400 + 25569);
-                showHex(downTXHash ? downTXHash : txHash);
+                printf("%6" PRIu64 ", \"", bTime/86400 + 25569);
+                showHex(pubKeyHash.v, kRIPEMD160ByteSize, false);
                 printf("\", \"");
                 showHex(downTXHash ? downTXHash : txHash);
                 printf(
@@ -193,16 +197,16 @@ struct Transactions:public Callback
     {
         if(csv) {
             printf(
-                "    \"Time\","
+                "\"Time\","
                 " \"Address\","
-                "                                                          \"TXId\","
+                "                                  \"TXId\","
                 "                                                                   \"TXAmount\","
                 "     \"NewBalance\""
                 "\n"
             );
         }
         else {
-            printf("Dumping all transactions for %d addresse(s)\n\n", (int)addrMap.size());
+            info("Dumping all transactions for %d address(es)\n", (int)addrMap.size());
             printf("    Time (GMT)                  Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
             printf("    =======================================================================================================================================================================================================================\n");
         }
@@ -213,6 +217,9 @@ struct Transactions:public Callback
         if(false==csv) {
             printf(
                 "    =======================================================================================================================================================================================================================\n"
+            );
+
+            info(
                 "\n"
                 "    transactions  = %" PRIu64 "\n"
                 "    received      = %17.08f\n"

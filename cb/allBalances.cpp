@@ -36,7 +36,7 @@ struct CompareAddr
         const Addr *const &b
     ) const
     {
-        return (a->sum) < (b->sum);
+        return (b->sum) < (a->sum);
     }
 };
 
@@ -76,6 +76,7 @@ struct AllBalances:public Callback
         option::Parser parse(usageDescriptor, argc, argv, options, buffer);
         if(parse.error()) exit(1);
 
+        info("analyzing blockchain ...");
         delete [] options;
         delete [] buffer;
         return 0;
@@ -120,12 +121,11 @@ struct AllBalances:public Callback
             )
             {
                 double progress = curBlock->height/(double)lastBlock->height;
-                printf(
+                info(
                     "%8" PRIu64 " blocks, "
-                    "%8.3f MMoves , "
-                    "%8.3f MAddrs , "
-                    "%5.2f%%"
-                    "\n",
+                    "%8.3f MegaMoves , "
+                    "%8.3f MegaAddrs , "
+                    "%5.2f%%",
                     curBlock->height,
                     cnt*1e-6,
                     addrMap.size()*1e-6,
@@ -175,23 +175,27 @@ struct AllBalances:public Callback
 
     virtual void wrapup()
     {
-        printf("sorting by balance ...\n");
+        info("done\n");
 
-        CompareAddr compare;
-        auto e = allAddrs.end();
-        auto s = allAddrs.begin();
-        std::sort(s, e, compare);
+        info("sorting by balance ...");
 
+            CompareAddr compare;
+            auto e = allAddrs.end();
+            auto s = allAddrs.begin();
+            std::sort(s, e, compare);
+
+        info("done\n");
+
+        info("dumping all balances ...");
         uint64_t i = 0;
         uint64_t nonZeroCnt = 0;
-        uint64_t n = allAddrs.size() - 5000;
         while(likely(s<e)) {
             Addr *addr = *(s++);
             printf("%24.8f ", (1e-8)*addr->sum);
             showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
-            if(n<i) {
+            if(i<5000) {
                 uint8_t buf[64];
                 hash160ToAddr(buf, addr->hash.v);
                 printf(" %s", buf);
@@ -210,9 +214,10 @@ struct AllBalances:public Callback
             printf(" %s\n", timeBuf);
             ++i;
         }
+        info("done\n");
 
-        printf("found %" PRIu64 " addresses with non zero balance\n", nonZeroCnt);
-        printf("found %" PRIu64 " addresses\n", (uint64_t)allAddrs.size());
+        info("found %" PRIu64 " addresses with non zero balance", nonZeroCnt);
+        info("found %" PRIu64 " addresses in total", (uint64_t)allAddrs.size());
     }
 
     virtual void start(

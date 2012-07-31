@@ -82,14 +82,15 @@ uint8_t fromHexDigit(
     if(likely('a'<=h && h<='f')) return 10 + (h - 'a');
     if(likely('A'<=h && h<='F')) return 10 + (h - 'A');
     if(abortOnErr) errFatal("incorrect hex digit %c", h);
-    return 0xff;
+    return 0xFF;
 }
 
-void fromHex(
+bool fromHex(
           uint8_t *dst,
     const uint8_t *src,
     size_t        dstSize,
-    bool          rev
+    bool          rev,
+    bool          abortOnErr
 )
 {
     int incr = 2;
@@ -102,11 +103,17 @@ void fromHex(
 
     while(likely(dst<end))
     {
-        uint8_t hi = fromHexDigit(src[0]);
-        uint8_t lo = fromHexDigit(src[1]);
+        uint8_t hi = fromHexDigit(src[0], abortOnErr);
+        if(unlikely(0xFF==hi)) return false;
+
+        uint8_t lo = fromHexDigit(src[1], abortOnErr);
+        if(unlikely(0xFF==lo)) return false;
+
         *(dst++) = (hi<<4) + lo;
         src += incr;
     }
+
+    return true;
 }
 
 void showScript(
@@ -548,6 +555,67 @@ void loadKeyList(
     fclose(f);
 }
 
+void loadHash256List(
+    std::vector<uint256_t> &result,
+    const char *str,
+    bool verbose
+)
+{
+    bool isFile = (
+        'f'==str[0] &&
+        'i'==str[1] &&
+        'l'==str[2] &&
+        'e'==str[3] &&
+        ':'==str[4]
+    );
+
+    if(!isFile) {
+
+        size_t sz = strlen(str);
+        if(2*kSHA256ByteSize!=sz) errFatal("%s is not a valid TX hash", str);
+
+        uint256_t h256;
+        fromHex(h256.v, (const uint8_t *)str);
+        result.push_back(h256);
+        return;
+    }
+
+    const char *fileName = 5+str;
+    FILE *f = fopen(fileName, "r");
+    if(!f) {
+        warning("couldn't open %s for reading\n", fileName);
+        return;
+    }
+
+    size_t lineCount = 0;
+    while(1) {
+
+        char buf[1024];
+        char *r = fgets(buf, sizeof(buf), f);
+        if(r==0) break;
+        ++lineCount;
+
+        size_t sz = strlen(buf);
+        if(2*kSHA256ByteSize<=sz) {
+
+            uint256_t h256;
+            bool ok = fromHex(h256.v, (const uint8_t *)buf, kSHA256ByteSize, true, false);
+            if(ok)
+                result.push_back(h256);
+            else if(verbose) {
+                warning(
+                    "in file %s, line %d, %s is not a valid TX hash\n",
+                    fileName,
+                    lineCount,
+                    buf
+                );
+            }
+        }
+
+    }
+    fclose(f);
+}
+
 std::string pr128(
     const uint128_t &y
 )
@@ -568,12 +636,16 @@ std::string pr128(
 }
 
 void showFullAddr(
-    const Hash160 &addr
+    const Hash160 &addr,
+    bool both
 )
 {
     uint8_t b58[128];
-    showHex(addr, sizeof(uint160_t), false);
+    if(both) showHex(addr, sizeof(uint160_t), false);
     hash160ToAddr(b58, addr);
-    printf(" %s\n", b58);
+    printf(
+        "%s%s\n",
+        both ? " " : "", b58
+    );
 }
 

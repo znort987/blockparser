@@ -36,14 +36,17 @@ struct Closure:public Callback
         char *argv[]
     )
     {
-
-        loadKeyList(rootHashes, argv[0]);
-        if(0==rootHashes.size()) errFatal("no addresses to work from");
+        if(argv[0]) loadKeyList(rootHashes, argv[0]);
+        if(0==rootHashes.size()) {
+            const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
+            warning("no addresses specified, using satoshi's dice address %s", addr);
+            loadKeyList(rootHashes, addr);
+        }
 
         addrMap.setEmptyKey(gEmptyKey);
         addrMap.resize(15 * 1000 * 1000);
         allAddrs.reserve(15 * 1000 * 1000);
-        printf("Building address equivalence graph ...\n");
+        info("Building address equivalence graph ...");
         startTime = usecs();
 
         return 0;
@@ -82,18 +85,22 @@ struct Closure:public Callback
 
     virtual void wrapup()
     {
-        printf("done, %.2f secs.\n\n", 1e-6*(usecs() - startTime));
-
         size_t size = boost::num_vertices(graph);
-        printf("Clustering %d addresse(s) ... \n", (int)size);
+        info(
+            "done, %.2f secs, found %" PRIu64 " address(es) \n",
+            1e-6*(usecs() - startTime),
+            size
+        );
+
+        info("Clustering ... ");
         startTime = usecs();
 
         std::vector<uint64_t> cc(size);
-        size_t nbCC = boost::connected_components(graph, &cc[0]);
-        printf(
-            "done, %.2f secs, found %d clusters.\n\n",
+        uint64_t nbCC = boost::connected_components(graph, &cc[0]);
+        info(
+            "done, %.2f secs, found %" PRIu64 " clusters.\n",
             1e-6*(usecs() - startTime),
-            (int)nbCC
+            nbCC
         );
 
         auto e = rootHashes.end();
@@ -103,9 +110,9 @@ struct Closure:public Callback
             uint64_t count = 0;
             const uint8_t *keyHash = (i++)->v;
 
-            printf("Address cluster for address ");
-            showHex(keyHash, sizeof(uint160_t), false);
-            printf(":\n");
+            uint8_t b58[128];
+            hash160ToAddr(b58, keyHash);
+            info("Address cluster for address %s:", b58);
 
             auto j = addrMap.find(keyHash);
             if(unlikely(addrMap.end()==j)) {
@@ -124,7 +131,7 @@ struct Closure:public Callback
                     }
                 }
             }
-            printf("%" PRIu64 " addresse(s)\n", count);
+            info("%" PRIu64 " addresse(s)\n", count);
         }
     }
 
@@ -164,8 +171,8 @@ struct Closure:public Callback
         std::vector<const char*> &v
     )
     {
-        v.push_back("wallet");
         v.push_back("cluster");
+        v.push_back("wallet");
     }
 };
 

@@ -202,11 +202,12 @@
         bool abortOnErr = true
     );
 
-    void fromHex(
+    bool fromHex(
               uint8_t *dst,
         const uint8_t *src,
         size_t        dstSize = kSHA256ByteSize,
-        bool          rev = true
+        bool          rev = true,
+        bool          abortOnErr = true
     );
 
     void showScript(
@@ -265,7 +266,13 @@
 
     void loadKeyList(
         std::vector<uint160_t> &result,
-        const char *fileName,
+        const char *str,
+        bool verbose = false
+    );
+
+    void loadHash256List(
+        std::vector<uint256_t> &result,
+        const char *str,
         bool verbose = false
     );
 
@@ -274,7 +281,8 @@
     );
 
     void showFullAddr(
-        const Hash160 &addr
+        const Hash160 &addr,
+        bool both = false
     );
 
 #endif // __UTIL_H__

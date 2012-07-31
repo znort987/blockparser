@@ -385,16 +385,15 @@ static void initCallback(
     gCallback = Callback::find(methodName);
     if(0==gCallback) errFatal("unknown callback : %s\n", methodName);
 
+    fprintf(stderr, "\n");
+    info(
+        "Starting command \"%s\"\n",
+        gCallback->name()
+    );
+
     int ir = gCallback->init(argc, argv);
     if(ir<0) errFatal("callback init failed");
     gNeedTXHash = gCallback->needTXHash();
-
-    printf(
-        "\n"
-        "Starting method \"%s\" on whole block chain\n"
-        "\n",
-        gCallback->name()
-    );
 }
 
 static void mapBlockChainFiles()
@@ -524,7 +523,7 @@ int main(
         cleanMaps();
 
     double elapsed = (usecs()-start)*1e-6;
-    printf("all done in %.3f seconds\n\n", elapsed);
+    info("all done in %.3f seconds\n", elapsed);
     return 0;
 }
 

@@ -28,7 +28,16 @@
 #include <errlog.h>
 #include <callback.h>
 
+#define CBNAME "taint"
+enum  optionIndex { kUnknown };
+static const option::Descriptor usageDescriptor[] =
+{
+    { kUnknown, 0, "",    "", option::Arg::None, "<tx hashes>\n" },
+    { 0,        0,  0,     0,                 0,               0 }
+};
+
 typedef long double Number;
+typedef GoogMap<Hash256, int, Hash256Hasher, Hash256Equal >::Map TxMap;
 typedef GoogMap<Hash256, Number, Hash256Hasher, Hash256Equal >::Map TaintMap;
 
 static inline void printNumber(
@@ -41,10 +50,12 @@ static inline void printNumber(
 struct Taint:public Callback
 {
     Number txBad;
+    TxMap srcTxMap;
+    double threshold;
     uint128_t txTotal;
     TaintMap taintMap;
-    uint256_t srcTXHash;
     const uint8_t *txHash;
+    std::vector<uint256_t> rootHashes;
 
     virtual bool needTXHash()
     {
@@ -56,29 +67,45 @@ struct Taint:public Callback
         char *argv[]
     )
     {
-        bool ok = (0==argc || 1==argc);
-        if(!ok) return -1;
+        option::Stats  stats(usageDescriptor, argc, argv);
+        option::Option *buffer  = new option::Option[stats.buffer_max];
+        option::Option *options = new option::Option[stats.options_max];
+        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
+        if(parse.error()) exit(1);
 
-        //const uint8_t *defaultTX = (const uint8_t*)"a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
-        const uint8_t *defaultTX = (const uint8_t*)"34b84108a142ad7b6c36f0f3549a3e83dcdbb60e0ba0df96cd48f852da0b1acb"; // Linode slush hack
-        const uint8_t *tx = argc ? (const uint8_t*)argv[0] : defaultTX;
+        threshold = 1e-20;
 
-        size_t sz = strlen((const char*)tx);
-        if(2*kSHA256ByteSize!=sz) errFatal("%s is not a valid TX hash", tx);
+        for(int i=0; i<parse.nonOptionsCount(); ++i) loadHash256List(rootHashes, parse.nonOption(i));
+        if(0<rootHashes.size()) {
+            info("computing taint from %d source transactions\n", (int)rootHashes.size());
+        } else {
+            warning("no TX hashes specified, using the infamous 10K pizza TX");
+
+            //const char *defaultTX = "34b84108a142ad7b6c36f0f3549a3e83dcdbb60e0ba0df96cd48f852da0b1acb"; // Linode slush hack
+            const char *defaultTX = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
+            loadHash256List(rootHashes, defaultTX);
+        }
 
         static uint8_t empty[kSHA256ByteSize] = { 0x42 };
+        static uint64_t sz = 15 * 1000 * 1000;
+        srcTxMap.setEmptyKey(empty);
         taintMap.setEmptyKey(empty);
-        taintMap.resize(15 * 1000 * 1000);
+        taintMap.resize(sz);
 
-        fromHex(srcTXHash.v, tx);
-        taintMap[srcTXHash.v] = 1.0;
+        auto i = rootHashes.begin();
+        auto e = rootHashes.end();
+        while(e!=i) {
+            const uint256_t &txHash = *(i++);
+            taintMap[txHash.v] = 1.0;
+            srcTxMap[txHash.v] = 1;
+        }
+
         return 0;
     }
 
     virtual void wrapup()
     {
-        printf("\n");
-        printf("found %" PRIu64 " tainted transactions.\n", (uint64_t)taintMap.size());
+        info("found %" PRIu64 " tainted transactions.\n", (uint64_t)taintMap.size());
     }
 
     virtual void startTX(
@@ -95,15 +122,14 @@ struct Taint:public Callback
         const uint8_t *p
     )
     {
-        Number taint = 0;
-        bool isSrcTX = (0==memcmp(txHash, srcTXHash.v, kSHA256ByteSize));
-        if(unlikely(isSrcTX))
-            taint = 1;
-        else if(0<txTotal && 0<txBad) {
-            taintMap[txHash] = taint = txBad/txTotal;
-        }
+        auto i = srcTxMap.find(txHash);
+        bool isSrcTX = (srcTxMap.end() != i);
 
-        if(0<taint) {
+        Number taint = 0;
+             if(unlikely(isSrcTX))    taint = 1;
+        else if(0<txTotal && 0<txBad) taintMap[txHash] = taint = txBad/txTotal;
+
+        if(threshold<taint) {
             printNumber(taint);
             showHex(txHash);
             putchar('\n');
@@ -130,12 +156,12 @@ struct Taint:public Callback
 
     virtual const option::Descriptor *usage() const
     {
-        return 0;
+        return usageDescriptor;
     }
 
     virtual const char *name() const
     {
-        return "taint";
+        return CBNAME;
     }
 
     virtual void aliases(

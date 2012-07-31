@@ -14,24 +14,38 @@
         va_list vaList
     )
     {
+        fflush(stdout);
+        fflush(stderr);
+
+        bool info = (level==3);
         bool fatal = (level==0);
         bool warning = (level==2);
 
+        const char *msgType =
+            info    ? "info"    :
+            fatal   ? "fatal"   :
+            warning ? "warning" :
+                      "error"
+        ;
+
         fprintf(
-            stdout,
+            stderr,
             "%s: %s%s",
-            fatal ? "fatal" : warning ? "warning" : "error",
+            msgType,
             system ? strerror(errno) : "",
             system ? ": " : ""
         );
 
         vfprintf(
-            stdout,
+            stderr,
             format,
             vaList
         );
 
-        fputc('\n', stdout);
+        fputc('\n', stderr);
+        fflush(stdout);
+        fflush(stderr);
+
         if(fatal) abort();
     }
 
@@ -76,6 +90,17 @@
         va_list vaList;
         va_start(vaList, format);
             vError(2, false, format, vaList);
+        va_end(vaList);
+    }
+
+    static inline void info(
+        const char *format,
+        ...
+    )
+    {
+        va_list vaList;
+        va_start(vaList, format);
+            vError(3, false, format, vaList);
         va_end(vaList);
     }
 

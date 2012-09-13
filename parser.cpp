@@ -48,7 +48,7 @@ static uint256_t gNullHash;
     static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));  }
     static inline void    endInputs(const uint8_t *p)                      { DO(gCallback->endInputs(p));    }
     static inline void   startInput(const uint8_t *p)                      { DO(gCallback->startInput(p));   }
-    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInputs(p));    }
+    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInput(p));     }
     static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p)); }
     static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));   }
     static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));  }
@@ -339,8 +339,17 @@ static void parseBlock(
 
         LOAD(uint32_t, magic, p);
         LOAD(uint32_t, size, p);
-        if(unlikely(0xd9b4bef9!=magic))
-            errFatal("at offset %" SCNuPTR " should have found block magic.", p - gCurMap->p);
+        #if defined(LITECOIN)
+            if(unlikely(0xdbb6c0fb!=magic)) {
+        #else
+            if(unlikely(0xd9b4bef9!=magic)) {
+        #endif
+            errFatal(
+                "at offset %" SCNuPTR " should have found block magic, got 0x%" PRIx32 " instead.",
+                p - gCurMap->p,
+                magic
+            );
+        }
 
         auto i = gBlockMap.find(p+4);
         if(unlikely(gBlockMap.end()==i))
@@ -411,9 +420,13 @@ static void mapBlockChainFiles()
         sprintf(buf, "%04d", ++blkDatId);
 
         std::string blockMapFileName =
-            homeDir                      +
-            std::string("/.bitcoin/blk") +
-            std::string(buf)             +
+            homeDir                             +
+            #if defined LITECOIN
+                std::string("/.litecoin/blk")   +
+            #else
+                std::string("/.bitcoin/blk")    +
+            #endif
+            std::string(buf)                    +
             std::string(".dat");
 
         int blockMapFD = open(blockMapFileName.c_str(), O_DIRECT | O_RDONLY);

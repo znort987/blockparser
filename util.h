@@ -244,7 +244,11 @@
     void hash160ToAddr(
               uint8_t *addr,
         const uint8_t *hash160,
+        #if defined(LITECOIN)
+              uint8_t type = 'L'
+        #else
               uint8_t type = '1'
+        #endif
     );
 
     bool addrToHash160(

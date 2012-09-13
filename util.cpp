@@ -153,20 +153,28 @@ void showScript(
     }
 }
 
-void decompressPublicKey(
+static bool decompressPublicKey(
           uint8_t *result,          // 65 bytes
     const uint8_t *compressedKey    // 33 bytes
 )
 {
     EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
     EC_KEY *r = o2i_ECPublicKey(&key, &compressedKey, 33);
-    if(!r) errFatal("o2i_ECPublicKey failed");
+    if(!r) {
+        warning("o2i_ECPublicKey failed");
+        return false;
+    }
 
     EC_KEY_set_conv_form(key, POINT_CONVERSION_UNCOMPRESSED);
     size_t size = i2o_ECPublicKey(key, &result);
-    if(65!=size) errFatal("i2o_ECPublicKey failed");
-
     EC_KEY_free(key);
+
+    if(65!=size) {
+        errFatal("i2o_ECPublicKey failed");
+        return false;
+    }
+
+    return true;
 }
 
 int solveOutputScript(
@@ -219,7 +227,8 @@ int solveOutputScript(
     )
     {
         uint8_t pubKey[65];
-        decompressPublicKey(pubKey, 1+script);
+        bool ok = decompressPublicKey(pubKey, 1+script);
+        if(!ok) return -3;
 
         uint256_t sha;
         sha256(sha.v, pubKey, 65);
@@ -313,13 +322,18 @@ bool addrToHash160(
              bool verbose
 )
 {
-    bool ok = ('1'==addr[0] || '3'==addr[0]);
+    #if defined(LITECOIN)
+        bool ok = ('L'==addr[0] || 'N'==addr[0]);
+    #else
+        bool ok = ('1'==addr[0] || '3'==addr[0]);
+    #endif
+
+    const uint8_t *addr0 = addr++;
     if(unlikely(!ok))
     {
-        if(verbose) warning("unknown address type %s\n", addr);
+        if(verbose) warning("unknown address type %s\n", addr0);
         return false;
     }
-    ++addr;
 
     static BIGNUM *sum = 0;
     static BN_CTX *ctx = 0;
@@ -397,6 +411,15 @@ bool addrToHash160(
             sha[1]==checkSumStart[1]  &&
             sha[2]==checkSumStart[2]  &&
             sha[3]==checkSumStart[3];
+
+        if(!hashOK) {
+            warning(
+                "checksum of address %s failed. Expected 0x%x%x%x%x, got 0x%x%x%x%x.",
+                addr0,
+                checkSumStart[0], checkSumStart[1], checkSumStart[2], checkSumStart[3],
+                sha[0],           sha[1],           sha[2],           sha[3]
+            );
+        }
     }
 
     return hashOK;

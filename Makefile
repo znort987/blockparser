@@ -60,6 +60,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/closure.cpp -o .objs/closure.o
 	@mv .objs/closure.d .deps
 
+.objs/pristine.o : cb/pristine.cpp
+	@echo c++ -- cb/pristine.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/pristine.cpp -o .objs/pristine.o
+	@mv .objs/pristine.d .deps
+
 .objs/help.o : cb/help.cpp
 	@echo c++ -- cb/help.cpp
 	@mkdir -p .deps
@@ -128,6 +135,7 @@ OBJS=                       \
     .objs/allBalances.o     \
     .objs/closure.o         \
     .objs/help.o            \
+    .objs/pristine.o        \
     .objs/simpleStats.o     \
     .objs/taint.o           \
     .objs/transactions.o    \

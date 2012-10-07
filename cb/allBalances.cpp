@@ -14,7 +14,7 @@
 enum  optionIndex { kUnknown };
 static const option::Descriptor usageDescriptor[] =
 {
-    { kUnknown, 0, "", "", option::Arg::None, "\n\n        dump balance of all addresses ever used." },
+    { kUnknown, 0, "", "", option::Arg::None, " <addresses>\n\n        dump balance of all addresses ever used." },
     { 0,        0,  0,  0,                 0,        0    }
 };
 
@@ -42,6 +42,7 @@ struct CompareAddr
 
 static uint8_t emptyKey[kRIPEMD160ByteSize] = { 0x52 };
 typedef GoogMap<Hash160, Addr*, Hash160Hasher, Hash160Equal>::Map AddrMap;
+typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map RestrictMap;
 
 struct AllBalances:public Callback
 {
@@ -50,7 +51,9 @@ struct AllBalances:public Callback
     const Block *curBlock;
     const Block *lastBlock;
     const Block *firstBlock;
+    RestrictMap restrictMap;
     std::vector<Addr*> allAddrs;
+    std::vector<uint160_t> restricts;
 
     virtual bool needTXHash()
     {
@@ -75,6 +78,25 @@ struct AllBalances:public Callback
         option::Option *options = new option::Option[stats.options_max];
         option::Parser parse(usageDescriptor, argc, argv, options, buffer);
         if(parse.error()) exit(1);
+
+        for(int i=0; i<parse.nonOptionsCount(); ++i) {
+            loadKeyList(restricts, parse.nonOption(i));
+        }
+
+        if(0!=restricts.size()) {
+            info(
+                "restricting outpout to %" PRIu64 " addresses ...\n",
+                (uint64_t)restricts.size()
+            );
+
+            auto e = restricts.end();
+            auto i = restricts.begin();
+            restrictMap.setEmptyKey(emptyKey);
+            while(e!=i) {
+                const uint160_t &h = *(i++);
+                restrictMap[h.v] = 1;
+            }
+        }
 
         info("analyzing blockchain ...");
         delete [] options;
@@ -186,16 +208,25 @@ struct AllBalances:public Callback
 
         info("done\n");
 
-        info("dumping all balances ...");
+        uint64_t nbRestricts = (uint64_t)restrictMap.size();
+        if(0==nbRestricts) info("dumping all balances ...");
+        else               info("dumping balances for %" PRIu64 " addresses ...", nbRestricts);
+
         uint64_t i = 0;
         uint64_t nonZeroCnt = 0;
         while(likely(s<e)) {
+
             Addr *addr = *(s++);
+            if(0!=nbRestricts) {
+                auto r = restrictMap.find(addr->hash.v);
+                if(restrictMap.end()==r) continue;
+            }
+
             printf("%24.8f ", (1e-8)*addr->sum);
             showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
-            if(i<5000) {
+            if(i<5000 || 0!=nbRestricts) {
                 uint8_t buf[64];
                 hash160ToAddr(buf, addr->hash.v);
                 printf(" %s", buf);
@@ -218,6 +249,7 @@ struct AllBalances:public Callback
 
         info("found %" PRIu64 " addresses with non zero balance", nonZeroCnt);
         info("found %" PRIu64 " addresses in total", (uint64_t)allAddrs.size());
+        info("shown %" PRIu64 " addresses", (uint64_t)i);
     }
 
     virtual void start(

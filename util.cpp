@@ -161,7 +161,7 @@ static bool decompressPublicKey(
     EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
     EC_KEY *r = o2i_ECPublicKey(&key, &compressedKey, 33);
     if(!r) {
-        warning("o2i_ECPublicKey failed");
+        //warning("o2i_ECPublicKey failed");
         return false;
     }
 

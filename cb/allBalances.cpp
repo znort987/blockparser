@@ -85,7 +85,7 @@ struct AllBalances:public Callback
 
         if(0!=restricts.size()) {
             info(
-                "restricting outpout to %" PRIu64 " addresses ...\n",
+                "restricting output to %" PRIu64 " addresses ...\n",
                 (uint64_t)restricts.size()
             );
 
@@ -249,7 +249,7 @@ struct AllBalances:public Callback
 
         info("found %" PRIu64 " addresses with non zero balance", nonZeroCnt);
         info("found %" PRIu64 " addresses in total", (uint64_t)allAddrs.size());
-        info("shown %" PRIu64 " addresses", (uint64_t)i);
+        info("shown:%" PRIu64 " addresses", (uint64_t)i);
     }
 
     virtual void start(

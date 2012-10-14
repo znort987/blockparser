@@ -546,13 +546,15 @@ void loadKeyList(
     }
 
     const char *fileName = 5+str;
-    FILE *f = fopen(fileName, "r");
+    bool isStdIn = ('-'==fileName[0] && 0==fileName[1]);
+    FILE *f = isStdIn ? stdin : fopen(fileName, "r");
     if(!f) {
         warning("couldn't open %s for reading\n", fileName);
         return;
     }
 
     size_t lineCount = 0;
+    double start = usecs();
     while(1) {
 
         char buf[1024];
@@ -576,6 +578,9 @@ void loadKeyList(
 
     }
     fclose(f);
+
+    double elapsed = (usecs() - start)*1e-6;
+    printf("loaded in %.2f secs\n", elapsed);
 }
 
 void loadHash256List(
@@ -604,7 +609,8 @@ void loadHash256List(
     }
 
     const char *fileName = 5+str;
-    FILE *f = fopen(fileName, "r");
+    bool isStdIn = ('-'==fileName[0] && 0==fileName[1]);
+    FILE *f = isStdIn ? stdin : fopen(fileName, "r");
     if(!f) {
         warning("couldn't open %s for reading\n", fileName);
         return;

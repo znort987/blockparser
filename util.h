@@ -245,9 +245,9 @@
               uint8_t *addr,
         const uint8_t *hash160,
         #if defined(LITECOIN)
-              uint8_t type = 'L'
+              uint8_t type = 48
         #else
-              uint8_t type = '1'
+              uint8_t type = 0
         #endif
     );
 

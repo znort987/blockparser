@@ -322,31 +322,16 @@ bool addrToHash160(
              bool verbose
 )
 {
-    #if defined(LITECOIN)
-        bool ok = ('L'==addr[0] || 'N'==addr[0]);
-    #else
-        bool ok = ('1'==addr[0] || '3'==addr[0]);
-    #endif
-
-    const uint8_t *addr0 = addr++;
-    if(unlikely(!ok))
-    {
-        if(verbose) warning("unknown address type %s\n", addr0);
-        return false;
-    }
-
     static BIGNUM *sum = 0;
     static BN_CTX *ctx = 0;
-    if(unlikely(!ctx))
-    {
+    if(unlikely(!ctx)) {
         ctx = BN_CTX_new();
         BN_CTX_init(ctx);
         sum = BN_new();
     }
 
     BN_zero(sum);
-    while(1)
-    {
+    while(1) {
         uint8_t c = *(addr++);
         if(unlikely(0==c)) break;
 
@@ -355,10 +340,9 @@ bool addrToHash160(
         BN_add_word(sum, dg);
     }
 
-    uint8_t buf[4 + 1 + kRIPEMD160ByteSize + 4];
+    uint8_t buf[4 + 2 + kRIPEMD160ByteSize + 4];
     size_t size = BN_bn2mpi(sum, 0);
-    if(sizeof(buf)<size)
-    {
+    if(sizeof(buf)<size) {
         warning(
             "BN_bn2mpi returned weird buffer size %d, expected %d\n",
             (int)size,
@@ -366,6 +350,7 @@ bool addrToHash160(
         );
         return false;
     }
+
     BN_bn2mpi(sum, buf);
 
     uint32_t recordedSize = 
@@ -373,8 +358,7 @@ bool addrToHash160(
         (buf[1]<<16)    |
         (buf[2]<< 8)    |
         (buf[3]<< 0);
-    if(size!=(4+recordedSize))
-    {
+    if(size!=(4+recordedSize)) {
         warning(
             "BN_bn2mpi returned bignum size %d, expected %d\n",
             (int)recordedSize,
@@ -391,17 +375,23 @@ bool addrToHash160(
 
     ptrdiff_t bigNumSize = bigNumEnd - bigNumStart;
     ptrdiff_t padSize = kRIPEMD160ByteSize - bigNumSize;
-    if(padSize<0) errFatal("things went very wrong");
-
-    memcpy(padSize + hash160, bigNumStart, bigNumSize);
-    if(0<padSize) memset(hash160, 0, padSize);
+    if(0<padSize) {
+        if(0<bigNumSize) memcpy(padSize + hash160, bigNumStart, bigNumSize);
+        memset(hash160, 0, padSize);
+    } else {
+        memcpy(hash160, bigNumStart - padSize, kRIPEMD160ByteSize);
+    }
 
     bool hashOK = true;
-    if(checkHash)
-    {
+    if(checkHash) {
+
         uint8_t data[1+kRIPEMD160ByteSize];
         memcpy(1+data, hash160, kRIPEMD160ByteSize);
-        data[0] = 0;
+        #if defined(LITECOIN)
+            data[0] = 48;
+        #else
+            data[0] = 0;
+        #endif
 
         uint8_t sha[kSHA256ByteSize];
         sha256Twice(sha, data, 1+kRIPEMD160ByteSize);
@@ -415,7 +405,7 @@ bool addrToHash160(
         if(!hashOK) {
             warning(
                 "checksum of address %s failed. Expected 0x%x%x%x%x, got 0x%x%x%x%x.",
-                addr0,
+                addr,
                 checkSumStart[0], checkSumStart[1], checkSumStart[2], checkSumStart[3],
                 sha[0],           sha[1],           sha[2],           sha[3]
             );
@@ -431,19 +421,18 @@ void hash160ToAddr(
           uint8_t type
 )
 {
-    *(addr++) = type;
-
-    uint8_t buf[4 + 1 + kRIPEMD160ByteSize + kSHA256ByteSize];
-    const uint32_t size = 1 + kRIPEMD160ByteSize + 4;
+    uint8_t buf[4 + 2 + kRIPEMD160ByteSize + kSHA256ByteSize];
+    const uint32_t size = 4 + 2 + kRIPEMD160ByteSize;
     buf[ 0] = (size>>24) & 0xff;
     buf[ 1] = (size>>16) & 0xff;
     buf[ 2] = (size>> 8) & 0xff;
     buf[ 3] = (size>> 0) & 0xff;
     buf[ 4] = 0;
-    memcpy(4 + 1 + buf, hash160, kRIPEMD160ByteSize);
+    buf[ 5] = type;
+    memcpy(4 + 2 + buf, hash160, kRIPEMD160ByteSize);
     sha256Twice(
-        4 + 1 + kRIPEMD160ByteSize + buf,
-        4 + buf,
+        4 + 2 + kRIPEMD160ByteSize + buf,
+        4 + 1 + buf,
         1 + kRIPEMD160ByteSize
     );
 
@@ -478,9 +467,13 @@ void hash160ToAddr(
         *(p++) = b58Digits[digit];
     }
 
-    const uint8_t *s = hash160;
-    const uint8_t *e = kRIPEMD160ByteSize + hash160;
-    while(!*s && s<e) { *(p++) = b58Digits[0]; ++s; }
+    const uint8_t *a =                          (5+buf);
+    const uint8_t *e = 1 + kRIPEMD160ByteSize + (5+buf);
+    while(a<e && 0==a[0])
+    {
+        *(p++) = b58Digits[0];
+        ++a;
+    }
     *(p--) = 0;
 
     while(addr<p)

@@ -331,101 +331,51 @@ static void findLongestChain()
     }
 }
 
-static void parseBlock(
-    const uint8_t *&p
-)
-{
-    startBlock(p);
-
-        LOAD(uint32_t, magic, p);
-        LOAD(uint32_t, size, p);
-        #if defined(LITECOIN)
-            if(unlikely(0xdbb6c0fb!=magic)) {
-        #else
-            if(unlikely(0xd9b4bef9!=magic)) {
-        #endif
-            errFatal(
-                "at offset %" SCNuPTR " should have found block magic, got 0x%" PRIx32 " instead.",
-                p - gCurMap->p,
-                magic
-            );
-        }
-
-        auto i = gBlockMap.find(p+4);
-        if(unlikely(gBlockMap.end()==i))
-            errFatal("failed to locate parent block");
-
-        Block *prev = i->second;
-        Block *block = allocBlock();
-        block->height = 1 + prev->height;
-        block->prev = prev;
-        block->data = p;
-        block->next = 0;
-
-        if(likely(gMaxHeight<block->height)) {
-            gMaxHeight = block->height;
-            gMaxBlock = block;
-        }
-
-        uint8_t *hash = allocHash256();
-        sha256Twice(hash, p, 80);
-        gBlockMap[hash] = block;
-        p += size;
-
-    endBlock(p);
-}
-
 static void initCallback(
-    int     argc,
-    char    *argv[]
+    int  argc,
+    char *argv[]
 )
 {
-    argv += (0<argc);
-    argc -= (0<argc);
-
     const char *methodName = 0;
-    if(0<argc) {
-        methodName = argv[0];
-        ++argv;
-        --argc;
+    if(0<argc) methodName = argv[1];
+    if(0==methodName) methodName = "";
+    if(0==methodName[0]) methodName = "help";
+    gCallback = Callback::find(methodName);
+    fprintf(stderr, "\n");
+
+    info("Starting command \"%s\"", gCallback->name());
+
+    if(argv[1]) {
+        int i = 0;
+        while('-'==argv[1][i]) argv[1][i++] = 'x';
     }
 
-    if(0==methodName) methodName = "";
-    gCallback = Callback::find(methodName);
-    if(0==gCallback) errFatal("unknown callback : %s\n", methodName);
-
-    fprintf(stderr, "\n");
-    info(
-        "Starting command \"%s\"\n",
-        gCallback->name()
-    );
-
-    int ir = gCallback->init(argc, argv);
+    int ir = gCallback->init(argc, (const char **)argv);
     if(ir<0) errFatal("callback init failed");
     gNeedTXHash = gCallback->needTXHash();
 }
 
-static void mapBlockChainFiles()
+static void mapBlockChainFile(
+    const char *homeDir,
+    const char *baseName
+)
 {
-    const char *homeDir = getenv("HOME");
-    if(0==homeDir) {
-        warning("could not getenv(\"HOME\"), using \".\" instead.");
-        homeDir = ".";
-    }
-
     int blkDatId = 0;
     while(1) {
 
         char buf[64];
-        sprintf(buf, "%04d", ++blkDatId);
+        //sprintf(buf, "%04d", ++blkDatId);
+        sprintf(buf, "%05d", blkDatId++);
 
         std::string blockMapFileName =
             homeDir                             +
             #if defined LITECOIN
-                std::string("/.litecoin/blk")   +
+                std::string("/.litecoin/")      +
             #else
-                std::string("/.bitcoin/blk")    +
+                //std::string("/.bitcoin/blk")  +
+                std::string("/.bitcoin/blocks/")+
             #endif
+            std::string(baseName)               +
             std::string(buf)                    +
             std::string(".dat");
 
@@ -455,6 +405,17 @@ static void mapBlockChainFiles()
     }
 }
 
+static void mapBlockChainFiles()
+{
+    const char *homeDir = getenv("HOME");
+    if(0==homeDir) {
+        warning("could not getenv(\"HOME\"), using \".\" instead.");
+        homeDir = ".";
+    }
+
+    mapBlockChainFile(homeDir, "blk");
+}
+
 static void initHashtables()
 {
     gTXMap.setEmptyKey(empty);
@@ -474,14 +435,109 @@ static void initHashtables()
     gBlockMap.resize(nbBlockEstimate);
 }
 
-static void firstPass()
+static void linkBlock(
+    Block *block
+)
 {
-    gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
-    gNullBlock->height = -1;
-    gNullBlock->prev = 0;
-    gNullBlock->next = 0;
-    gNullBlock->data = 0;
+    if(unlikely(0==block->data)) {
+        block->height = 0;
+        block->prev = 0;
+        block->next = 0;
+        return;
+    }
 
+    int depth = 0;
+    Block *b = block;
+    while(b->height<0) {
+
+        auto i = gBlockMap.find(4 + b->data);
+        if(unlikely(gBlockMap.end()==i)) {
+            uint8_t buf[2*kSHA256ByteSize + 1];
+            toHex(buf, 4 + b->data);
+            warning("at depth %d in chain, failed to locate parent block %s", depth, buf);
+            return;
+        }
+
+        Block *prev = i->second;
+        prev->next = b;
+        b->prev = prev;
+        b = prev;
+        ++depth;
+    }
+
+    uint64_t h = b->height;
+    while(block!=b) {
+
+        Block *next = b->next;
+        b->height = h;
+        b->next = 0;
+
+        if(likely(gMaxHeight<h)) {
+            gMaxHeight = h;
+            gMaxBlock = b;
+        }
+
+        b = next;
+        ++h;
+    }
+}
+
+static void linkAllBlocks()
+{
+    auto e = gBlockMap.end();
+    auto i = gBlockMap.begin();
+    while(i!=e) {
+
+        Block *block = (i++)->second;
+        linkBlock(block);
+    }
+}
+
+static bool buildBlock(
+    const uint8_t *&p,
+    const uint8_t *e
+)
+{
+    static const uint32_t expected =
+    #if defined(LITECOIN)
+        0xdbb6c0fb
+    #else
+        0xd9b4bef9
+    #endif
+    ;
+
+    if(unlikely(e<=(8+p))) {
+        //printf("end of map, reason : pointer past EOF\n");
+        return true;
+    }
+
+    LOAD(uint32_t, magic, p);
+    if(unlikely(expected!=magic)) {
+        //printf("end of map, reason : magic is fucked %d away from EOF\n", (int)(e-p));
+        return true;
+    }
+
+    LOAD(uint32_t, size, p);
+    if(unlikely(e<=(p+size))) {
+        //printf("end of map, reason : end of block past EOF, %d away from EOF\n", (int)(e-p));
+        return true;
+    }
+
+    Block *block = allocBlock();
+    block->height = -1;
+    block->data = p;
+    block->prev = 0;
+    block->next = 0;
+
+    uint8_t *hash = allocHash256();
+    sha256Twice(hash, p, 80);
+    gBlockMap[hash] = block;
+    p += size;
+    return false;
+}
+
+static void buildAllBlocks()
+{
     auto e = mapVec.end();
     auto i = mapVec.begin();
     while(i!=e) {
@@ -489,12 +545,30 @@ static void firstPass()
         const Map *map = gCurMap = &(*(i++));
         const uint8_t *end = map->size + map->p;
         const uint8_t *p = map->p;
+
         startMap(p);
 
-            while(unlikely(p<end)) parseBlock(p);
+            while(1) {
+                if(unlikely(end<=p)) break;
+                bool done = buildBlock(p, end);
+                if(done) break;
+            }
 
         endMap(p);
     }
+}
+
+static void buildNullBlock()
+{
+    gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
+    gNullBlock->data = 0;
+}
+
+static void firstPass()
+{
+    buildNullBlock();
+    buildAllBlocks();
+    linkAllBlocks();
 }
 
 static void secondPass()

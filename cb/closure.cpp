@@ -4,6 +4,7 @@
 #include <util.h>
 #include <common.h>
 #include <errlog.h>
+#include <option.h>
 #include <rmd160.h>
 #include <callback.h>
 
@@ -19,6 +20,8 @@ typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> Grap
 
 struct Closure:public Callback
 {
+    optparse::OptionParser parser;
+
     Graph graph;
     AddrMap addrMap;
     double startTime;
@@ -26,17 +29,40 @@ struct Closure:public Callback
     std::vector<uint64_t> vertices;
     std::vector<uint160_t> rootHashes;
 
-    virtual bool needTXHash()
+    Closure()
     {
-        return true;
+        parser
+            .usage("[list of addresses to seed the closure]")
+            .version("")
+            .description("builds a list of addresses provably controlled by the same party.")
+            .epilog("")
+        ;
+    }
+
+    virtual const char                   *name() const         { return "closure"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser;   }
+    virtual bool                         needTXHash() const    { return true;      }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    ) const
+    {
+        v.push_back("cluster");
+        v.push_back("wallet");
     }
 
     virtual int init(
         int argc,
-        char *argv[]
+        const char *argv[]
     )
     {
-        if(argv[0]) loadKeyList(rootHashes, argv[0]);
+        optparse::Values &values = parser.parse_args(argc, argv);
+
+        auto args = parser.args();
+        for(size_t i=1; i<args.size(); ++i) {
+            loadKeyList(rootHashes, args[i].c_str());
+        }
+
         if(0==rootHashes.size()) {
             const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
             warning("no addresses specified, using satoshi's dice address %s", addr);
@@ -155,24 +181,6 @@ struct Closure:public Callback
                 boost::add_edge(a, b, graph);
             }
         }
-    }
-
-    virtual const option::Descriptor *usage() const
-    {
-        return 0;
-    }
-
-    virtual const char *name() const
-    {
-        return "closure";
-    }
-
-    virtual void aliases(
-        std::vector<const char*> &v
-    )
-    {
-        v.push_back("cluster");
-        v.push_back("wallet");
     }
 };
 

@@ -5,19 +5,11 @@
 #include <util.h>
 #include <vector>
 #include <common.h>
+#include <errlog.h>
+#include <option.h>
 #include <rmd160.h>
 #include <string.h>
-#include <errlog.h>
 #include <callback.h>
-
-#define CBNAME "transactions"
-enum  optionIndex { kUnknown, kCSV };
-static const option::Descriptor usageDescriptor[] =
-{
-    { kUnknown, 0, "",    "", option::Arg::None, "[--csv] <addresses>\n" },
-    { kCSV,     0, "", "csv", option::Arg::None, "        --csv      Dump CSV instead of formatted" },
-    { 0,        0,  0,     0,                 0,                                          0 }
-};
 
 static uint8_t emptyKey[kRIPEMD160ByteSize] = { 0x52 };
 typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map AddrMap;
@@ -25,6 +17,8 @@ typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map AddrMap;
 struct Transactions:public Callback
 {
     bool csv;
+    optparse::OptionParser parser;
+
     uint64_t sum;
     uint64_t adds;
     uint64_t subs;
@@ -33,14 +27,38 @@ struct Transactions:public Callback
     AddrMap addrMap;
     std::vector<uint160_t> rootHashes;
 
-    virtual bool needTXHash()
+    Transactions()
     {
-        return true;
+        parser
+            .usage("[options] [list of addresses we need TX for]")
+            .version("")
+            .description("dump all transactions for the specificied addresses")
+            .epilog("")
+        ;
+        parser
+            .add_option("-c", "--csv")
+            .action("store_true")
+            .set_default(false)
+            .help("produce CSV-formatted output instead column-formatted")
+        ;
+    }
+
+    virtual const char                   *name() const         { return "transactions"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser;        }
+    virtual bool                         needTXHash() const    { return true;           }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    ) const
+    {
+        v.push_back("txs");
+        v.push_back("book");
+        v.push_back("tally");
     }
 
     virtual int init(
-        int argc,
-        char *argv[]
+        int  argc,
+        const char *argv[]
     )
     {
         sum = 0;
@@ -48,18 +66,22 @@ struct Transactions:public Callback
         subs = 0;
         nbTX = 0;
 
-        option::Stats  stats(usageDescriptor, argc, argv);
-        option::Option *buffer  = new option::Option[stats.buffer_max];
-        option::Option *options = new option::Option[stats.options_max];
-        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
-        if(parse.error()) exit(1);
+        optparse::Values &values = parser.parse_args(argc, argv);
+        csv = values.get("csv");
 
-        csv = (0<options[kCSV].count());
+        auto args = parser.args();
+        for(size_t i=1; i<args.size(); ++i) {
+            loadKeyList(rootHashes, args[i].c_str());
+        }
 
-        for(int i=0; i<parse.nonOptionsCount(); ++i) loadKeyList(rootHashes, parse.nonOption(i));
         if(0==rootHashes.size()) {
-            const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
-            warning("no addresses specified, using satoshi's dice address %s", addr);
+            #if defined(LITECOIN)
+                const char *addr = "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o";
+                warning("no addresses specified, using popular address %s", addr);
+            #else
+                const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
+                warning("no addresses specified, using satoshi's dice address %s", addr);
+            #endif
             loadKeyList(rootHashes, addr);
         }
 
@@ -70,9 +92,6 @@ struct Transactions:public Callback
             const uint160_t &h = *(i++);
             addrMap[h.v] = 1;
         }
-
-        delete [] options;
-        delete [] buffer;
         return 0;
     }
 
@@ -232,25 +251,6 @@ struct Transactions:public Callback
                 sum*1e-8
             );
         }
-    }
-
-    virtual const option::Descriptor *usage() const
-    {
-        return usageDescriptor;
-    }
-
-    virtual const char *name() const
-    {
-        return CBNAME;
-    }
-
-    virtual void aliases(
-        std::vector<const char*> &v
-    )
-    {
-        v.push_back("txs");
-        v.push_back("book");
-        v.push_back("tally");
     }
 };
 

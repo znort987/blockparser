@@ -103,6 +103,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c opcodes.cpp -o .objs/opcodes.o
 	@mv .objs/opcodes.d .deps
 
+.objs/option.o : option.cpp
+	@echo c++ -- option.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c option.cpp -o .objs/option.o
+	@mv .objs/option.d .deps
+
 .objs/parser.o : parser.cpp
 	@echo c++ -- parser.cpp
 	@mkdir -p .deps
@@ -141,6 +148,7 @@ OBJS=                       \
     .objs/taint.o           \
     .objs/transactions.o    \
     .objs/opcodes.o         \
+    .objs/option.o          \
     .objs/parser.o          \
     .objs/rmd160.o          \
     .objs/sha256.o          \

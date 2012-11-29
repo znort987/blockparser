@@ -8,18 +8,12 @@
 #include <option.h>
 #include <callback.h>
 
-#define CBNAME "pristine"
-enum  optionIndex { kUnknown };
-static const option::Descriptor usageDescriptor[] =
-{
-    { kUnknown, 0, "", "", option::Arg::None, "\n" },
-    { 0,        0,  0,  0,                 0,    0 }
-};
-
 typedef GoogMap<Hash256, uint64_t, Hash256Hasher, Hash256Equal >::Map TxMap;
 
 struct Pristine:public Callback
 {
+    optparse::OptionParser parser;
+
     TxMap txMap;
     size_t nbInputs;
     bool hasGenInput;
@@ -28,9 +22,23 @@ struct Pristine:public Callback
     uint64_t nbPristine;
     const uint8_t *currTXHash;
 
+    Pristine()
+    {
+        parser
+            .usage("")
+            .version("")
+            .description("find all pristine blocks in the blockchain")
+            .epilog("")
+        ;
+    }
+
+    virtual const char                   *name() const         { return "pristine"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser;    }
+    virtual bool                         needTXHash() const    { return true;       }
+
     virtual int init(
         int argc,
-        char *argv[]
+        const char *argv[]
     )
     {
         info("Finding all pristine blocks in blockchain");
@@ -40,11 +48,6 @@ struct Pristine:public Callback
         txMap.resize(sz);
         nbPristine = 0;
         return 0;
-    }
-
-    virtual bool needTXHash()
-    {
-        return true;
     }
 
     virtual void startBlock(
@@ -66,6 +69,7 @@ struct Pristine:public Callback
         const uint8_t *hash
     )
     {
+if(hash==0) abort();
         currTXHash = hash;
     }
 
@@ -141,16 +145,6 @@ struct Pristine:public Callback
             }
             ++i;
         }
-    }
-
-    virtual const option::Descriptor *usage() const
-    {
-        return usageDescriptor;
-    }
-
-    virtual const char *name() const
-    {
-        return CBNAME;
     }
 };
 

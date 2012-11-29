@@ -3,59 +3,102 @@
 
 #include <stdio.h>
 #include <common.h>
+#include <errlog.h>
 #include <option.h>
 #include <callback.h>
 
-#define CBNAME "help"
-enum  optionIndex { kUnknown };
-static const option::Descriptor usageDescriptor[] =
-{
-    { kUnknown, 0, "", "", option::Arg::None, "\n\n        print this help message" },
-    { 0,        0,  0,  0,                 0,                                            0 }
-};
-
 struct Help:public Callback
 {
-    virtual bool needTXHash()
+    optparse::OptionParser parser;
+
+    virtual const char             *name() const               { return "help"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser;}
+    virtual bool                   needTXHash() const          { return false;  }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    ) const
     {
-        return false;
+        v.push_back("-h");
+        v.push_back("-help");
+        v.push_back("--help");
+        v.push_back("manpage");
+        v.push_back("usage");
+        v.push_back("doc");
+    }
+
+    Help()
+    {
+        parser
+            .usage("[options]")
+            .version("")
+            .description("dump help")
+            .add_help_option(false)
+            .epilog("")
+        ;
+        parser
+            .add_option("-l", "--long")
+            .action("store_true")
+            .set_default(false)
+            .help("produce long and detailed help output")
+        ;
     }
 
     virtual int init(
-        int  argc,
-        char *argv[]
+        int argc,
+        const char *argv[]
     )
     {
-        option::Stats  stats(usageDescriptor, argc, argv);
-        option::Option *buffer  = new option::Option[stats.buffer_max];
-        option::Option *options = new option::Option[stats.options_max];
-        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
-        if(parse.error()) exit(1);
+//for(int i=0; i<argc; ++i) printf("argv[%d] = %s\n", i, argv[i]);
+        optparse::Values &values = parser.parse_args(argc, argv);
+        bool longHelp = values.get("long");
+        longHelp = longHelp || (
+            argv[1]         &&
+            'm'==argv[1][0] &&
+            'a'==argv[1][1] &&
+            'n'==argv[1][2]
+        );
+        longHelp = longHelp || (
+            argv[1]         &&
+            'd'==argv[1][0] &&
+            'o'==argv[1][1] &&
+            'c'==argv[1][2]
+        );
+
+
+        auto args = parser.args();
+        if(1<=args.size()) {
+            // find callback(s) if they exists
+            // dump help for each of these callback
+            // exit
+        }
 
         printf("\n");
-        printf("Usage: parser <command> <command options> <command data>\n");
+        printf("General Usage: parser <command> <options> <command arguments>\n");
         printf("\n");
-        printf("    Note that <command> can be abbreviated and has mutlipled aliases.\n");
-        printf("    For example, \"parser tx\", \"parser tr\", and \"parser transactions\" are equivalent.\n");
+        printf("    Where <command> can be any of:\n");
+        Callback::find("", true);
         printf("\n");
-        printf("Available commands:\n");
+        printf("    NOTE: use \"parser help <command>\" or \"parser <command> --help\" to get detailed\n");
+        printf("          help for a specific command.\n");
+        printf("\n");
+        printf("    NOTE: <command> may have multiple aliases and can also be abbreviated. For\n");
+        printf("          example, \"parser tx\", \"parser tr\", and \"parser transactions\" are equivalent.\n");
+        printf("\n");
+        printf("    NOTE: whenever specifying a list of things (e.g. a list of addresses), you can\n");
+        printf("          instead enter \"file:list.txt\" and the list will be read from the file.\n");
+        printf("\n");
+        printf("    NOTE: whenever specifying a list file, you can use \"file:-\" and blockparser\n");
+        printf("          will read the list directly from stdin.\n");
+        printf("\n");
         printf("\n");
 
-        Callback::showAllHelps();
-
-        delete [] options;
-        delete [] buffer;
+        if(longHelp) {
+            printf("Every available command and its specific usage follows:\n");
+            printf("\n");
+            Callback::showAllHelps(false);
+        }
         exit(0);
-    }
-
-    virtual const option::Descriptor *usage() const
-    {
-        return usageDescriptor;
-    }
-
-    virtual const char *name() const
-    {
-        return CBNAME;
     }
 };
 

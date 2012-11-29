@@ -3,10 +3,13 @@
 
 #include <util.h>
 #include <common.h>
+#include <option.h>
 #include <callback.h>
 
 struct SimpleStats:public Callback
 {
+    optparse::OptionParser parser;
+
     uint128_t nbMaps;
     uint128_t volume;
     uint128_t nbBlocks;
@@ -15,14 +18,30 @@ struct SimpleStats:public Callback
     uint128_t nbValidBlocks;
     uint128_t nbTransactions;
 
-    virtual bool needTXHash()
+    SimpleStats()
     {
-        return false;
+        parser
+            .usage("")
+            .version("")
+            .description("gather simple stats about the blockchain")
+            .epilog("")
+        ;
+    }
+
+    virtual const char                   *name() const         { return "simpleStats"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser;       }
+    virtual bool                         needTXHash() const    { return false;         }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    ) const
+    {
+        v.push_back("stats");
     }
 
     virtual int init(
         int argc,
-        char *argv[]
+        const char *argv[]
     )
     {
         nbMaps = 0;
@@ -77,23 +96,6 @@ struct SimpleStats:public Callback
     virtual void   startInput(const uint8_t *p                     ) { ++nbInputs;      }
     virtual void  startOutput(const uint8_t *p                     ) { ++nbOutputs;     }
     virtual void   startBlock(  const Block *b                     ) { ++nbValidBlocks; }
-
-    virtual const option::Descriptor *usage() const
-    {
-        return 0;
-    }
-
-    virtual const char *name() const
-    {
-        return "simpleStats";
-    }
-
-    virtual void aliases(
-        std::vector<const char*> &v
-    )
-    {
-        v.push_back("stats");
-    }
 };
 
 static SimpleStats simpleStats;

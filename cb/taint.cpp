@@ -23,18 +23,10 @@
 */
 
 #include <util.h>
-#include <string.h>
 #include <common.h>
 #include <errlog.h>
+#include <string.h>
 #include <callback.h>
-
-#define CBNAME "taint"
-enum  optionIndex { kUnknown };
-static const option::Descriptor usageDescriptor[] =
-{
-    { kUnknown, 0, "",    "", option::Arg::None, "<tx hashes>\n" },
-    { 0,        0,  0,     0,                 0,               0 }
-};
 
 typedef long double Number;
 typedef GoogMap<Hash256, int, Hash256Hasher, Hash256Equal >::Map TxMap;
@@ -49,6 +41,8 @@ static inline void printNumber(
 
 struct Taint:public Callback
 {
+    optparse::OptionParser parser;
+
     Number txBad;
     TxMap srcTxMap;
     double threshold;
@@ -57,25 +51,44 @@ struct Taint:public Callback
     const uint8_t *txHash;
     std::vector<uint256_t> rootHashes;
 
-    virtual bool needTXHash()
+    Taint()
     {
-        return true;
+        parser
+            .usage("[list of transaction hashes]")
+            .version("")
+            .description(
+                "compute the taint from list of specified transactions"
+                "to *all* existing transactions found in the blockchain"
+            )
+            .epilog("")
+        ;
+    }
+
+    virtual const char                   *name() const         { return "taint"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser; }
+    virtual bool                         needTXHash() const    { return true;    }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    ) const
+    {
+        v.push_back("trace");
     }
 
     virtual int init(
         int argc,
-        char *argv[]
+        const char *argv[]
     )
     {
-        option::Stats  stats(usageDescriptor, argc, argv);
-        option::Option *buffer  = new option::Option[stats.buffer_max];
-        option::Option *options = new option::Option[stats.options_max];
-        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
-        if(parse.error()) exit(1);
-
         threshold = 1e-20;
 
-        for(int i=0; i<parse.nonOptionsCount(); ++i) loadHash256List(rootHashes, parse.nonOption(i));
+        optparse::Values &values = parser.parse_args(argc, argv);
+
+        auto args = parser.args();
+        for(size_t i=1; i<args.size(); ++i) {
+            loadHash256List(rootHashes, args[i].c_str());
+        }
+
         if(0<rootHashes.size()) {
             info("computing taint from %d source transactions\n", (int)rootHashes.size());
         } else {
@@ -152,23 +165,6 @@ struct Taint:public Callback
         auto i = taintMap.find(upTXHash);
         if(e!=i) txBad += (value * i->second);
         txTotal += value;
-    }
-
-    virtual const option::Descriptor *usage() const
-    {
-        return usageDescriptor;
-    }
-
-    virtual const char *name() const
-    {
-        return CBNAME;
-    }
-
-    virtual void aliases(
-        std::vector<const char*> &v
-    )
-    {
-        v.push_back("trace");
     }
 };
 

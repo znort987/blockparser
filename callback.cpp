@@ -18,7 +18,8 @@ Callback::Callback()
 }
 
 Callback *Callback::find(
-    const char *name
+    const char *name,
+    bool printList
 )
 {
     CBMap found;
@@ -40,32 +41,61 @@ Callback *Callback::find(
             if(0==strncasecmp(nm, name, x)) found[(uintptr_t)c] = c;
         }
     }
-    if(1==found.size()) return found.begin()->second;
-    if(1<found.size()) {
+
+    if(1==found.size() && !printList) {
+        return found.begin()->second;
+    } else if(0==found.size()) {
         printf("\n");
-        warning("\"%s\": ambiguous command name, could be any of:\n", name);
+        warning("\"%s\": unknown command name\n", name);
+    } else {
+
+        printf("\n");
+
+        if(!printList) {
+            warning("\"%s\": ambiguous command name, could be any of:\n", name);
+        }
 
         int count = 0;
         auto e = found.end();
         auto i = found.begin();
         while(i!=e) {
-            Callback *c = (i++)->second;
-            printf(" %3d. %s", ++count, c->name());
 
             std::vector<const char*> names;
+            Callback *c = (i++)->second;
             c->aliases(names);
 
+            printf(
+                "      %3d. %s%s",
+                ++count,
+                c->name(),
+                0<names.size() ? " (aliases: " : ""
+            );
+
+            bool first = true;
             auto e = names.end();
             auto i = names.begin();
             while(i!=e) {
                 const char *nm = *(i++);
-                printf(", %s", nm);
+                printf(
+                    "%s%s",
+                    first ? "" : ", ",
+                    nm
+                );
+                first = false;
             }
-            printf("\n");
+            printf(
+                "%s\n",
+                0<names.size() ? ")" : ""
+            );
         }
         printf("\n");
     }
-    return 0;
+
+    if(printList || 0==strcmp(name, "help")) return 0;
+    printf("use:\n");
+    printf("      \"parser man\" for complete documentation of all commands.\n");
+    printf("      \"parser help\" for a short summary of available commands.\n\n");
+    exit(-1);
 }
 
 struct Cmp
@@ -82,32 +112,26 @@ struct Cmp
     }
 };
 
-struct Writer {
-    void operator()(
-        const char *buf,
-        size_t size
-    )
-    {
-        fwrite(buf, size, 1, stdout);
-    }
-}; 
-
-void Callback::showAllHelps()
+void Callback::showAllHelps(
+    bool longHelp
+)
 {
-    Writer writer;
     auto e = callbacks->end();
     auto i = callbacks->begin();
     std::sort(i, e, Cmp());
 
     while(i!=e) {
         Callback *c = *(i++);
-        printf("    parser %s", c->name());
-        const option::Descriptor *usage = c->usage();
-
-        if(usage) {
-            option::printUsage(&writer, usage);
+        printf("    USAGE: parser %s ", c->name());
+        const optparse::OptionParser *parser = c->optionParser();
+        if(parser) {
+            printf(
+                "%s\n",
+                longHelp                      ?
+                parser->get_usage().c_str()   :
+                parser->format_help().c_str()
+            );
         }
-        printf("\n");
     }
     printf("\n");
 }

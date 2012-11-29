@@ -9,18 +9,20 @@
     struct Callback
     {
         Callback();
-        virtual const char                *name() const = 0;
-        virtual const option::Descriptor *usage() const = 0;
-        virtual void                    aliases(std::vector<const char *> &v) {          }
+        virtual const char                   *name() const = 0;
+        virtual const optparse::OptionParser *optionParser() const = 0;
+        virtual bool                         needTXHash() const                          { return false; }
+        virtual void                         aliases(std::vector<const char *> &v) const {               }
 
-        virtual int          init(int argc, char *argv[]               ) { return 0;     }
-        virtual bool   needTXHash(                                     ) { return false; }
+        virtual int          init(int argc, const char *argv[]         ) { return 0;     }
 
+        // Callback for first, shallow parse -- all blocks are seen, including orphaned ones but aren't parsed
         virtual void     startMap(const uint8_t *p                     ) {               }
         virtual void       endMap(const uint8_t *p                     ) {               }
         virtual void   startBlock(const uint8_t *p                     ) {               }
         virtual void     endBlock(const uint8_t *p                     ) {               }
 
+        // Callback for second, deep parse -- only valid blocks are seen, and are parsed in details
         virtual void        start(  const Block *s, const Block *e     ) {               }
         virtual void      startTX(const uint8_t *p, const uint8_t *hash) {               }
         virtual void        endTX(const uint8_t *p                     ) {               }
@@ -60,8 +62,8 @@
         {
         }
 
-        static void showAllHelps();
-        static Callback *find(const char *name);
+        static Callback *find(const char *name, bool printList=false);
+        static void showAllHelps(bool longHelp);
     };
 
 #endif // __CALLBACK_H__

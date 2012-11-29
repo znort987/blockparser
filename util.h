@@ -63,7 +63,7 @@
     struct Block
     {
         const uint8_t *data;
-        uint64_t      height;
+        int64_t       height;
         Block         *prev;
         Block         *next;
     };

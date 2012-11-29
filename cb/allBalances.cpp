@@ -4,19 +4,12 @@
 #include <util.h>
 #include <common.h>
 #include <errlog.h>
+#include <option.h>
 #include <rmd160.h>
 #include <callback.h>
 
 #include <vector>
 #include <string.h>
-
-#define CBNAME "allBalances"
-enum  optionIndex { kUnknown };
-static const option::Descriptor usageDescriptor[] =
-{
-    { kUnknown, 0, "", "", option::Arg::None, " <addresses>\n\n        dump balance of all addresses ever used." },
-    { 0,        0,  0,  0,                 0,        0    }
-};
 
 struct Addr
 {
@@ -46,6 +39,11 @@ typedef GoogMap<Hash160, int, Hash160Hasher, Hash160Equal>::Map RestrictMap;
 
 struct AllBalances:public Callback
 {
+    int64_t limit;
+    int64_t showAddr;
+    int64_t cutoffBlock;
+    optparse::OptionParser parser;
+
     AddrMap addrMap;
     uint32_t blockTime;
     const Block *curBlock;
@@ -55,14 +53,51 @@ struct AllBalances:public Callback
     std::vector<Addr*> allAddrs;
     std::vector<uint160_t> restricts;
 
-    virtual bool needTXHash()
+    AllBalances()
     {
-        return true;
+        parser
+            .usage("[options] [list of addresses to restrict output to]")
+            .version("")
+            .description("dump the balance for all addresses that appear in the blockchain")
+            .epilog("")
+        ;
+        parser
+            .add_option("-a", "--atBlock")
+            .action("store")
+            .type("int")
+            .set_default(-1)
+            .help("only take into account transactions in blocks strictly older than <block> (default: all)")
+        ;
+        parser
+            .add_option("-l", "--limit")
+            .action("store")
+            .type("int")
+            .set_default(-1)
+            .help("limit output to top N balances, (default : output all addresses)")
+        ;
+        parser
+            .add_option("-w", "--withAddr")
+            .action("store")
+            .type("int")
+            .set_default(500)
+            .help("only show address for top N results (default: N=%default)")
+        ;
+    }
+
+    virtual const char                   *name() const         { return "allBalances"; }
+    virtual const optparse::OptionParser *optionParser() const { return &parser;       }
+    virtual bool                         needTXHash() const    { return true;          }
+
+    virtual void aliases(
+        std::vector<const char*> &v
+    ) const
+    {
+        v.push_back("balances");
     }
 
     virtual int init(
         int argc,
-        char *argv[]
+        const char *argv[]
     )
     {
         curBlock = 0;
@@ -73,15 +108,18 @@ struct AllBalances:public Callback
         addrMap.resize(15 * 1000 * 1000);
         allAddrs.reserve(15 * 1000 * 1000);
 
-        option::Stats  stats(usageDescriptor, argc, argv);
-        option::Option *buffer  = new option::Option[stats.buffer_max];
-        option::Option *options = new option::Option[stats.options_max];
-        option::Parser parse(usageDescriptor, argc, argv, options, buffer);
-        if(parse.error()) exit(1);
+        optparse::Values &values = parser.parse_args(argc, argv);
+        cutoffBlock = values.get("atBlock");
+        showAddr = values.get("withAddr");
+        limit = values.get("limit");
 
-        for(int i=0; i<parse.nonOptionsCount(); ++i) {
-            loadKeyList(restricts, parse.nonOption(i));
+        auto args = parser.args();
+        for(size_t i=1; i<args.size(); ++i) {
+            loadKeyList(restricts, args[i].c_str());
         }
+
+        if(0<=cutoffBlock)
+            info("only taking into account transactions before block %" PRIu64 "\n", cutoffBlock);
 
         if(0!=restricts.size()) {
             info(
@@ -99,8 +137,6 @@ struct AllBalances:public Callback
         }
 
         info("analyzing blockchain ...");
-        delete [] options;
-        delete [] buffer;
         return 0;
     }
 
@@ -212,9 +248,12 @@ struct AllBalances:public Callback
         if(0==nbRestricts) info("dumping all balances ...");
         else               info("dumping balances for %" PRIu64 " addresses ...", nbRestricts);
 
-        uint64_t i = 0;
-        uint64_t nonZeroCnt = 0;
+        int64_t i = 0;
+        int64_t nonZeroCnt = 0;
         while(likely(s<e)) {
+
+            if(0<=limit && limit<=i)
+                break;
 
             Addr *addr = *(s++);
             if(0!=nbRestricts) {
@@ -226,10 +265,12 @@ struct AllBalances:public Callback
             showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
-            if(i<5000 || 0!=nbRestricts) {
+            if(i<showAddr || 0!=nbRestricts) {
                 uint8_t buf[64];
                 hash160ToAddr(buf, addr->hash.v);
                 printf(" %s", buf);
+            } else {
+                printf(" XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
             }
 
             struct tm gmTime;
@@ -250,6 +291,8 @@ struct AllBalances:public Callback
         info("found %" PRIu64 " addresses with non zero balance", nonZeroCnt);
         info("found %" PRIu64 " addresses in total", (uint64_t)allAddrs.size());
         info("shown:%" PRIu64 " addresses", (uint64_t)i);
+        printf("\n");
+        exit(0);
     }
 
     virtual void start(
@@ -273,24 +316,11 @@ struct AllBalances:public Callback
         SKIP(uint256_t, blkMerkleRoot, p);
         LOAD(uint32_t, bTime, p);
         blockTime = bTime;
+
+        if(0<=cutoffBlock && cutoffBlock<=curBlock->height)
+            wrapup();
     }
 
-    virtual const option::Descriptor *usage() const
-    {
-        return usageDescriptor;
-    }
-
-    virtual const char *name() const
-    {
-        return CBNAME;
-    }
-
-    virtual void aliases(
-        std::vector<const char*> &v
-    )
-    {
-        v.push_back("balances");
-    }
 };
 
 static AllBalances allBalances;

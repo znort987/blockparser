@@ -355,29 +355,41 @@ static void initCallback(
     gNeedTXHash = gCallback->needTXHash();
 }
 
-static void mapBlockChainFile(
-    const char *homeDir,
-    const char *baseName
-)
+static void mapBlockChainFiles()
 {
-    int blkDatId = 0;
+    std::string coinName(
+        #if defined LITECOIN
+            "/.litecoin/"
+        #else
+            "/.bitcoin/"
+        #endif
+    );
+
+    const char *home = getenv("HOME");
+    if(0==home) {
+        warning("could not getenv(\"HOME\"), using \".\" instead.");
+        home = ".";
+    }
+
+    std::string homeDir(home);
+    std::string blockDir = homeDir + coinName + std::string("blocks");
+
+    struct stat statBuf;
+    int r = stat(blockDir.c_str(), &statBuf);
+    bool oldStyle = (r<0 || !S_ISDIR(statBuf.st_mode));
+
+    int blkDatId = oldStyle ? 1 : 0;
+    const char *fmt = oldStyle ? "blk%04d.dat" : "blocks/blk%05d.dat";
     while(1) {
 
         char buf[64];
-        //sprintf(buf, "%04d", ++blkDatId);
-        sprintf(buf, "%05d", blkDatId++);
+        sprintf(buf, fmt, blkDatId++);
 
         std::string blockMapFileName =
             homeDir                             +
-            #if defined LITECOIN
-                std::string("/.litecoin/")      +
-            #else
-                //std::string("/.bitcoin/blk")  +
-                std::string("/.bitcoin/blocks/")+
-            #endif
-            std::string(baseName)               +
-            std::string(buf)                    +
-            std::string(".dat");
+            coinName                            +
+            std::string(buf)
+        ;
 
         int blockMapFD = open(blockMapFileName.c_str(), O_DIRECT | O_RDONLY);
         if(blockMapFD<0) {
@@ -394,7 +406,12 @@ static void mapBlockChainFile(
 
         size_t mapSize = statBuf.st_size;
         void *pMap = mmap(0, mapSize, PROT_READ, MAP_PRIVATE, blockMapFD, 0);
-        if(((void*)-1)==pMap) sysErrFatal( "failed to mmap block chain file %s", blockMapFileName.c_str());
+        if(((void*)-1)==pMap) {
+            sysErrFatal(
+                "failed to mmap block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
 
         Map map;
         map.size = mapSize;
@@ -403,17 +420,6 @@ static void mapBlockChainFile(
         map.p = (const uint8_t*)pMap;
         mapVec.push_back(map);
     }
-}
-
-static void mapBlockChainFiles()
-{
-    const char *homeDir = getenv("HOME");
-    if(0==homeDir) {
-        warning("could not getenv(\"HOME\"), using \".\" instead.");
-        homeDir = ".";
-    }
-
-    mapBlockChainFile(homeDir, "blk");
 }
 
 static void initHashtables()

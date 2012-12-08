@@ -82,6 +82,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/simpleStats.cpp -o .objs/simpleStats.o
 	@mv .objs/simpleStats.d .deps
 
+.objs/sql.o : cb/sql.cpp
+	@echo c++ -- cb/sql.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/sql.cpp -o .objs/sql.o
+	@mv .objs/sql.d .deps
+
 .objs/taint.o : cb/taint.cpp
 	@echo c++ -- cb/taint.cpp
 	@mkdir -p .deps
@@ -145,6 +152,7 @@ OBJS=                       \
     .objs/help.o            \
     .objs/pristine.o        \
     .objs/simpleStats.o     \
+    .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
     .objs/opcodes.o         \

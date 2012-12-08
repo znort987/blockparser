@@ -602,8 +602,8 @@ static void cleanMaps()
 }
 
 int main(
-    int     argc,
-    char    *argv[]
+    int  argc,
+    char *argv[]
 )
 {
     double start = usecs();

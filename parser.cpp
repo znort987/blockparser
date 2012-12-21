@@ -343,7 +343,7 @@ static void initCallback(
     gCallback = Callback::find(methodName);
     fprintf(stderr, "\n");
 
-    info("Starting command \"%s\"", gCallback->name());
+    info("starting command \"%s\"", gCallback->name());
 
     if(argv[1]) {
         int i = 0;

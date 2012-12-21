@@ -216,6 +216,11 @@
         const char    *header = 0
     );
 
+    bool decompressPublicKey(
+              uint8_t *result,
+        const uint8_t *compressedKey
+    );
+
     int solveOutputScript(
               uint8_t *pubKeyHash,
         const uint8_t *script,

@@ -153,7 +153,7 @@ void showScript(
     }
 }
 
-static bool decompressPublicKey(
+bool decompressPublicKey(
           uint8_t *result,          // 65 bytes
     const uint8_t *compressedKey    // 33 bytes
 )
@@ -226,12 +226,12 @@ int solveOutputScript(
         )
     )
     {
-        uint8_t pubKey[65];
-        bool ok = decompressPublicKey(pubKey, 1+script);
-        if(!ok) return -3;
+        //uint8_t pubKey[65];
+        //bool ok = decompressPublicKey(pubKey, 1+script);
+        //if(!ok) return -3;
 
         uint256_t sha;
-        sha256(sha.v, pubKey, 65);
+        sha256(sha.v, 1+script, 33);
         rmd160(pubKeyHash, sha.v, kSHA256ByteSize);
         return 2;
     }
@@ -546,6 +546,7 @@ void loadKeyList(
         return;
     }
 
+    size_t found = 0;
     size_t lineCount = 0;
     double start = usecs();
     while(1) {
@@ -560,20 +561,28 @@ void loadKeyList(
 
         uint160_t h160;
         bool ok = addAddr(result, (uint8_t*)buf, verbose);
-        if(!ok && verbose) {
-            warning(
-                "in file %s, line %d, %s is not an address\n",
-                fileName,
-                lineCount,
-                buf
-            );
+        if(ok) {
+            ++found;
+        } else {
+            if(verbose) {
+                warning(
+                    "in file %s, line %d, %s is not an address\n",
+                    fileName,
+                    lineCount,
+                    buf
+                );
+            }
         }
-
     }
     fclose(f);
 
     double elapsed = (usecs() - start)*1e-6;
-    printf("loaded in %.2f secs\n", elapsed);
+    info(
+        "file %s loaded in %.2f secs, found %d addresses",
+        fileName,
+        elapsed,
+        (int)found
+    );
 }
 
 void loadHash256List(

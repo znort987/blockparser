@@ -216,6 +216,11 @@
         const char    *header = 0
     );
 
+    bool compressPublicKey(
+              uint8_t *result,
+        const uint8_t *decompressedKey
+    );
+
     bool decompressPublicKey(
               uint8_t *result,
         const uint8_t *compressedKey

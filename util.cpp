@@ -153,15 +153,51 @@ void showScript(
     }
 }
 
+bool compressPublicKey(
+          uint8_t *result,          // 33 bytes
+    const uint8_t *decompressedKey  // 65 bytes
+)
+{
+    EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
+    if(!key) {
+        errFatal("EC_KEY_new_by_curve_name failed");
+        return false;
+    }
+
+    EC_KEY *r = o2i_ECPublicKey(&key, &decompressedKey, 65);
+    if(!r) {
+        //warning("o2i_ECPublicKey failed");
+        EC_KEY_free(key);
+        return false;
+    }
+
+    EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
+    size_t size = i2o_ECPublicKey(key, &result);
+    EC_KEY_free(key);
+
+    if(33!=size) {
+        errFatal("i2o_ECPublicKey failed");
+        return false;
+    }
+
+    return true;
+}
+
 bool decompressPublicKey(
           uint8_t *result,          // 65 bytes
     const uint8_t *compressedKey    // 33 bytes
 )
 {
     EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
+    if(!key) {
+        errFatal("EC_KEY_new_by_curve_name failed");
+        return false;
+    }
+
     EC_KEY *r = o2i_ECPublicKey(&key, &compressedKey, 33);
     if(!r) {
         //warning("o2i_ECPublicKey failed");
+        EC_KEY_free(key);
         return false;
     }
 
@@ -217,7 +253,7 @@ int solveOutputScript(
         return 1;
     }
 
-    // Unusual output script, pays to compressed pubKeys
+    // Unusual output script, pays to explicit compressed pubKeys
     if(
         likely(
               33==script[0]            &&  // OP_PUSHDATA(33)
@@ -675,7 +711,7 @@ void showFullAddr(
     if(both) showHex(addr, sizeof(uint160_t), false);
     hash160ToAddr(b58, addr);
     printf(
-        "%s%s\n",
+        "%s%s",
         both ? " " : "", b58
     );
 }

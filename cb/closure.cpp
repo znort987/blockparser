@@ -144,6 +144,7 @@ struct Closure:public Callback
             if(unlikely(addrMap.end()==j)) {
                 warning("specified key was never used to spend coins");
                 showFullAddr(keyHash);
+                printf("\n");
                 count = 1;
             } else {
                 uint64_t addrIndex = j->second;
@@ -153,6 +154,7 @@ struct Closure:public Callback
                     if(unlikely(homeComponentIndex==componentIndex)) {
                         Addr *addr = allAddrs[k];
                         showFullAddr(addr->v);
+                        printf("\n");
                         ++count;
                     }
                 }

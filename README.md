@@ -46,7 +46,7 @@ blockparser
 
             ./parser transactions 06f1b66fa14429389cbffa656966993eab656f37
 
-        . Compute the closure of an address, list of addresses that provably belong to the same person (20 seconds):
+        . Compute the closure of an address, that is the list of addresses that provably belong to the same person (20 seconds):
 
             ./parser closure 06f1b66fa14429389cbffa656966993eab656f37
 
@@ -57,6 +57,10 @@ blockparser
         . See how much of the BTC 10K pizza tainted each of the TX in the chain
 
             ./parser taint >pizzaTaint.txt
+
+        . See all the block rewards and fees:
+
+            ./parser rewards >rewards.txt
 
     Caveats:
     --------
@@ -86,9 +90,13 @@ blockparser
             solveOutputScript
             decompressPublicKey
 
-        . cb/closure.cpp        :   code to compute the transitive closure of an address.
         . cb/allBalances.cpp    :   code to all balance of all addresses.
+        . cb/closure.cpp        :   code to compute the transitive closure of an address.
+        . cb/help.cpp           :   code to dump detailed help for all other commands
+        . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
+        . cb/rewards.cpp        :   code to show all block rewards (including fees)
         . cb/simpleStats.cpp    :   code to compute simple stats.
+        . cb/sql.cpp            :   code to product an SQL dump of the blockchain
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
 

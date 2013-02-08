@@ -75,6 +75,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/help.cpp -o .objs/help.o
 	@mv .objs/help.d .deps
 
+.objs/rewards.o : cb/rewards.cpp
+	@echo c++ -- cb/rewards.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/rewards.cpp -o .objs/rewards.o
+	@mv .objs/rewards.d .deps
+
 .objs/simpleStats.o : cb/simpleStats.cpp
 	@echo c++ -- cb/simpleStats.cpp
 	@mkdir -p .deps
@@ -146,20 +153,21 @@ all:parser
 	@mv .objs/util.d .deps
 
 OBJS=                       \
-    .objs/callback.o        \
     .objs/allBalances.o     \
+    .objs/callback.o        \
     .objs/closure.o         \
     .objs/help.o            \
+    .objs/opcodes.o         \
+    .objs/option.o          \
+    .objs/parser.o          \
     .objs/pristine.o        \
+    .objs/rewards.o         \
+    .objs/rmd160.o          \
+    .objs/sha256.o          \
     .objs/simpleStats.o     \
     .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
-    .objs/opcodes.o         \
-    .objs/option.o          \
-    .objs/parser.o          \
-    .objs/rmd160.o          \
-    .objs/sha256.o          \
     .objs/util.o            \
 
 parser:${OBJS}

@@ -10,7 +10,7 @@ blockparser
     What:
     -----
 
-        A fast, quick and dirty bitcoin blockchain parser.
+        A fairly fast, quick and dirty bitcoin whole blockchain parser.
 
     Why:
     ----
@@ -62,6 +62,10 @@ blockparser
 
             ./parser rewards >rewards.txt
 
+        . See a greatly detailed dump of the pizza transaction
+
+            ./parser show
+
     Caveats:
     --------
 
@@ -72,26 +76,28 @@ blockparser
           grow quite fat. I might switch them to something different that spills over to disk at some
           point. For now: it works fine with 8 Gigs.
 
-        . The code isnt particularly clean or well architected. It was just a quick way for me to learn
-          about bitcoin. There isnt much in the way of comments.
+        . The code isn't particularly clean or well architected. It was just a quick way for me to learn
+          about bitcoin. There isnt much in the way of comments either.
 
         . OTOH, it is fairly simple, short, and efficient. If you want to understand how the blockchain
-          data structure works, the code in parser.cpp is a fairly good way to start.
+          data structure works, the code in parser.cpp is a solid way to start.
 
     Hacking the code:
     -----------------
 
-        . parser.cpp contains a generic parser that mmaps the blockchain, parses it and calls "user-defined"
-          callbacks as it hits interesting bits of information.
+        . parser.cpp contains a generic parser that mmaps the blockchain, parses it and calls
+          "user-defined" callbacks as it hits interesting bits of information.
 
         . util.cpp contains a grab-bag of useful bitcoin related routines. Interesting examples include:
 
             showScript
+            getBaseReward
             solveOutputScript
             decompressPublicKey
 
         . cb/allBalances.cpp    :   code to all balance of all addresses.
-        . cb/closure.cpp        :   code to compute the transitive closure of an address.
+        . cb/closure.cpp        :   code to compute the transitive closure of an address
+        . cb/dumpTX.cpp         :   code to display a transaction in very great detail
         . cb/help.cpp           :   code to dump detailed help for all other commands
         . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
         . cb/rewards.cpp        :   code to show all block rewards (including fees)
@@ -100,13 +106,19 @@ blockparser
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
 
-        . You can add your own custom callback. You can use the existing callbacks in
-          directory ./cb/ to build your own:
+
+        . You can very easily add your own custom command. You can use the existing callbacks in
+          directory ./cb/ as a template to build your own:
 
                 cp cb/allBalances.cpp cb/myExtractor.cpp
                 Add to Makefile
                 Hack away
                 Recompile
+                Run
+
+        . You can also read the file callback.h (the base class from which you derive to implement your
+          own new commands). It has been heavily commented and should provide a good basis to pick what
+          to overload to achieve your goal.
 
         . The code makes heavy use of the google dense hash maps. You can switch it to use sparse hash
           maps (see util.h, search for: DENSE, undef it). Sparse hash maps are slower but save quite a

@@ -163,6 +163,7 @@ OBJS=                       \
     .objs/allBalances.o     \
     .objs/callback.o        \
     .objs/closure.o         \
+    .objs/dumpTX.o          \
     .objs/help.o            \
     .objs/opcodes.o         \
     .objs/option.o          \

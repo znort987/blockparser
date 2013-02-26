@@ -213,7 +213,8 @@
     void showScript(
         const uint8_t *p,
         size_t        scriptSize,
-        const char    *header = 0
+        const char    *header = 0,
+        const char    *indent = 0
     );
 
     bool compressPublicKey(
@@ -297,6 +298,10 @@
     void showFullAddr(
         const Hash160 &addr,
         bool both = false
+    );
+
+    uint64_t getBaseReward(
+        uint64_t h
     );
 
 #endif // __UTIL_H__

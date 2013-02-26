@@ -119,18 +119,20 @@ bool fromHex(
 void showScript(
     const uint8_t *p,
     size_t        scriptSize,
-    const char    *header
+    const char    *header,
+    const char    *indent
 )
 {
     bool first = true;
     const uint8_t *e = scriptSize + p;
-    while(likely(p<e))
-    {
+    indent = indent ? indent : "";
+    while(likely(p<e)) {
         LOAD(uint8_t, c, p);
         bool isImmediate = (0<c && c<79) ;
         if(!isImmediate) {
             printf(
-                "    0x%02X %s%s\n",
+                "    %s0x%02X %s%s\n",
+                indent,
                 c,
                 getOpcodeName(c),
                 (first && header) ? header : ""
@@ -143,10 +145,13 @@ void showScript(
             else if(likely(76==c)) { LOAD( uint8_t, v, p); dataSize = v; }
             else if(likely(77==c)) { LOAD(uint16_t, v, p); dataSize = v; }
             else if(likely(78==c)) { LOAD(uint32_t, v, p); dataSize = v; }
-            printf("         OP_PUSHDATA(%" PRIu64 ", 0x", dataSize);
+            printf("         %sOP_PUSHDATA(%" PRIu64 ", 0x", indent, dataSize);
             showHex(p, dataSize, false);
 
-            printf(")%s\n", (first && header) ? header : "");
+            printf(
+                ")%s\n",
+                (first && header) ? header : ""
+            );
             p += dataSize;
         }
         first = false;
@@ -714,5 +719,16 @@ void showFullAddr(
         "%s%s",
         both ? " " : "", b58
     );
+}
+
+uint64_t getBaseReward(
+    uint64_t h
+)
+{
+    static const uint64_t kCoin = 100000000;
+    uint64_t reward = (50 * kCoin);
+    uint64_t shift = (h/210000);
+    reward >>= shift;
+    return reward;
 }
 

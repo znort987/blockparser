@@ -93,17 +93,6 @@ struct Rewards:public Callback
         }
     }
 
-    static uint64_t getBaseReward(
-        uint64_t h
-    )
-    {
-        static const uint64_t kCoin = 100000000;
-        uint64_t reward = 50 * kCoin;
-        uint64_t shift = (h/210000);
-        reward >>= shift;
-        return reward;
-    }
-
     virtual void endOutput(
         const uint8_t *p,
         uint64_t      value,

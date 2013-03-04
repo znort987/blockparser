@@ -52,7 +52,8 @@ struct Rewards:public Callback
     }
 
     virtual void startBlock(
-        const Block *b
+        const Block *b,
+        uint64_t
     )
     {
         const uint8_t *p = b->data;

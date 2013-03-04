@@ -305,7 +305,8 @@ struct AllBalances:public Callback
     }
 
     virtual void startBlock(
-        const Block *b
+        const Block *b,
+        uint64_t
     )
     {
         curBlock = b;

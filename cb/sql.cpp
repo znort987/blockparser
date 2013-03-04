@@ -178,7 +178,8 @@ struct SQLDump:public Callback
     }
 
     virtual void startBlock(
-        const Block *b
+        const Block *b,
+        uint64_t
     )
     {
         if(0<=cutoffBlock && cutoffBlock<b->height) wrapup();

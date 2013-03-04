@@ -95,7 +95,7 @@ struct SimpleStats:public Callback
     virtual void      startTX(const uint8_t *p, const uint8_t *hash) { ++nbTransactions;}
     virtual void   startInput(const uint8_t *p                     ) { ++nbInputs;      }
     virtual void  startOutput(const uint8_t *p                     ) { ++nbOutputs;     }
-    virtual void   startBlock(  const Block *b                     ) { ++nbValidBlocks; }
+    virtual void   startBlock(  const Block *b, uint64_t           ) { ++nbValidBlocks; }
 };
 
 static SimpleStats simpleStats;

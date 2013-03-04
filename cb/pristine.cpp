@@ -51,7 +51,8 @@ struct Pristine:public Callback
     }
 
     virtual void startBlock(
-        const Block *b
+        const Block *b,
+        uint64_t
     )
     {
         const uint8_t *p = b->data;
@@ -69,7 +70,7 @@ struct Pristine:public Callback
         const uint8_t *hash
     )
     {
-if(hash==0) abort();
+        if(hash==0) abort();
         currTXHash = hash;
     }
 

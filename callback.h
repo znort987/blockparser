@@ -39,7 +39,7 @@
         virtual void startOutputs(const uint8_t *p                     )       {               }  // Called when the start of a TX's output array is encountered
         virtual void   endOutputs(const uint8_t *p                     )       {               }  // Called when the end of a TX's output array is encountered
         virtual void  startOutput(const uint8_t *p                     )       {               }  // Called when a TX output is encountered
-        virtual void   startBlock(  const Block *b                     )       {               }  // Called when a new block is encountered
+        virtual void   startBlock(  const Block *b, uint64_t chainSize )       {               }  // Called when a new block is encountered
         virtual void     endBlock(  const Block *b                     )       {               }  // Called when an end of block is encountered
         virtual void       wrapup(                                     )       {               }  // Called when the whole chain has been parsed
 

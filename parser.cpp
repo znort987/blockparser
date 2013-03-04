@@ -36,31 +36,29 @@ static uint8_t empty[kSHA256ByteSize] = { 0x42 };
 
 static Block *gMaxBlock;
 static Block *gNullBlock;
+static uint64_t gChainSize;
 static uint64_t gMaxHeight;
 static uint256_t gNullHash;
 
 #define DO(x) x
-
-    static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));   }
-    static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));     }
-    static inline void      startTX(const uint8_t *p, const uint8_t *hash) { DO(gCallback->startTX(p, hash));}
-    static inline void        endTX(const uint8_t *p)                      { DO(gCallback->endTX(p));        }
-    static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));  }
-    static inline void    endInputs(const uint8_t *p)                      { DO(gCallback->endInputs(p));    }
-    static inline void   startInput(const uint8_t *p)                      { DO(gCallback->startInput(p));   }
-    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInput(p));     }
-    static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p)); }
-    static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));   }
-    static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));  }
-    static inline void        start(const Block *s, const Block *e)        { DO(gCallback->start(s, e));     }
-
+    static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
+    static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }
+    static inline void      startTX(const uint8_t *p, const uint8_t *hash) { DO(gCallback->startTX(p, hash)); }
+    static inline void        endTX(const uint8_t *p)                      { DO(gCallback->endTX(p));         }
+    static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));   }
+    static inline void    endInputs(const uint8_t *p)                      { DO(gCallback->endInputs(p));     }
+    static inline void   startInput(const uint8_t *p)                      { DO(gCallback->startInput(p));    }
+    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInput(p));      }
+    static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p));  }
+    static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));    }
+    static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));   }
+    static inline void        start(const Block *s, const Block *e)        { DO(gCallback->start(s, e));      }
 #undef DO
 
-static inline void     startMap(const uint8_t *p) { gCallback->startMap(p);     }
-static inline void       endMap(const uint8_t *p) { gCallback->endMap(p);       }
-
-static inline void  startBlock(const Block *b)    { gCallback->startBlock(b);   }
-static inline void       endBlock(const Block *b) { gCallback->endBlock(b);     }
+static inline void     startMap(const uint8_t *p) { gCallback->startMap(p);               }
+static inline void       endMap(const uint8_t *p) { gCallback->endMap(p);                 }
+static inline void  startBlock(const Block *b)    { gCallback->startBlock(b, gChainSize); }
+static inline void       endBlock(const Block *b) { gCallback->endBlock(b);               }
 
 static inline void endOutput(
     const uint8_t *p,
@@ -324,6 +322,13 @@ static void findLongestChain()
 {
     Block *block = gMaxBlock;
     while(1) {
+
+        if(likely(0!=block->data)) {
+            const uint8_t *p = -4 + (block->data);
+            LOAD(uint32_t, size, p);
+            gChainSize += size;
+        }
+
         Block *prev = block->prev;
         if(unlikely(0==prev)) break;
         prev->next = block;
@@ -524,8 +529,8 @@ static bool buildBlock(
     }
 
     LOAD(uint32_t, size, p);
-    if(unlikely(e<=(p+size))) {
-        //printf("end of map, reason : end of block past EOF, %d away from EOF\n", (int)(e-p));
+    if(unlikely(e<(p+size))) {
+        //printf("end of map, reason : end of block past EOF, %d past EOF\n", (int)((p+size)-e));
         return true;
     }
 

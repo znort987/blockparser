@@ -30,8 +30,11 @@ typedef std::vector<Output> OutputVec;
 struct Addr
 {
     uint64_t sum;
+    uint64_t nbIn;
+    uint64_t nbOut;
     uint160_t hash;
-    uint32_t lastTouched;
+    uint32_t lastIn;
+    uint32_t lastOut;
     OutputVec *outputVec;
 };
 
@@ -101,7 +104,7 @@ struct AllBalances:public Callback
             .add_option("-d", "--detailed")
             .action("store_true")
             .set_default(false)
-            .help("also show all non-spent outputs")
+            .help("also show all unspent outputs")
         ;
     }
 
@@ -162,7 +165,7 @@ struct AllBalances:public Callback
         } else {
             if(detailed) {
                 warning("asking for --detailed for *all* addresses in the blockchain will be *very* slow");
-                warning("as a matter, it likely won't ever finish unless you have *lots* of RAM");
+                warning("as a matter of fact, it likely won't ever finish unless you have *lots* of RAM");
             }
         }
 
@@ -202,6 +205,8 @@ struct AllBalances:public Callback
 
             memcpy(addr->hash.v, pubKeyHash.v, kRIPEMD160ByteSize);
             addr->outputVec = 0;
+            addr->nbOut = 0;
+            addr->nbIn = 0;
             addr->sum = 0;
 
             if(detailed) {
@@ -212,7 +217,13 @@ struct AllBalances:public Callback
             allAddrs.push_back(addr);
         }
 
-        addr->lastTouched = blockTime;
+        if(0<value) {
+            addr->lastIn = blockTime;
+            ++(addr->nbIn);
+        } else {
+            addr->lastOut = blockTime;
+            ++(addr->nbOut);
+        }
         addr->sum += value;
 
         if(detailed) {
@@ -298,6 +309,12 @@ struct AllBalances:public Callback
         if(0==nbRestricts) info("dumping all balances ...");
         else               info("dumping balances for %" PRIu64 " addresses ...", nbRestricts);
 
+        printf(
+            "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+            "                 Balance                                  Hash160                             Base58   nbIn lastTimeIn                 nbOut lastTimeOut\n"
+            "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        );
+
         int64_t i = 0;
         int64_t nonZeroCnt = 0;
         while(likely(s<e)) {
@@ -324,8 +341,11 @@ struct AllBalances:public Callback
             }
 
             char timeBuf[256];
-            gmTime(timeBuf, addr->lastTouched);
-            printf(" %s\n", timeBuf);
+            gmTime(timeBuf, addr->lastIn);
+            printf(" %6" PRIu64 " %s ", addr->nbIn, timeBuf);
+
+            gmTime(timeBuf, addr->lastOut);
+            printf(" %6" PRIu64 " %s\n", addr->nbOut, timeBuf);
 
             if(detailed) {
                 auto e = addr->outputVec->end();

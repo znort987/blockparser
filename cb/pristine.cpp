@@ -70,17 +70,20 @@ struct Pristine:public Callback
         const uint8_t *hash
     )
     {
-        if(hash==0) abort();
         currTXHash = hash;
     }
 
-    virtual void  startInputs(const uint8_t *p)
+    virtual void startInputs(
+        const uint8_t *p
+    )
     {
         hasGenInput = false;
         nbInputs = 0;
     }
 
-    virtual void   startInput(const uint8_t *p)
+    virtual void startInput(
+        const uint8_t *p
+    )
     {
         static uint256_t gNullHash;
         bool isGenInput = (0==memcmp(gNullHash.v, p, sizeof(gNullHash)));
@@ -88,7 +91,9 @@ struct Pristine:public Callback
         ++nbInputs;
     }
 
-    virtual void  endInputs(const uint8_t *p)
+    virtual void  endInputs(
+        const uint8_t *p
+    )
     {
         if(hasGenInput) {
 

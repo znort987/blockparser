@@ -13,6 +13,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#if !defined(O_DIRECT)
+#   define O_DIRECT 0
+#endif
+
 struct Map
 {
     int fd;

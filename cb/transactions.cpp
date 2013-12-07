@@ -75,7 +75,10 @@ struct Transactions:public Callback
         }
 
         if(0==rootHashes.size()) {
-            #if defined(LITECOIN)
+            #if defined(PEERCOIN)
+                const char *addr = "PTx4t3qdtP8BwPWDCG1iZ3sC6pAV1yUcLn";
+                warning("no addresses specified, using popular address %s", addr);
+            #elif defined(LITECOIN)
                 const char *addr = "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o";
                 warning("no addresses specified, using popular address %s", addr);
             #else

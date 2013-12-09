@@ -276,6 +276,7 @@ static void parseTX(
     if(!skip) startTX(p, txHash);
 
         SKIP(uint32_t, version, p);
+        SKIP(uint32_t, ntime, p);
 
         parseInputs<skip>(p, txHash);
 
@@ -303,7 +304,6 @@ static void parseBlock(
         SKIP(uint32_t, blkTime, p);
         SKIP(uint32_t, blkBits, p);
         SKIP(uint32_t, blkNonce, p);
-
         LOAD_VARINT(nbTX, p);
         for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex)
             parseTX<false>(p);

@@ -2,12 +2,15 @@
 SHELL=/bin/sh
 MAKEFLAGS=-j8
 
-CPLUS = g++
+CPLUS = g++  
 
 INC =                           \
         -I.                     \
+        -DPEERCOIN              \
         -DNDEBUG                \
 #        -DLITECOIN              \
+
+# set back to COPT=-g0 -O6 LOPT=-s
 
 COPT =                          \
         -g0                     \
@@ -32,7 +35,7 @@ COPT =                          \
         -Wno-unused-parameter   \
 
 LOPT =                          \
-    -s                          \
+#    -s                          \
 
 LIBS =                          \
     -lcrypto                    \
@@ -61,12 +64,12 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/closure.cpp -o .objs/closure.o
 	@mv .objs/closure.d .deps
 
-.objs/dumpTX.o : cb/dumpTX.cpp
-	@echo c++ -- cb/dumpTX.cpp
-	@mkdir -p .deps
-	@mkdir -p .objs
-	@${CPLUS} -MD ${INC} ${COPT}  -c cb/dumpTX.cpp -o .objs/dumpTX.o
-	@mv .objs/dumpTX.d .deps
+#.objs/dumpTX.o : cb/dumpTX.cpp
+#	@echo c++ -- cb/dumpTX.cpp
+#	@mkdir -p .deps
+#	@mkdir -p .objs
+#	@${CPLUS} -MD ${INC} ${COPT}  -c cb/dumpTX.cpp -o .objs/dumpTX.o
+#	@mv .objs/dumpTX.d .deps
 
 .objs/pristine.o : cb/pristine.cpp
 	@echo c++ -- cb/pristine.cpp
@@ -88,6 +91,13 @@ all:parser
 	@mkdir -p .objs
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/rewards.cpp -o .objs/rewards.o
 	@mv .objs/rewards.d .deps
+
+.objs/peerstats.o : cb/peerstats.cpp
+	@echo c++ -- cb/peerstats.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/peerstats.cpp -o .objs/peerstats.o
+	@mv .objs/peerstats.d .deps
 
 .objs/simpleStats.o : cb/simpleStats.cpp
 	@echo c++ -- cb/simpleStats.cpp
@@ -163,7 +173,6 @@ OBJS=                       \
     .objs/allBalances.o     \
     .objs/callback.o        \
     .objs/closure.o         \
-    .objs/dumpTX.o          \
     .objs/help.o            \
     .objs/opcodes.o         \
     .objs/option.o          \
@@ -177,6 +186,8 @@ OBJS=                       \
     .objs/taint.o           \
     .objs/transactions.o    \
     .objs/util.o            \
+    .objs/peerstats.o            \
+#    .objs/dumpTX.o         # 
 
 parser:${OBJS}
 	@echo lnk -- parser 

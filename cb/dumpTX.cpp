@@ -69,17 +69,27 @@ struct DumpTX:public Callback
         if(0<rootHashes.size()) {
             info("dumping %d transactions\n", (int)rootHashes.size());
         } else {
+        #if defined(PEERCOIN)
+            const char *defaultTX = "74fccc681a5d499abe59bad2ea501b31805b1a19a8244a08d2d0fb582df99c6b"; 
+            warning("no TX hashes specified, using a random peercoin transaction");
+        #else
             const char *defaultTX = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
             warning("no TX hashes specified, using the infamous 10K pizza TX");
+        #endif
             loadHash256List(rootHashes, defaultTX);
         }
 
         static uint8_t empty[kSHA256ByteSize] = { 0x42 };
         txMap.setEmptyKey(empty);
 
-        for(auto const &txHash : rootHashes) {
+        for(auto it = rootHashes.begin(); it != rootHashes.end(); it++) {
+            auto const &txHash = *it;
             txMap[txHash.v] = 1;
-        }
+         }
+
+        //for(auto const &txHash : rootHashes) {
+        //    txMap[txHash.v] = 1;
+        //}
 
         return 0;
     }

@@ -34,6 +34,7 @@ COPT =                          \
         -Wno-unused-variable    \
         -Wno-unused-parameter   \
 
+
 LOPT =                          \
 #    -s                          \
 
@@ -64,12 +65,12 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/closure.cpp -o .objs/closure.o
 	@mv .objs/closure.d .deps
 
-#.objs/dumpTX.o : cb/dumpTX.cpp
-#	@echo c++ -- cb/dumpTX.cpp
-#	@mkdir -p .deps
-#	@mkdir -p .objs
-#	@${CPLUS} -MD ${INC} ${COPT}  -c cb/dumpTX.cpp -o .objs/dumpTX.o
-#	@mv .objs/dumpTX.d .deps
+.objs/dumpTX.o : cb/dumpTX.cpp
+	@echo c++ -- cb/dumpTX.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/dumpTX.cpp -o .objs/dumpTX.o
+	@mv .objs/dumpTX.d .deps
 
 .objs/pristine.o : cb/pristine.cpp
 	@echo c++ -- cb/pristine.cpp
@@ -187,7 +188,7 @@ OBJS=                       \
     .objs/transactions.o    \
     .objs/util.o            \
     .objs/peerstats.o            \
-#    .objs/dumpTX.o         # 
+    .objs/dumpTX.o         # 
 
 parser:${OBJS}
 	@echo lnk -- parser 

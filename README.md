@@ -33,7 +33,8 @@ blockparser peercoin fork
             libssl-dev build-essential g++-4.4 libboost-all-dev libsparsehash-dev git-core perl
             
             If on Ubuntu run:
-                sudo apt-get install libssl-dev build-essential g++-4.4 libboost-all-dev libsparsehash-dev git-core perl
+                sudo apt-get install libssl-dev build-essential g++-4.4 libboost-all-dev \
+                libsparsehash-dev git-core perl
 
         . Run this:
 
@@ -57,11 +58,13 @@ blockparser peercoin fork
 
             ./parser transactions P99kCfbcBjAmgZiwowLWH8sVf1wsdTeLNb
 
-        . Compute the closure of an address, that is the list of addresses that provably belong to the same person (1.665 s):
+        . Compute the closure of an address, that is the list of addresses that provably belong to 
+          the same person (1.665 s):
 
             ./parser closure P99kCfbcBjAmgZiwowLWH8sVf1wsdTeLNb
 
-        . Compute and print the balance for all keys ever used in a TX since the beginning of time (1.07 s):
+        . Compute and print the balance for all keys ever used in a TX since the beginning of 
+          time (1.07 s):
 
             ./parser balances >balances.txt
 
@@ -81,20 +84,21 @@ blockparser peercoin fork
     --------
 
         . znort987 indicated this would not likely compile on anything but x86-84 ubuntu with
-          with at least GCC >= 4.4. I managed to get it to compile on scientific linux with GCC 4.4.6 with
-          a few code tweaks.
+          with at least GCC >= 4.4. I managed to get it to compile on scientific linux with 
+          GCC 4.4.6 with a few code tweaks.
 
-        . It used to require alot of RAM with bitcoin, but peercoin has a relatively small blockchain so
-          this doesn't appear to be as big of a problem as of now. 
+        . It used to require alot of RAM with bitcoin, but peercoin has a relatively small 
+          blockchain so this doesn't appear to be as big of a problem as of now. 
 
-        . The code isn't particularly clean or well architected. It was just a quick way for znort987 to learn
-          about bitcoin and snakie for peercoin. There isnt much in the way of comments either.
+        . The code isn't particularly clean or well architected. It was just a quick way for 
+          znort987 to learn about bitcoin and snakie for peercoin. There isnt much in the way 
+          of comments either.
 
-        . OTOH, it is fairly simple, short, and efficient. If you want to understand how the blockchain
-          data structure works, the code in parser.cpp is a solid way to start.
+        . OTOH, it is fairly simple, short, and efficient. If you want to understand how the 
+          blockchain data structure works, the code in parser.cpp is a solid way to start.
 
-        . There are probably tons of peercoin bugs, but so far dumpTX, closure, balances, taint, pristine
-          and transactions all seem to work well. 
+        . There are probably tons of peercoin bugs, but so far dumpTX, closure, balances, taint,
+          pristine and transactions functions all seem to work well. 
 
     Hacking the code:
     -----------------
@@ -102,7 +106,8 @@ blockparser peercoin fork
         . parser.cpp contains a generic parser that mmaps the blockchain, parses it and calls
           "user-defined" callbacks as it hits interesting bits of information.
 
-        . util.cpp contains a grab-bag of useful bitcoin/peercoin related routines. Interesting examples include:
+        . util.cpp contains a grab-bag of useful bitcoin/peercoin related routines. 
+          Interesting examples include:
 
             showScript
             getBaseReward
@@ -116,7 +121,7 @@ blockparser peercoin fork
         . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
         . cb/rewards.cpp        :   code to show all block rewards (including fees)
         . cb/simpleStats.cpp    :   code to compute simple stats.
-        . cb/sql.cpp            :   code to product an SQL dump of the blockchain (untested on peercoin)
+        . cb/sql.cpp            :   code to product an SQL dump of the blockchain 
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
 
@@ -143,9 +148,10 @@ blockparser peercoin fork
 
     . Peercoin has 2 less decimal places then bitcoin. This can be found by comparing the 
       BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of the peercoin and bitcoin.
-    . Proof of stake generation transactions are marked primarily with an empty (0 byte) output script in 
-      output[0]. There are a few other rules that can be found in the IsCoinStake() function in src/main.h of peercoin.  
-    . Blocks have an additional timestamp as compared to bitcoin.
+    . Proof of stake generation transactions are marked primarily with an empty (0 byte) output 
+      script in output[0]. There are a few other rules that can be found in the IsCoinStake() 
+      function in src/main.h of peercoin.  
+    . Blocks have an additional timestamp (CoinStake related?) as compared to bitcoin.
 
     License:
     --------

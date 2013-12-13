@@ -36,7 +36,7 @@ COPT =                          \
 
 
 LOPT =                          \
-#    -s                          \
+    -s                          \
 
 LIBS =                          \
     -lcrypto                    \
@@ -93,12 +93,12 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/rewards.cpp -o .objs/rewards.o
 	@mv .objs/rewards.d .deps
 
-.objs/peerstats.o : cb/peerstats.cpp
-	@echo c++ -- cb/peerstats.cpp
-	@mkdir -p .deps
-	@mkdir -p .objs
-	@${CPLUS} -MD ${INC} ${COPT}  -c cb/peerstats.cpp -o .objs/peerstats.o
-	@mv .objs/peerstats.d .deps
+#.objs/peerstats.o : cb/peerstats.cpp
+#	@echo c++ -- cb/peerstats.cpp
+#	@mkdir -p .deps
+#	@mkdir -p .objs
+#	@${CPLUS} -MD ${INC} ${COPT}  -c cb/peerstats.cpp -o .objs/peerstats.o
+#	@mv .objs/peerstats.d .deps
 
 .objs/simpleStats.o : cb/simpleStats.cpp
 	@echo c++ -- cb/simpleStats.cpp
@@ -187,8 +187,8 @@ OBJS=                       \
     .objs/taint.o           \
     .objs/transactions.o    \
     .objs/util.o            \
-    .objs/peerstats.o            \
-    .objs/dumpTX.o         # 
+    .objs/dumpTX.o          \
+#    .objs/peerstats.o        
 
 parser:${OBJS}
 	@echo lnk -- parser 

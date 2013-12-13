@@ -76,7 +76,8 @@ struct Transactions:public Callback
 
         if(0==rootHashes.size()) {
             #if defined(PEERCOIN)
-                const char *addr = "PTx4t3qdtP8BwPWDCG1iZ3sC6pAV1yUcLn";
+                // rps satoshi roulette 
+                const char *addr = "P99kCfbcBjAmgZiwowLWH8sVf1wsdTeLNb";
                 warning("no addresses specified, using popular address %s", addr);
             #elif defined(LITECOIN)
                 const char *addr = "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o";
@@ -124,8 +125,8 @@ struct Transactions:public Callback
                 showHex(downTXHash ? downTXHash : txHash);
                 printf(
                     "\",%17.08f,%17.08f\n",
-                    (add ? 1e-8 : -1e-8)*value,
-                    newSum*1e-8
+                    (add ? 1e-6 : -1e-6)*value,
+                    newSum*1e-6
                 );
             } else {
 
@@ -147,10 +148,10 @@ struct Transactions:public Callback
 
                 printf(
                     " %24.08f %c %24.08f = %24.08f\n",
-                    sum*1e-8,
+                    sum*1e-6,
                     add ? '+' : '-',
-                    value*1e-8,
-                    newSum*1e-8
+                    value*1e-6,
+                    newSum*1e-6
                 );
             }
 
@@ -250,9 +251,9 @@ struct Transactions:public Callback
                 "    balance       = %17.08f\n"
                 "\n",
                 nbTX,
-                adds*1e-8,
-                subs*1e-8,
-                sum*1e-8
+                adds*1e-6,
+                subs*1e-6,
+                sum*1e-6
             );
         }
     }

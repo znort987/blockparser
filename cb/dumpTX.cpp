@@ -71,8 +71,8 @@ struct DumpTX:public Callback
             info("dumping %d transactions\n", (int)rootHashes.size());
         } else {
         #if defined(PEERCOIN)
-            const char *defaultTX = "74fccc681a5d499abe59bad2ea501b31805b1a19a8244a08d2d0fb582df99c6b"; 
-            warning("no TX hashes specified, using a random peercoin transaction");
+            const char *defaultTX = "19093c85669bf82c9baa70eb437e2f319409f40b54b2c5ebc4dd334ab610fbe6"; 
+            warning("no TX hashes specified, using a random proof of stake peercoin transaction");
         #else
             const char *defaultTX = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
             warning("no TX hashes specified, using the infamous 10K pizza TX");
@@ -210,7 +210,7 @@ struct DumpTX:public Callback
             if(isGenTX) {
                 uint64_t reward = getBaseReward(currBlock);
                 printf("        generation transaction\n");
-                //printf("        based on block height, reward = %.8f\n", 1e-8*reward);
+                //printf("        based on block height, reward = %.8f\n", 1e-6*reward);
                 printf("        hex dump of coinbase follows:\n\n");
                 canonicalHexDump(p, inputScriptSize, "        ");
                 //valueIn += reward;

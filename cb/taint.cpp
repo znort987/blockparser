@@ -95,7 +95,7 @@ struct Taint:public Callback
         
         #if defined(PEERCOIN)
             warning("no TX hashes specified, using the a random transaction");
-            const char *defaultTX = "035ced2221b12f0949117109913b18643f4237b3994e79e290c2d1f0c4e30eb3"; 
+            const char *defaultTX = "2d4b5d5fae6bb5be6ddc46256013ef2b1c5f9ba1b1f4da5307db2eb4910d0d06"; 
         #else
             warning("no TX hashes specified, using the infamous 10K pizza TX");
             //const char *defaultTX = "34b84108a142ad7b6c36f0f3549a3e83dcdbb60e0ba0df96cd48f852da0b1acb"; // Linode slush hack

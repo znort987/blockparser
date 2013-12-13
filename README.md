@@ -5,7 +5,7 @@ blockparser peercoin fork
     --------
 
         Written by znort987@yahoo.com (1ZnortsoStC1zSTXbW6CUtkvqew8czMMG)
-        Adapated to peercoin by snakie@yahoo.com (PGiNfS4KTmb7W9GDxrA54tYTRhmSK36Pyj)
+        Adapted to peercoin by snakie@yahoo.com (PGiNfS4KTmb7W9GDxrA54tYTRhmSK36Pyj)
 
     What:
     -----

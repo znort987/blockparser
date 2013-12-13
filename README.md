@@ -37,9 +37,10 @@ blockparser peercoin fork
 
         . Run this:
 
-            git clone git://github.com/znort987/blockparser.git
+            git clone git://github.com/snakie/blockparser.git
             cd blockparser
             make
+            ./parser
 
     Try it:
     -------

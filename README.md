@@ -147,11 +147,11 @@ blockparser peercoin fork
     ---------------------------------
 
     . Peercoin has 2 less decimal places then bitcoin. This can be found by comparing the 
-      BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of the peercoin and bitcoin.
+      BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of peercoin and bitcoin.
     . Proof of stake generation transactions are marked primarily with an empty (0 byte) output 
       script in output[0]. There are a few other rules that can be found in the IsCoinStake() 
       function in src/main.h of peercoin.  
-    . Blocks have an additional timestamp (CoinStake related?) as compared to bitcoin.
+    . Blocks have an additional timestamp as compared to bitcoin.
 
     License:
     --------

@@ -208,9 +208,9 @@ struct DumpTX:public Callback
             LOAD_VARINT(inputScriptSize, p);
             isGenTX = (0==memcmp(gNullHash.v, upTXHash.v, sizeof(gNullHash)));
             if(isGenTX) {
-                uint64_t reward = getBaseReward(currBlock);
+                //uint64_t reward = getBaseReward(currBlock);
                 printf("        generation transaction\n");
-                //printf("        based on block height, reward = %.8f\n", 1e-6*reward);
+                //printf("        proof of work block reward:, reward = %.8f\n", 1e-6*reward);
                 printf("        hex dump of coinbase follows:\n\n");
                 canonicalHexDump(p, inputScriptSize, "        ");
                 //valueIn += reward;

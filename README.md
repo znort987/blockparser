@@ -19,12 +19,12 @@ blockparser peercoin fork
 
         . Very quickly extract information from the entire blockchain.
 
-        . Code is simple and helps to understand how the data structure underlying bitcoin works.
+        . Code is simple and helps to understand how the data structures underlying bitcoin and peercoin work.
 
     Build it:
     ---------
 
-        . Turn your x86-64 linux machine:
+        . Turn on your x86-64 linux machine:
 
         . Make sure you have an up to date peercoin client blockchain in ~/.ppcoin
 
@@ -135,23 +135,24 @@ blockparser peercoin fork
                 Recompile
                 Run
 
-        . You can also read the file callback.h (the base class from which you derive to implement your
-          own new commands). It has been heavily commented and should provide a good basis to pick what
-          to overload to achieve your goal.
+        . You can also read the file callback.h (the base class from which you derive to implement 
+          your own new commands). It has been heavily commented and should provide a good basis to 
+          pick what to overload to achieve your goal.
 
-        . The code makes heavy use of the google dense hash maps. You can switch it to use sparse hash
-          maps (see util.h, search for: DENSE, undef it). Sparse hash maps are slower but save quite a
-          bit of RAM.
+        . The code makes heavy use of the google dense hash maps. You can switch it to use sparse 
+          hash maps (see util.h, search for: DENSE, undef it). Sparse hash maps are slower but 
+          save quite a bit of RAM.
 
     Observations Peercoin vs Bitcoin:
     ---------------------------------
 
-    . Peercoin has 2 less decimal places then bitcoin. This can be found by comparing the 
-      BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of peercoin and bitcoin.
-    . Proof of stake generation transactions are marked primarily with an empty (0 byte) output 
-      script in output[0]. There are a few other rules that can be found in the IsCoinStake() 
-      function in src/main.h of peercoin.  
-    . Blocks have an additional timestamp as compared to bitcoin.
+        . Peercoin has 2 less decimal places then bitcoin. This can be found by comparing the 
+          BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of peercoin and bitcoin.
+        . Proof of stake coinbase transactions are marked with an empty (0 byte) output script 
+          in output[0]. The next transaction in the block will contain the proof of stake input
+          and reward. There are a few other rules that can be found in the IsCoinStake() function 
+          in src/main.h of peercoin.  
+        . Blocks have an additional timestamp as compared to bitcoin.
 
     License:
     --------

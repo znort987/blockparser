@@ -13,10 +13,16 @@ struct Rewards:public Callback
     optparse::OptionParser parser;
 
     bool fullDump;
+    bool proofOfStake;
+    bool emptyOutput;
     uint64_t reward;
+    uint64_t inputValue;
+    uint64_t baseReward;
+    uint8_t txCount;
     size_t nbInputs;
     bool hasGenInput;
     uint64_t currBlock;
+    uint64_t requiredFee;
     const uint8_t *currTXHash;
 
     Rewards()
@@ -46,6 +52,7 @@ struct Rewards:public Callback
     {
         optparse::Values &values = parser.parse_args(argc, argv);
         fullDump = values.get("full");
+        requiredFee = 10000;
 
         info("Dumping all block rewards in blockchain");
         return 0;
@@ -63,6 +70,9 @@ struct Rewards:public Callback
         LOAD(uint32_t, blkTime, p);
         currBlock = b->height - 1;
         reward = 0;
+        proofOfStake = false;
+        baseReward = 0;
+        txCount = 0;
     }
 
     virtual void startTX(
@@ -71,11 +81,13 @@ struct Rewards:public Callback
     )
     {
         currTXHash = hash;
+        txCount++;
     }
 
     virtual void  startInputs(const uint8_t *p)
     {
         hasGenInput = false;
+        emptyOutput = false;
         nbInputs = 0;
     }
 
@@ -93,6 +105,23 @@ struct Rewards:public Callback
             if(1!=nbInputs) abort();
         }
     }
+    virtual void edge(
+        uint64_t      value,
+        const uint8_t *upTXHash,
+        uint64_t      outputIndex,
+        const uint8_t *outputScript,
+        
+        uint64_t      outputScriptSize,
+        const uint8_t *downTXHash,
+        uint64_t      inputIndex,
+        const uint8_t *inputScript,
+        uint64_t      inputScriptSize) {
+        if(proofOfStake && txCount == 2) {
+            inputValue = value;
+        }
+
+    
+    }
 
     virtual void endOutput(
         const uint8_t *p,
@@ -103,7 +132,11 @@ struct Rewards:public Callback
         uint64_t      outputScriptSize
     )
     {
-        if(!hasGenInput) return;
+        if(hasGenInput && outputScriptSize == 0) {
+            proofOfStake = true;
+        }
+        if(!hasGenInput && !proofOfStake) return;
+        if(proofOfStake && txCount > 2) return;
 
         uint8_t addrType[3];
         uint160_t pubKeyHash;
@@ -125,8 +158,11 @@ struct Rewards:public Callback
             printf("\n");
             errFatal("invalid script");
         }
-
         reward += value;
+        if(txCount == 1) {
+            baseReward += value;
+        }
+
         if(!fullDump) return;
 
         printf("%7d ", (int)currBlock);
@@ -172,15 +208,39 @@ struct Rewards:public Callback
         const Block *b
     )
     {
-        uint64_t baseReward = getBaseReward(currBlock);
-        int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
-        printf(
-            "Summary for block %7d : baseReward=%16.8f fees=%16.8f total=%16.8f\n",
-            (int)currBlock,
-            1e-6*baseReward,
-            1e-6*feesEarned,
-            1e-6*reward
-        );
+        //uint64_t baseReward = getBaseReward(currBlock);
+        
+        const char *blockType = (proofOfStake) ? "POS" : "POW";
+        int64_t ppcDestroyed = requiredFee * txCount;
+        if(!proofOfStake) {
+            ppcDestroyed -= requiredFee;
+            int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
+            printf(
+                "Summary for block %7d : type=%s                       mined      =%14.6f fees=%14.6f total=%14.6f destroyed=%14.6f\n",
+                (int)currBlock,
+                blockType,
+                1e-6*baseReward,
+                1e-6*feesEarned,
+                1e-6*reward,
+                1e-6*ppcDestroyed
+            );
+        } else {
+            //this is buggy, i need to actually calculate what the stake should be and then I can check for any fees
+            int64_t stakeEarned = reward - inputValue;
+            int64_t feesEarned = reward - inputValue - stakeEarned;   // This sometimes goes <0 for some early, buggy blocks
+            int64_t total = reward - inputValue;
+            ppcDestroyed -= requiredFee * 2;
+            printf(
+                "Summary for block %7d : type=%s staked=%14.6f stakeEarned=%14.6f fees=%14.6f total=%14.6f destroyed=%14.6f\n",
+                (int)currBlock,
+                blockType,
+                1e-6*inputValue,
+                1e-6*stakeEarned,
+                1e-6*feesEarned,
+                1e-6*total,
+                1e-6*ppcDestroyed
+            );            
+        }
     }
 };
 

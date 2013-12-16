@@ -7,6 +7,7 @@
 #include <option.h>
 #include <string.h>
 #include <callback.h>
+#include <ctime>
 
 struct Rewards:public Callback
 {
@@ -24,6 +25,7 @@ struct Rewards:public Callback
     uint64_t currBlock;
     uint64_t requiredFee;
     uint32_t bits;
+    time_t time;
     const uint8_t *currTXHash;
 
     Rewards()
@@ -73,6 +75,7 @@ struct Rewards:public Callback
         currBlock = b->height - 1;
         reward = 0;
         bits = blkBits;
+        time = blkTime;
         proofOfStake = false;
         baseReward = 0;
         txCount = 0;
@@ -216,12 +219,15 @@ struct Rewards:public Callback
         
         const char *blockType = (proofOfStake) ? "POS" : "POW";
         int64_t ppcDestroyed = requiredFee * txCount;
+        char stime[20]; 
+        strftime(stime,20,"%F %H:%M:%S",gmtime(&time));
         if(!proofOfStake) {
-            ppcDestroyed -= requiredFee;
+            ppcDestroyed -= requiredFee; // remove coinbase transaction fee
             int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
             printf(
-                "Summary for block %7d : type=%s diff=%.2f                  mined      =%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
+                "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
                 (int)currBlock,
+                stime,
                 blockType,
                 diff(bits),
                 1e-6*baseReward,
@@ -235,8 +241,9 @@ struct Rewards:public Callback
             int64_t total = reward - inputValue;
             ppcDestroyed -= requiredFee * 2; // remove fee for coinbase and stake generation transactions
             printf(
-                "Summary for block %7d : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
+                "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
                 (int)currBlock,
+                stime,
                 blockType,
                 diff(bits),
                 1e-6*inputValue,

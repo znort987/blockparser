@@ -78,6 +78,7 @@ struct Rewards:public Callback
         time = blkTime;
         proofOfStake = false;
         baseReward = 0;
+        inputValue = 0;
         txCount = 0;
     }
 
@@ -124,7 +125,7 @@ struct Rewards:public Callback
         const uint8_t *inputScript,
         uint64_t      inputScriptSize) {
         if(proofOfStake && txCount == 2) {
-            inputValue = value;
+            inputValue += value;
         }
 
     
@@ -219,15 +220,13 @@ struct Rewards:public Callback
         
         const char *blockType = (proofOfStake) ? "POS" : "POW";
         int64_t ppcDestroyed = requiredFee * txCount;
-        char stime[20]; 
-        strftime(stime,20,"%F %H:%M:%S",gmtime(&time));
         if(!proofOfStake) {
             ppcDestroyed -= requiredFee; // remove coinbase transaction fee
             int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
             printf(
                 "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
                 (int)currBlock,
-                stime,
+                gettime(time),
                 blockType,
                 diff(bits),
                 1e-6*baseReward,
@@ -243,7 +242,7 @@ struct Rewards:public Callback
             printf(
                 "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
                 (int)currBlock,
-                stime,
+                gettime(time),
                 blockType,
                 diff(bits),
                 1e-6*inputValue,

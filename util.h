@@ -183,6 +183,8 @@
     }
 
     double usecs();
+    
+    char* gettime(time_t time);
 
     float diff(uint32_t bits);
     

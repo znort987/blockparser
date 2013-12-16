@@ -46,6 +46,11 @@ float diff(uint32_t bits) {
     //printf("diff %f",diff);
     return diff;
 }
+char* gettime(time_t time) {
+      char* stime = new char[20];  
+      strftime(stime,20,"%F %H:%M:%S",gmtime(&time));
+      return stime;
+ }
 
 void toHex(
           uint8_t *dst,     // 2*size +1

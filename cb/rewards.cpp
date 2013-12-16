@@ -23,6 +23,7 @@ struct Rewards:public Callback
     bool hasGenInput;
     uint64_t currBlock;
     uint64_t requiredFee;
+    uint32_t bits;
     const uint8_t *currTXHash;
 
     Rewards()
@@ -68,8 +69,10 @@ struct Rewards:public Callback
         SKIP(uint256_t, prevBlkHash, p);
         SKIP(uint256_t, blkMerkleRoot, p);
         LOAD(uint32_t, blkTime, p);
+        LOAD(uint32_t, blkBits, p);
         currBlock = b->height - 1;
         reward = 0;
+        bits = blkBits;
         proofOfStake = false;
         baseReward = 0;
         txCount = 0;
@@ -82,6 +85,7 @@ struct Rewards:public Callback
     {
         currTXHash = hash;
         txCount++;
+        SKIP(uint32_t, version, p);
     }
 
     virtual void  startInputs(const uint8_t *p)
@@ -216,24 +220,25 @@ struct Rewards:public Callback
             ppcDestroyed -= requiredFee;
             int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
             printf(
-                "Summary for block %7d : type=%s                       mined      =%14.6f fees=%14.6f total=%14.6f destroyed=%14.6f\n",
+                "Summary for block %7d : type=%s diff=%.2f                  mined      =%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
                 (int)currBlock,
                 blockType,
+                diff(bits),
                 1e-6*baseReward,
                 1e-6*feesEarned,
                 1e-6*reward,
                 1e-6*ppcDestroyed
             );
         } else {
-            //this is buggy, i need to actually calculate what the stake should be and then I can check for any fees
             int64_t stakeEarned = reward - inputValue;
-            int64_t feesEarned = reward - inputValue - stakeEarned;   // This sometimes goes <0 for some early, buggy blocks
+            int64_t feesEarned = reward - inputValue - stakeEarned; 
             int64_t total = reward - inputValue;
-            ppcDestroyed -= requiredFee * 2;
+            ppcDestroyed -= requiredFee * 2; // remove fee for coinbase and stake generation transactions
             printf(
-                "Summary for block %7d : type=%s staked=%14.6f stakeEarned=%14.6f fees=%14.6f total=%14.6f destroyed=%14.6f\n",
+                "Summary for block %7d : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
                 (int)currBlock,
                 blockType,
+                diff(bits),
                 1e-6*inputValue,
                 1e-6*stakeEarned,
                 1e-6*feesEarned,

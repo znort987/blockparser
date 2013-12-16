@@ -152,7 +152,8 @@ blockparser peercoin fork
           in output[0]. The next transaction in the block will contain the proof of stake input
           and reward. There are a few other rules that can be found in the IsCoinStake() function 
           in src/main.h of peercoin.  
-        . Blocks have an additional timestamp as compared to bitcoin.
+        . Transaction have an additional timestamp as compared to bitcoin.
+        . Proof of Stake and Proof of Work both have seperate difficulties
 
     License:
     --------

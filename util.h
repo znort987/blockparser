@@ -184,6 +184,8 @@
 
     double usecs();
 
+    float diff(uint32_t bits);
+    
     void toHex(
               uint8_t *dst,
         const uint8_t *src,

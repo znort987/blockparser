@@ -23,7 +23,7 @@ struct Rewards:public Callback
     size_t nbInputs;
     bool hasGenInput;
     uint64_t currBlock;
-    uint64_t requiredFee;
+    uint64_t blockFee;
     uint32_t bits;
     time_t time;
     const uint8_t *currTXHash;
@@ -55,7 +55,6 @@ struct Rewards:public Callback
     {
         optparse::Values &values = parser.parse_args(argc, argv);
         fullDump = values.get("full");
-        requiredFee = 10000;
 
         info("Dumping all block rewards in blockchain");
         return 0;
@@ -80,6 +79,7 @@ struct Rewards:public Callback
         baseReward = 0;
         inputValue = 0;
         txCount = 0;
+        blockFee = 0;
     }
 
     virtual void startTX(
@@ -127,6 +127,8 @@ struct Rewards:public Callback
         if(proofOfStake && txCount == 2) {
             inputValue += value;
         }
+        //printf("adding %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
+        blockFee += value;
 
     
     }
@@ -143,6 +145,8 @@ struct Rewards:public Callback
         if(hasGenInput && outputScriptSize == 0) {
             proofOfStake = true;
         }
+        blockFee -= value;
+        //printf("subtracting %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
         if(!hasGenInput && !proofOfStake) return;
         if(proofOfStake && txCount > 2) return;
 
@@ -216,40 +220,30 @@ struct Rewards:public Callback
         const Block *b
     )
     {
-        //uint64_t baseReward = getBaseReward(currBlock);
-        
         const char *blockType = (proofOfStake) ? "POS" : "POW";
-        int64_t ppcDestroyed = requiredFee * txCount;
         if(!proofOfStake) {
-            ppcDestroyed -= requiredFee; // remove coinbase transaction fee
-            int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
+            blockFee += baseReward; //add POW block reward back in
             printf(
-                "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
+                "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%14.6f destroyedfees=%8.6f\n",
                 (int)currBlock,
                 gettime(time),
                 blockType,
                 diff(bits),
                 1e-6*baseReward,
-                1e-6*feesEarned,
-                1e-6*reward,
-                1e-6*ppcDestroyed
+                1e-6*blockFee
             );
         } else {
             int64_t stakeEarned = reward - inputValue;
-            int64_t feesEarned = reward - inputValue - stakeEarned; 
-            int64_t total = reward - inputValue;
-            ppcDestroyed -= requiredFee * 2; // remove fee for coinbase and stake generation transactions
+            blockFee += stakeEarned;//add earned stake back in since we removed it above 
             printf(
-                "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f fees=%10.6f total=%14.6f destroyed=%8.6f\n",
+                "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f destroyedfees=%8.6f\n",
                 (int)currBlock,
                 gettime(time),
                 blockType,
                 diff(bits),
                 1e-6*inputValue,
                 1e-6*stakeEarned,
-                1e-6*feesEarned,
-                1e-6*total,
-                1e-6*ppcDestroyed
+                1e-6*blockFee
             );            
         }
     }

@@ -98,7 +98,7 @@ blockparser peercoin fork
           blockchain data structure works, the code in parser.cpp is a solid way to start.
 
         . There are probably tons of peercoin bugs, but so far dumpTX, closure, balances, taint,
-          pristine and transactions functions all seem to work well. 
+          pristine, rewards and transactions functions all seem to work well. 
 
     Hacking the code:
     -----------------
@@ -120,11 +120,12 @@ blockparser peercoin fork
         . cb/help.cpp           :   code to dump detailed help for all other commands
         . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
         . cb/rewards.cpp        :   code to show all block rewards (including fees)
-        . cb/simpleStats.cpp    :   code to compute simple stats.
-        . cb/sql.cpp            :   code to product an SQL dump of the blockchain 
+        . cb/simpleStats.cpp    :   code to compute simple stats.*
+        . cb/sql.cpp            :   code to product an SQL dump of the blockchain*
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
-
+        
+        * untested on Peercoin
 
         . You can very easily add your own custom command. You can use the existing callbacks in
           directory ./cb/ as a template to build your own:
@@ -145,7 +146,9 @@ blockparser peercoin fork
 
     Observations Peercoin vs Bitcoin:
     ---------------------------------
-
+        
+        . The Peercoin magic number is 0xe5e9e8e6.
+        . The Peercoin address prefix (version number) is 55 in decimal or 0x37 in hex. 
         . Peercoin has 2 less decimal places then bitcoin. This can be found by comparing the 
           BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of peercoin and bitcoin.
         . Proof of stake coinbase transactions are marked with an empty (0 byte) output script 

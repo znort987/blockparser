@@ -16,7 +16,6 @@ struct Rewards:public Callback
     bool fullDump;
     bool proofOfStake;
     bool emptyOutput;
-    uint64_t reward;
     uint64_t inputValue;
     uint64_t baseReward;
     uint8_t txCount;
@@ -72,7 +71,6 @@ struct Rewards:public Callback
         LOAD(uint32_t, blkTime, p);
         LOAD(uint32_t, blkBits, p);
         currBlock = b->height - 1;
-        reward = 0;
         bits = blkBits;
         time = blkTime;
         proofOfStake = false;
@@ -124,13 +122,13 @@ struct Rewards:public Callback
         uint64_t      inputIndex,
         const uint8_t *inputScript,
         uint64_t      inputScriptSize) {
+
         if(proofOfStake && txCount == 2) {
             inputValue += value;
-        }
-        //printf("adding %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
-        blockFee += value;
-
-    
+        } else {
+            //printf("adding %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
+            blockFee += value;
+        }    
     }
 
     virtual void endOutput(
@@ -144,11 +142,13 @@ struct Rewards:public Callback
     {
         if(hasGenInput && outputScriptSize == 0) {
             proofOfStake = true;
-        }
-        blockFee -= value;
-        //printf("subtracting %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
-        if(!hasGenInput && !proofOfStake) return;
-        if(proofOfStake && txCount > 2) return;
+        } 
+        if((proofOfStake && txCount == 2) || hasGenInput) {
+            baseReward += value;
+        } else {
+            blockFee -= value;
+            //printf("subtracting %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
+        } 
 
         uint8_t addrType[3];
         uint160_t pubKeyHash;
@@ -169,10 +169,6 @@ struct Rewards:public Callback
             printf("============================\n\n");
             printf("\n");
             errFatal("invalid script");
-        }
-        reward += value;
-        if(txCount == 1) {
-            baseReward += value;
         }
 
         if(!fullDump) return;
@@ -222,9 +218,8 @@ struct Rewards:public Callback
     {
         const char *blockType = (proofOfStake) ? "POS" : "POW";
         if(!proofOfStake) {
-            blockFee += baseReward; //add POW block reward back in
             printf(
-                "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%14.6f destroyedfees=%8.6f\n",
+                "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%12.6f destroyedfees=%8.6f\n",
                 (int)currBlock,
                 gettime(time),
                 blockType,
@@ -233,10 +228,9 @@ struct Rewards:public Callback
                 1e-6*blockFee
             );
         } else {
-            int64_t stakeEarned = reward - inputValue;
-            blockFee += stakeEarned;//add earned stake back in since we removed it above 
+            int64_t stakeEarned = baseReward - inputValue;
             printf(
-                "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%14.6f destroyedfees=%8.6f\n",
+                "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%12.6f destroyedfees=%8.6f\n",
                 (int)currBlock,
                 gettime(time),
                 blockType,

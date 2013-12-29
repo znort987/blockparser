@@ -33,9 +33,8 @@ struct PeerStats:public Callback
     uint64_t totalStakeEarned;
     uint64_t totalStaked;
     uint32_t totalTrans;
-    uint64_t totalTransferred;
-    uint64_t totalSent;
-    uint64_t totalReceived;
+    uint128_t totalSent;
+    uint128_t totalReceived;
 
     PeerStats()
     {
@@ -46,15 +45,16 @@ struct PeerStats:public Callback
             .epilog("")
         ;
         parser
-            .add_option("-f", "--full")
+            .add_option("-b", "--blocks")
             .action("store_true")
             .set_default(false)
-            .help("dump fee transaction details")
+            .help("analyze the last recent x blocks")
         ;
     }
 
     virtual const char                   *name() const         { return "peerstats"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;   }
+    virtual bool                         needTXHash() const    { return true;      }
 
     virtual void aliases(
         std::vector<const char*> &v
@@ -73,7 +73,7 @@ struct PeerStats:public Callback
         optparse::Values &values = parser.parse_args(argc, argv);
         //fullDump = values.get("full");
 
-        info("Dumping all block rewards in blockchain");
+        info("parsing high level peercoin stats");
         POScount = 0;
         POWcount = 0;
         totalFeeDestroyed = 0;
@@ -98,7 +98,6 @@ struct PeerStats:public Callback
         LOAD(uint32_t, blkTime, p);
         LOAD(uint32_t, blkBits, p);
         currBlock = b->height - 1;
-        reward = 0;
         bits = blkBits;
         time = blkTime;
         proofOfStake = false;
@@ -151,19 +150,12 @@ struct PeerStats:public Callback
         const uint8_t *inputScript,
         uint64_t      inputScriptSize) {
 
-        if(hasGenInput) {
-            baseReward += value;
-        } else if(proofOfStake && txCount == 2) {
+        if(proofOfStake && txCount == 2) {
             inputValue += value;
         } else {
-            totalTrans++;
             totalSent += value;
             blockFee += value;
         }
-        
-
-
-    
     }
 
     virtual void endOutput(
@@ -177,10 +169,10 @@ struct PeerStats:public Callback
     {
         if(hasGenInput && outputScriptSize == 0) {
             proofOfStake = true;
-        }
-        if(proofOfStake && txCount == 2) {
+        } 
+        if((proofOfStake && txCount == 2) || hasGenInput) {
             baseReward += value;
-        } else if(!hasGenInput) {
+        } else {
             blockFee -= value;
             totalReceived += value;
         } 
@@ -195,16 +187,44 @@ struct PeerStats:public Callback
         if(!proofOfStake) {
             POWcount++;
             totalMined += baseReward;
+            totalTrans += txCount - 1;
             // use diff(bits) to get the difficulty
         } else {
             POScount++;
-            int64_t stakeEarned = baseReward - inputValue;
+            uint64_t stakeEarned = baseReward - inputValue;
+            //printf("stake earned %f\n",1e-6*stakeEarned);
             totalStakeEarned += stakeEarned;
             totalStaked += inputValue;
+            totalTrans += txCount - 2;
             // use diff(bits) to get the difficulty
         }
         totalFeeDestroyed += blockFee;
         
+    }
+
+    virtual void wrapup() {
+
+    uint64_t totalSupply = totalMined + totalStakeEarned - totalFeeDestroyed;
+    #define P(x) (pr128(x).c_str())
+        printf("\n");
+        printf(" Total Blocks = %s\n",P(POWcount+POScount));
+        printf(" POS Blocks   = %s\n",P(POScount));
+        printf(" POW Blocks   = %s\n",P(POWcount));
+        //these aren't work right just yet
+        //inputValue is not being populated
+        printf("\n");
+        printf(" Total Coins Destroyed = %12.6f\n",1e-6*totalFeeDestroyed);
+        printf(" Total Coins Mined = %16.6f\n",1e-6*totalMined);
+        printf(" POS Coins Minted  = %16.6f\n",1e-6*totalStakeEarned);
+        printf(" Total Coin Supply = %16.6f\n",1e-6*totalSupply);
+        printf("\n");
+        printf(" Total Coins used in Stake Generation = %16.6f\n",1e-6*totalStaked);
+        printf("\n");
+        printf(" Total Transactions = %s\n",P(totalTrans));
+        printf(" Total Sent     = %16.6f\n",1e-6*totalSent);
+        printf(" Total Received = %16.6f\n",1e-6*totalReceived);
+        printf("\n");
+    #undef P
     }
 };
 

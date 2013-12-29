@@ -151,12 +151,16 @@ blockparser peercoin fork
         . The Peercoin address prefix (version number) is 55 in decimal or 0x37 in hex. 
         . Peercoin has 2 less decimal places then bitcoin. This can be found by comparing the 
           BitcoinUnits::decimals functions in src/qt/bitcoinunits.cpp of peercoin and bitcoin.
-        . Proof of stake coinbase transactions are marked with an empty (0 byte) output script 
-          in output[0]. The next transaction in the block will contain the proof of stake input
-          and reward. There are a few other rules that can be found in the IsCoinStake() function 
-          in src/main.h of peercoin.  
+        . Proof of stake blocks are marked with an empty (0 byte) output script in output[0] 
+          of the coinbase transaction. The next transaction (always the second transaction) in 
+          the block will contain the proof of stake input and reward. There are a few other rules 
+          that can be found in the IsCoinStake() function in src/main.h of peercoin.  
         . Transaction have an additional timestamp as compared to bitcoin.
-        . Proof of Stake and Proof of Work both have seperate difficulties
+        . Proof of stake minting uses this additional timestamp as part of the hashed data to help 
+          avoid pre-computation of proof of stake blocks. 
+        . Proof of Stake and Proof of Work both have seperate difficulties.
+        . All fees are destroyed, no part of the fee go to miners.
+
 
     License:
     --------

@@ -36,7 +36,7 @@ struct SimpleStats:public Callback
         std::vector<const char*> &v
     ) const
     {
-        v.push_back("stats");
+        v.push_back("simple");
     }
 
     virtual int init(

@@ -97,8 +97,8 @@ blockparser peercoin fork
         . OTOH, it is fairly simple, short, and efficient. If you want to understand how the 
           blockchain data structure works, the code in parser.cpp is a solid way to start.
 
-        . There are probably tons of peercoin bugs, but so far dumpTX, closure, balances, taint,
-          pristine, rewards and transactions functions all seem to work well. 
+        . There are probably some bugs, but so everything seems to work and has been tested 
+          except for the sql dump. 
 
     Hacking the code:
     -----------------
@@ -120,7 +120,8 @@ blockparser peercoin fork
         . cb/help.cpp           :   code to dump detailed help for all other commands
         . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
         . cb/rewards.cpp        :   code to show all block rewards (including fees)
-        . cb/simpleStats.cpp    :   code to compute simple stats.*
+        . cb/simpleStats.cpp    :   code to compute simple stats.
+        . cb/peerstats.cpp      :   code to compute peercon specific simple stats.
         . cb/sql.cpp            :   code to product an SQL dump of the blockchain*
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.

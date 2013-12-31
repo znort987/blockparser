@@ -36,15 +36,17 @@ COPT =                          \
 
 
 LOPT =                          \
-    -s                          \
-	-L/usr/local/lib
+	-L/usr/local/lib			\
+
+    #-s                          \
 
 LIBS =                          \
     -lcrypto                    \
 	-lssl						\
     -ldl                        \
-	-lboost_system
-	#-lmysqlcppconn
+	-lboost_system				\
+	-lboost_thread				\
+	-lcql						\
 
 all:parser
 
@@ -197,7 +199,7 @@ OBJS=                       \
     .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
-    .objs/cassandra.o    \
+    .objs/cassandra.o 	    \
     .objs/util.o            \
     .objs/dumpTX.o          \
     .objs/peerstats.o        

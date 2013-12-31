@@ -18,10 +18,21 @@
 #include <cql/cql_cluster.hpp>
 #include <cql/cql_builder.hpp>
 #include <cql/cql_result.hpp>
+    
+using namespace cql;
+using boost::shared_ptr;
+    
+void log_callback(
+        const cql::cql_short_t,
+        const std::string& message)
+    {
+        std::cout << "LOG: " << message << std::endl;
+    }
 
 struct CassandraSync:public Callback
 {
     optparse::OptionParser parser;
+
 
     bool proofOfStake;
     bool emptyOutput;
@@ -41,6 +52,9 @@ struct CassandraSync:public Callback
     std::string username;
     std::string password;
     std::string keyspace;
+        
+    shared_ptr<cql::cql_cluster_t> cluster;
+    shared_ptr<cql::cql_session_t> session; 
 
     CassandraSync()
     {
@@ -53,8 +67,8 @@ struct CassandraSync:public Callback
         parser
             .add_option("-h", "--host")
             .dest("hostname")
-            .set_default("localhost")
-            .help("hostname of cassandra machine")
+            .set_default("127.0.0.1")
+            .help("IP address of cassandra machine")
         ;
         parser
             .add_option("-P", "--port")
@@ -95,6 +109,7 @@ struct CassandraSync:public Callback
  
 
 
+
     virtual int init(
         int argc,
         const char *argv[]
@@ -109,7 +124,20 @@ struct CassandraSync:public Callback
         password = values["password"].c_str();
 
         info("initializing connections with cassandra instance as %s for database %s at %s:%h",username.c_str(),keyspace.c_str(),hostname.c_str(),port);
+        cql_initialize();
+        //cql_thread_infrastructure_t cql_ti;
 
+        shared_ptr<cql::cql_builder_t> builder = cql::cql_cluster_t::builder();
+        builder->with_log_callback(&log_callback);
+        builder->add_contact_point(boost::asio::ip::address::from_string(hostname));
+        cluster = builder->build();
+        session = cluster->connect(); 
+        
+        shared_ptr<cql::cql_query_t> my_first_query(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
+
+        boost::shared_future<cql::cql_future_result_t> future = session->query(my_first_query);
+        future.wait();
+        shared_ptr<cql_result_t> result = future.get().result;
 
         return 0;
     }
@@ -221,6 +249,9 @@ struct CassandraSync:public Callback
     }
 
     virtual void wrapup() {
+      cql_terminate();
+      //session->close();
+      //cluster->shutdown();
     }
 };
 

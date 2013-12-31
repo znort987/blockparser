@@ -10,6 +10,7 @@
 #include <ctime>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <boost/asio.hpp>
@@ -178,7 +179,7 @@ struct CassandraSync:public Callback
         bool cassandra_log = values.get("cassandra_log");
         verbose = values.get("verbose");
 
-        info("initializing connections with cassandra instance as %s for database %s at %s:%h",username.c_str(),keyspace.c_str(),hostname.c_str(),port);
+        info("initializing connections with cassandra instance as %s for database %s at %s:%d",username.c_str(),keyspace.c_str(),hostname.c_str(),port);
         cql_initialize();
         //cql_thread_infrastructure_t cql_ti;
 
@@ -195,13 +196,30 @@ struct CassandraSync:public Callback
 
             boost::shared_future<cql::cql_future_result_t> future = session->query(get_keyspaces);
             future.wait();
+            if(future.get().error.is_err()) {
+               std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+               errFatal("Failed to fetch existing keyspaces");
+            }
             shared_ptr<cql_result_t> result = future.get().result;
             //print_rows(*future.get().result);
             if(keyspace_exists(keyspace,*future.get().result)) {
                 info("keyspace %s already exists, not creating",keyspace.c_str());
             } else {
                 info("keyspace %s does not exist, creating",keyspace.c_str());
+                shared_ptr<cql::cql_query_t> create_keyspace(new cql::cql_query_t(
                 
+                //query is broken, double check format
+                str(boost::format("CREATE KEYSPACE %1% with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy' and strategy_options = [{replication_factor:1}];") % keyspace)));
+                future = session->query(create_keyspace);
+                future.wait();
+                if(future.get().error.is_err()) {
+                    std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+                    errFatal("Failed to create new keyspace");
+                }
+                shared_ptr<cql::cql_query_t> switch_keyspaces(new cql::cql_query_t(str(boost::format("USE %1%;") % keyspace)));
+
+
+
             }
 
         }

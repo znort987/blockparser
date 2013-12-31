@@ -271,7 +271,7 @@ struct CassandraSync:public Callback
        std::string POS = pos ? "true" : "false";
        std::string query = str(boost::format(
        "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) "
-            "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%f,%f,%f);") % id % POS % hashprevblock % hashmerkleroot % time % bits %
+            "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % id % POS % hashprevblock % hashmerkleroot % time % bits %
             diff % nonce % blkTxCount % reward % staked % destroyed);
        if(verbose) {
             printf("%s\n",query.c_str());
@@ -447,8 +447,12 @@ struct CassandraSync:public Callback
     {
         if(proofOfStake) {
             //update reward since we know its POS
-            uint64_t stakeEarned = baseReward - inputValue;
-            baseReward = stakeEarned;
+            int64_t stakeEarned = baseReward - inputValue;
+            if(stakeEarned < 0) {
+                blockFee -= stakeEarned;
+                baseReward = 0;
+            } else 
+                baseReward = stakeEarned;
             //printf("stake earned %f\n",1e-6*stakeEarned);
             // use diff(bits) to get the difficulty
         }

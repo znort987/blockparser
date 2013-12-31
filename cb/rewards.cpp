@@ -123,12 +123,16 @@ struct Rewards:public Callback
         const uint8_t *inputScript,
         uint64_t      inputScriptSize) {
 
+
         if(proofOfStake && txCount == 2) {
             inputValue += value;
         } else {
             //printf("adding %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
             blockFee += value;
         }    
+        //if((int)currBlock == 69530) {
+        //    printf("block %d found transaction %d : +%f = %f. fee:%f\n",(int)currBlock,txCount,value*1e-6,1e-6*inputValue,1e-6*blockFee);
+        //}
     }
 
     virtual void endOutput(
@@ -140,11 +144,13 @@ struct Rewards:public Callback
         uint64_t      outputScriptSize
     )
     {
+        //printf("block %d output %d %f\n",(int)currBlock,(int)outputIndex,1e-6*value);
         if(hasGenInput && outputScriptSize == 0) {
             proofOfStake = true;
         } 
         if((proofOfStake && txCount == 2) || hasGenInput) {
             baseReward += value;
+            //printf("setting base reward %f\n",1e-6*baseReward);
         } else {
             blockFee -= value;
             //printf("subtracting %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
@@ -229,6 +235,10 @@ struct Rewards:public Callback
             );
         } else {
             int64_t stakeEarned = baseReward - inputValue;
+            if(stakeEarned < 0) {
+                blockFee -= stakeEarned;
+                stakeEarned = 0;
+            }
             printf(
                 "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%12.6f destroyedfees=%8.6f\n",
                 (int)currBlock,

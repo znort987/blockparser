@@ -36,18 +36,17 @@ COPT =                          \
 
 
 LOPT =                          \
-    -s                          \
+	-L/usr/local/lib			\
 
-#	-L/usr/local/lib			\
+    #-s                          \
 
 LIBS =                          \
     -lcrypto                    \
+	-lssl						\
     -ldl                        \
-	
-#	-lssl						\
-#	-lboost_system				\
-#	-lboost_thread				\
-#	-lcql						\
+	-lboost_system				\
+	-lboost_thread				\
+	-lcql						\
 
 all:parser
 
@@ -135,12 +134,12 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/transactions.cpp -o .objs/transactions.o
 	@mv .objs/transactions.d .deps
 
-#.objs/cassandra.o : cb/cassandra.cpp
-#	@echo c++ -- cb/cassandra.cpp
-#	@mkdir -p .deps
-#	@mkdir -p .objs
-#	@${CPLUS} -MD ${INC} ${COPT}  -c cb/cassandra.cpp -o .objs/cassandra.o
-#	@mv .objs/cassandra.d .deps
+.objs/cassandra.o : cb/cassandra.cpp
+	@echo c++ -- cb/cassandra.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/cassandra.cpp -o .objs/cassandra.o
+	@mv .objs/cassandra.d .deps
 
 .objs/opcodes.o : opcodes.cpp
 	@echo c++ -- opcodes.cpp
@@ -200,11 +199,10 @@ OBJS=                       \
     .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
+    .objs/cassandra.o 	    \
     .objs/util.o            \
     .objs/dumpTX.o          \
     .objs/peerstats.o        
-
-#    .objs/cassandra.o 	    \
 
 parser:${OBJS}
 	@echo lnk -- parser 

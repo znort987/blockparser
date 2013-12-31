@@ -22,6 +22,27 @@
 using namespace cql;
 using boost::shared_ptr;
     
+void
+print_rows(
+    cql::cql_result_t& result)
+{
+    while (result.next()) {
+        for (size_t i = 0; i < result.column_count(); ++i) {
+            cql::cql_byte_t* data = NULL;
+            cql::cql_int_t size = 0;
+
+            result.get_data(i, &data, size);
+
+            std::cout.write(reinterpret_cast<char*>(data), size);
+            for (int i = size; i < 25; i++) {
+                std::cout << ' ' ;
+            }
+            std::cout << " | ";
+        }
+        std::cout << std::endl;
+    }
+}
+
 void log_callback(
         const cql::cql_short_t,
         const std::string& message)
@@ -94,6 +115,19 @@ struct CassandraSync:public Callback
             .set_default("peerchain")
             .help("name of keyspace to use")
         ;
+        parser
+            .add_option("-c", "--cassandra-log")
+            .action("store_true")
+            .set_default(false)
+            .help("print cassandra logs (warning very verbose)")
+         ;
+        parser
+            .add_option("-v", "--verbose")
+            .action("store_true")
+            .set_default(false)
+            .help("verbose")
+         ;
+
     }
 
     virtual const char                   *name() const         { return "peerstats"; }
@@ -123,21 +157,33 @@ struct CassandraSync:public Callback
         username = values["username"].c_str();
         password = values["password"].c_str();
 
+        bool cassandra_log = values.get("cassandra_log");
+
         info("initializing connections with cassandra instance as %s for database %s at %s:%h",username.c_str(),keyspace.c_str(),hostname.c_str(),port);
         cql_initialize();
         //cql_thread_infrastructure_t cql_ti;
 
-        shared_ptr<cql::cql_builder_t> builder = cql::cql_cluster_t::builder();
-        builder->with_log_callback(&log_callback);
-        builder->add_contact_point(boost::asio::ip::address::from_string(hostname));
-        cluster = builder->build();
-        session = cluster->connect(); 
+        try {
+            shared_ptr<cql::cql_builder_t> builder = cql::cql_cluster_t::builder();
+            if(cassandra_log) {
+                builder->with_log_callback(&log_callback);
+            }
+            builder->add_contact_point(boost::asio::ip::address::from_string(hostname));
+            cluster = builder->build();
+            session = cluster->connect(); 
         
-        shared_ptr<cql::cql_query_t> my_first_query(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
+            shared_ptr<cql::cql_query_t> my_first_query(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
 
-        boost::shared_future<cql::cql_future_result_t> future = session->query(my_first_query);
-        future.wait();
-        shared_ptr<cql_result_t> result = future.get().result;
+            boost::shared_future<cql::cql_future_result_t> future = session->query(my_first_query);
+            future.wait();
+            shared_ptr<cql_result_t> result = future.get().result;
+             print_rows(*future.get().result);
+
+        }
+        catch (std::exception& e)
+        {
+            std::cout << "Exception: " << e.what() << std::endl;
+        }
 
         return 0;
     }

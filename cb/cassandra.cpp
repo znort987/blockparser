@@ -79,6 +79,8 @@ struct CassandraSync:public Callback
         
     shared_ptr<cql::cql_cluster_t> cluster;
     shared_ptr<cql::cql_session_t> session; 
+    boost::shared_future<cql::cql_future_result_t> future;
+    shared_ptr<cql::cql_builder_t> builder;
 
     CassandraSync()
     {
@@ -130,10 +132,16 @@ struct CassandraSync:public Callback
             .set_default(false)
             .help("verbose")
          ;
+        parser
+            .add_option("-d", "--drop")
+            .action("store_true")
+            .set_default(false)
+            .help("drop keyspace if it exists")
+         ;
 
     }
 
-    virtual const char                   *name() const         { return "peerstats"; }
+    virtual const char                   *name() const         { return "cassandrasync"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;   }
     virtual bool                         needTXHash() const    { return true;      }
 
@@ -143,8 +151,22 @@ struct CassandraSync:public Callback
     {
         v.push_back("sync");
     }
- 
-    virtual bool keyspace_exists(std::string keyspace, cql::cql_result_t& result) {
+
+    virtual bool keyspace_exists(std::string keyspace) {
+        shared_ptr<cql::cql_query_t> get_keyspaces(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
+        future = session->query(get_keyspaces);
+        future.wait();
+        if(future.get().error.is_err()) {
+            std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+            errFatal("Failed to fetch existing keyspaces");
+        }
+        shared_ptr<cql_result_t> result = future.get().result;
+        
+        return keyspace_match(keyspace,*future.get().result);
+    }
+
+    virtual bool keyspace_match(std::string keyspace,cql::cql_result_t& result) {
+
         while(result.next()) {
             cql::cql_byte_t* data = NULL;
             cql::cql_int_t size = 0;
@@ -161,7 +183,50 @@ struct CassandraSync:public Callback
 
     }
 
+    virtual bool init_cassie(bool cassandra_log) {
+        builder = cql::cql_cluster_t::builder();
+        if(cassandra_log) {
+            builder->with_log_callback(&log_callback);
+        }
+        builder->add_contact_point(boost::asio::ip::address::from_string(hostname));
+        cluster = builder->build();
+        session = cluster->connect(); 
+        return true; //add an actual check here to see if we're connected
+    }
 
+    virtual bool drop_keyspace() {
+        shared_ptr<cql::cql_query_t> drop_keyspace(new cql::cql_query_t(str(boost::format("DROP KEYSPACE %1%") % keyspace)));
+        future = session->query(drop_keyspace);
+        future.wait();
+        if(future.get().error.is_err()) {
+            std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+            errFatal("Failed to drop existing keyspace");
+        } 
+        return true;
+
+    }
+    virtual bool create_keyspace() {
+       shared_ptr<cql::cql_query_t> create_keyspace(new cql::cql_query_t(
+       str(boost::format("CREATE KEYSPACE %1% WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };") % keyspace)));
+       future = session->query(create_keyspace);
+       future.wait();
+       if(future.get().error.is_err()) {
+          std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+          errFatal("Failed to create new keyspace");
+        }
+        return true;
+
+    }
+    virtual bool switch_keyspace() {
+       shared_ptr<cql::cql_query_t> switch_keyspace(new cql::cql_query_t(str(boost::format("USE %1%;") % keyspace)));
+       future = session->query(switch_keyspace);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("Failed to switch to new keyspace");
+       }
+       return true;
+     }
 
     virtual int init(
         int argc,
@@ -177,49 +242,35 @@ struct CassandraSync:public Callback
         password = values["password"].c_str();
 
         bool cassandra_log = values.get("cassandra_log");
+        bool drop = values.get("drop");
         verbose = values.get("verbose");
 
-        info("initializing connections with cassandra instance as %s for database %s at %s:%d",username.c_str(),keyspace.c_str(),hostname.c_str(),port);
+        info("connecting to %s@%s:%d in keyspace %s",username.c_str(),hostname.c_str(),port,keyspace.c_str());
         cql_initialize();
         //cql_thread_infrastructure_t cql_ti;
 
         try {
-            shared_ptr<cql::cql_builder_t> builder = cql::cql_cluster_t::builder();
-            if(cassandra_log) {
-                builder->with_log_callback(&log_callback);
+            if(init_cassie(cassandra_log)) {
+                info("connected successfully"); 
             }
-            builder->add_contact_point(boost::asio::ip::address::from_string(hostname));
-            cluster = builder->build();
-            session = cluster->connect(); 
-            info("connected successfully.."); 
-            shared_ptr<cql::cql_query_t> get_keyspaces(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
-
-            boost::shared_future<cql::cql_future_result_t> future = session->query(get_keyspaces);
-            future.wait();
-            if(future.get().error.is_err()) {
-               std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
-               errFatal("Failed to fetch existing keyspaces");
-            }
-            shared_ptr<cql_result_t> result = future.get().result;
-            //print_rows(*future.get().result);
-            if(keyspace_exists(keyspace,*future.get().result)) {
-                info("keyspace %s already exists, not creating",keyspace.c_str());
-            } else {
-                info("keyspace %s does not exist, creating",keyspace.c_str());
-                shared_ptr<cql::cql_query_t> create_keyspace(new cql::cql_query_t(
-                
-                //query is broken, double check format
-                str(boost::format("CREATE KEYSPACE %1% with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy' and strategy_options = [{replication_factor:1}];") % keyspace)));
-                future = session->query(create_keyspace);
-                future.wait();
-                if(future.get().error.is_err()) {
-                    std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
-                    errFatal("Failed to create new keyspace");
+            if(drop) {
+                if(drop_keyspace()) {
+                    info("dropped keyspace %s",keyspace.c_str());
                 }
-                shared_ptr<cql::cql_query_t> switch_keyspaces(new cql::cql_query_t(str(boost::format("USE %1%;") % keyspace)));
-
-
-
+            }
+            //print_rows(*future.get().result);
+            if(keyspace_exists(keyspace)) {
+                info("keyspace %s already exists",keyspace.c_str());
+            } else {
+                info("keyspace %s does not exist",keyspace.c_str());
+                //create keyspace
+                if(create_keyspace()) {
+                   info("created keyspace %s", keyspace.c_str());
+                }
+                //create block table
+            }
+            if(switch_keyspace() && verbose) {
+                info("switched successfully to keyspace %s",keyspace.c_str());
             }
 
         }

@@ -63,11 +63,15 @@ struct CassandraSync:public Callback
     uint64_t inputValue;
     uint64_t baseReward;
     uint8_t txCount;
+    int blkTxCount;
     size_t nbInputs;
     bool hasGenInput;
     uint64_t currBlock;
     uint64_t blockFee;
     uint32_t bits;
+    uint32_t nonce;
+    const uint8_t *prevBlkHash;
+    const uint8_t *blkMerkleRoot;
     time_t time;
     const uint8_t *currTXHash;
 
@@ -227,6 +231,59 @@ struct CassandraSync:public Callback
        }
        return true;
      }
+    virtual bool create_block_table() {
+       shared_ptr<cql::cql_query_t> create_blocks(new cql::cql_query_t(
+       "CREATE TABLE IF NOT EXISTS blocks ("
+            "id int PRIMARY KEY,"
+            "POS boolean,"
+            "hashPrevBlock varchar,"
+            "hashMerkleRoot varchar,"
+            "time timestamp,"
+            "bits varchar,"
+            "diff float,"
+            "nonce bigint,"
+            "transcount int,"
+            "reward bigint,"
+            "staked bigint,"
+            "destroyed bigint);"
+       ));
+       future = session->query(create_blocks);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("Failed to create block table");
+       }
+       return true;
+    }
+    virtual void add_block(int id, 
+                           bool pos,
+                           uint8_t *hashprevblock, 
+                           uint8_t *hashmerkleroot, 
+                           time_t time, 
+                           uint32_t bits, 
+                           float diff, 
+                           uint32_t nonce, 
+                           uint8_t transcount, 
+                           uint64_t reward, 
+                           uint64_t staked, 
+                           uint64_t destroyed) {
+
+       std::string POS = pos ? "true" : "false";
+       std::string query = str(boost::format(
+       "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) "
+            "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%f,%f,%f);") % id % POS % hashprevblock % hashmerkleroot % time % bits %
+            diff % nonce % blkTxCount % reward % staked % destroyed);
+       if(verbose) {
+            printf("%s\n",query.c_str());
+       }
+       shared_ptr<cql::cql_query_t> add_block(new cql::cql_query_t(query));
+       future = session->query(add_block);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("failed to add block %d",(int)currBlock);
+       }
+    }
 
     virtual int init(
         int argc,
@@ -272,6 +329,10 @@ struct CassandraSync:public Callback
             if(switch_keyspace() && verbose) {
                 info("switched successfully to keyspace %s",keyspace.c_str());
             }
+            if(create_block_table() && verbose) {
+                info("successfully created/did not delete block table");
+            }
+            info("starting block insert process");
 
         }
         catch (std::exception& e)
@@ -289,17 +350,23 @@ struct CassandraSync:public Callback
     {
         const uint8_t *p = b->data;
         SKIP(uint32_t, version, p);
-        SKIP(uint256_t, prevBlkHash, p);
-        SKIP(uint256_t, blkMerkleRoot, p);
+        prevBlkHash = p;
+        SKIP(uint256_t, prevhash, p);
+        blkMerkleRoot = p;
+        SKIP(uint256_t, merkleroot, p);
         LOAD(uint32_t, blkTime, p);
         LOAD(uint32_t, blkBits, p);
+        LOAD(uint32_t, blkNonce, p);
+        LOAD_VARINT(nbTX, p);
         currBlock = b->height - 1;
         bits = blkBits;
         time = blkTime;
+        nonce = blkNonce;
         proofOfStake = false;
         baseReward = 0;
         inputValue = 0;
         txCount = 0;
+        blkTxCount = nbTX;
         blockFee = 0;
     }
 
@@ -378,13 +445,21 @@ struct CassandraSync:public Callback
         const Block *b
     )
     {
-        if(!proofOfStake) {
-            // use diff(bits) to get the difficulty
-        } else {
+        if(proofOfStake) {
+            //update reward since we know its POS
             uint64_t stakeEarned = baseReward - inputValue;
+            baseReward = stakeEarned;
             //printf("stake earned %f\n",1e-6*stakeEarned);
             // use diff(bits) to get the difficulty
         }
+       //"INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) VALUES"
+        uint8_t *hexprevBlkHash = allocHash256(); 
+        uint8_t *hexblkMerkleRoot = allocHash256();
+        toHex(hexprevBlkHash,prevBlkHash);
+        toHex(hexblkMerkleRoot,blkMerkleRoot);
+        add_block((int)currBlock,proofOfStake,
+                hexprevBlkHash,hexblkMerkleRoot,
+                time,bits,diff(bits),nonce,blkTxCount,baseReward,inputValue,blockFee);
         
     }
 

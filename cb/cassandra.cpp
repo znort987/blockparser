@@ -10,6 +10,7 @@
 #include <ctime>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include <boost/asio.hpp>
 #include <cql/cql.hpp>
@@ -56,6 +57,7 @@ struct CassandraSync:public Callback
 
 
     bool proofOfStake;
+    bool verbose;
     bool emptyOutput;
     uint64_t inputValue;
     uint64_t baseReward;
@@ -141,6 +143,22 @@ struct CassandraSync:public Callback
         v.push_back("sync");
     }
  
+    virtual bool keyspace_exists(std::string keyspace, cql::cql_result_t& result) {
+        while(result.next()) {
+            cql::cql_byte_t* data = NULL;
+            cql::cql_int_t size = 0;
+            result.get_data("keyspace_name",&data,size);
+            char* name = reinterpret_cast<char*>(data); 
+            if(verbose) {
+                printf("found keyspace %s\n",name);
+            }
+            if(boost::equals(name,keyspace))
+                return true; 
+
+        }    
+        return false;
+
+    }
 
 
 
@@ -158,6 +176,7 @@ struct CassandraSync:public Callback
         password = values["password"].c_str();
 
         bool cassandra_log = values.get("cassandra_log");
+        verbose = values.get("verbose");
 
         info("initializing connections with cassandra instance as %s for database %s at %s:%h",username.c_str(),keyspace.c_str(),hostname.c_str(),port);
         cql_initialize();
@@ -171,13 +190,19 @@ struct CassandraSync:public Callback
             builder->add_contact_point(boost::asio::ip::address::from_string(hostname));
             cluster = builder->build();
             session = cluster->connect(); 
-        
-            shared_ptr<cql::cql_query_t> my_first_query(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
+            info("connected successfully.."); 
+            shared_ptr<cql::cql_query_t> get_keyspaces(new cql::cql_query_t("SELECT * FROM system.schema_keyspaces;"));
 
-            boost::shared_future<cql::cql_future_result_t> future = session->query(my_first_query);
+            boost::shared_future<cql::cql_future_result_t> future = session->query(get_keyspaces);
             future.wait();
             shared_ptr<cql_result_t> result = future.get().result;
-             print_rows(*future.get().result);
+            //print_rows(*future.get().result);
+            if(keyspace_exists(keyspace,*future.get().result)) {
+                info("keyspace %s already exists, not creating",keyspace.c_str());
+            } else {
+                info("keyspace %s does not exist, creating",keyspace.c_str());
+                
+            }
 
         }
         catch (std::exception& e)

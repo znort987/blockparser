@@ -60,6 +60,7 @@ struct CassandraSync:public Callback
     bool proofOfStake;
     bool verbose;
     bool emptyOutput;
+    bool skip;
     uint64_t inputValue;
     uint64_t baseReward;
     uint8_t txCount;
@@ -74,6 +75,9 @@ struct CassandraSync:public Callback
     const uint8_t *blkMerkleRoot;
     time_t time;
     const uint8_t *currTXHash;
+
+    int block_inserts;
+    int block_existing;
 
     std::string hostname;
     unsigned short port;
@@ -147,7 +151,7 @@ struct CassandraSync:public Callback
 
     virtual const char                   *name() const         { return "cassandrasync"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;   }
-    virtual bool                         needTXHash() const    { return true;      }
+    virtual bool                         needTXHash() const    { return skip;      }
 
     virtual void aliases(
         std::vector<const char*> &v
@@ -245,7 +249,8 @@ struct CassandraSync:public Callback
             "transcount int,"
             "reward bigint,"
             "staked bigint,"
-            "destroyed bigint);"
+            "destroyed bigint)"
+            " with caching = 'all';"
        ));
        future = session->query(create_blocks);
        future.wait();
@@ -255,24 +260,36 @@ struct CassandraSync:public Callback
        }
        return true;
     }
-    virtual void add_block(int id, 
-                           bool pos,
-                           uint8_t *hashprevblock, 
-                           uint8_t *hashmerkleroot, 
-                           time_t time, 
-                           uint32_t bits, 
-                           float diff, 
-                           uint32_t nonce, 
-                           uint8_t transcount, 
-                           uint64_t reward, 
-                           uint64_t staked, 
-                           uint64_t destroyed) {
+    virtual bool block_exists() {
+       shared_ptr<cql::cql_query_t> block_exists(new cql::cql_query_t(str(boost::format("SELECT id FROM blocks WHERE ID = %1%;") % (int)currBlock)));
+       future = session->query(block_exists);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("Failed to create block table");
+       }
+       cql::cql_result_t& result = *future.get().result;
+       if(result.next()) {
+            if(verbose) { info("block %d already exists",(int)currBlock); }
+            return true;
+       }
+       if(verbose) { info("block %d does not exists",(int)currBlock); }
+       return false;
 
-       std::string POS = pos ? "true" : "false";
+        
+    }
+
+    virtual void add_block() {
+
+       std::string POS = proofOfStake ? "true" : "false";
+       uint8_t *strprevBlkHash = allocHash256(); 
+       uint8_t *strblkMerkleRoot = allocHash256();
+       toHex(strprevBlkHash,prevBlkHash);
+       toHex(strblkMerkleRoot,blkMerkleRoot);
        std::string query = str(boost::format(
        "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) "
-            "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % id % POS % hashprevblock % hashmerkleroot % time % bits %
-            diff % nonce % blkTxCount % reward % staked % destroyed);
+       "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % time % bits %
+            diff(bits) % nonce % blkTxCount % baseReward % inputValue % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());
        }
@@ -283,6 +300,7 @@ struct CassandraSync:public Callback
            std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
            errFatal("failed to add block %d",(int)currBlock);
        }
+       block_inserts++;
     }
 
     virtual int init(
@@ -290,6 +308,9 @@ struct CassandraSync:public Callback
         const char *argv[]
     )
     {
+        block_inserts = 0;
+        block_existing = 0;
+
         optparse::Values values = parser.parse_args(argc, argv);
         hostname = values["hostname"].c_str();
         port = boost::lexical_cast<unsigned short>(values["port"]);
@@ -368,6 +389,12 @@ struct CassandraSync:public Callback
         txCount = 0;
         blkTxCount = nbTX;
         blockFee = 0;
+        if(block_exists()) {
+            skip = true;
+            block_existing++;
+        } else {
+            skip = false;
+        }
     }
 
     virtual void startTX(
@@ -445,29 +472,27 @@ struct CassandraSync:public Callback
         const Block *b
     )
     {
-        if(proofOfStake) {
-            //update reward since we know its POS
-            int64_t stakeEarned = baseReward - inputValue;
-            if(stakeEarned < 0) {
-                blockFee -= stakeEarned;
-                baseReward = 0;
-            } else 
-                baseReward = stakeEarned;
-            //printf("stake earned %f\n",1e-6*stakeEarned);
-            // use diff(bits) to get the difficulty
+        if (!skip) {
+            if(proofOfStake) {
+                //update reward since we know its POS
+                int64_t stakeEarned = baseReward - inputValue;
+                if(stakeEarned < 0) {
+                    blockFee -= stakeEarned;
+                    baseReward = 0;
+                } else 
+                    baseReward = stakeEarned;
+                }
+             add_block();
         }
-       //"INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) VALUES"
-        uint8_t *hexprevBlkHash = allocHash256(); 
-        uint8_t *hexblkMerkleRoot = allocHash256();
-        toHex(hexprevBlkHash,prevBlkHash);
-        toHex(hexblkMerkleRoot,blkMerkleRoot);
-        add_block((int)currBlock,proofOfStake,
-                hexprevBlkHash,hexblkMerkleRoot,
-                time,bits,diff(bits),nonce,blkTxCount,baseReward,inputValue,blockFee);
-        
+        if(((int)currBlock % 10000) == 0)
+            info("processed block %d...%d/%d inserts/existing",(int)currBlock,block_inserts,block_existing);
     }
 
     virtual void wrapup() {
+      info("last block processed: %d",(int)currBlock);
+      info("inserted blocks: %d",block_inserts);
+      info("existing blocks: %d",block_existing);
+      info("total blocks processed: %d",block_inserts+block_existing);
       cql_terminate();
       //session->close();
       //cluster->shutdown();

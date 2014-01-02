@@ -151,7 +151,7 @@ struct CassandraSync:public Callback
 
     virtual const char                   *name() const         { return "cassandrasync"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;   }
-    virtual bool                         needTXHash() const    { return skip;      }
+    virtual bool                         needTXHash() const    { return true;      }
 
     virtual void aliases(
         std::vector<const char*> &v
@@ -213,6 +213,34 @@ struct CassandraSync:public Callback
         return true;
 
     }
+    virtual uint get_block_count() {
+       shared_ptr<cql::cql_query_t> create_keyspace(new cql::cql_query_t(
+       str(boost::format("SELECT value from counters where name = 'blocks'"))));
+       future = session->query(create_keyspace);
+       future.wait();
+       if(future.get().error.is_err()) {
+          std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+          errFatal("Failed to create new keyspace");
+        }
+        shared_ptr<cql::cql_result_t> result_ptr = future.get().result;
+        cql::cql_result_t& result = *result_ptr;
+        while(result.next()) {
+            cql::cql_byte_t* data = NULL;
+            cql::cql_int_t size = 0;
+            //result.get_data("value",&data,size);
+            cql::cql_int_t count;
+            result.get_int("value",count);
+            //uintptr_t count = *(uintptr_t *)data;
+            //size_t* count = reinterpret_cast<size_t*>(data);
+            info("%d %d %d", size, &count, count);
+            return count;
+            
+        } 
+
+        errFatal("Unable to fetch recent block count");
+        return 0;
+
+    }
     virtual bool create_keyspace() {
        shared_ptr<cql::cql_query_t> create_keyspace(new cql::cql_query_t(
        str(boost::format("CREATE KEYSPACE %1% WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };") % keyspace)));
@@ -235,6 +263,48 @@ struct CassandraSync:public Callback
        }
        return true;
      }
+    virtual bool increment_counters() {
+       shared_ptr<cql::cql_query_t> inc(new cql::cql_query_t(
+       "UPDATE counters SET value = value+1 where name = 'blocks';"
+       ));
+       future = session->query(inc);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("Failed to increment counters");
+       }
+       return true;
+    }
+    virtual bool create_time_counter_table() {
+       shared_ptr<cql::cql_query_t> create_time_counters(new cql::cql_query_t(
+       "CREATE TABLE IF NOT EXISTS time_counters ("
+       "  name varchar,"
+       "  time varchar,"
+       "  value counter, "
+       "  PRIMARY KEY (name,time));"
+       ));
+       future = session->query(create_time_counters);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("Failed to create timeseries counter table");
+       }
+       return true;
+    }
+    virtual bool create_counter_table() {
+       shared_ptr<cql::cql_query_t> create_counters(new cql::cql_query_t(
+       "CREATE TABLE IF NOT EXISTS counters ("
+       "  name varchar PRIMARY KEY,"
+       "  value counter) with caching = all;"
+       ));
+       future = session->query(create_counters);
+       future.wait();
+       if(future.get().error.is_err()) {
+           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
+           errFatal("Failed to create counter table");
+       }
+       return true;
+    }
     virtual bool create_block_table() {
        shared_ptr<cql::cql_query_t> create_blocks(new cql::cql_query_t(
        "CREATE TABLE IF NOT EXISTS blocks ("
@@ -286,9 +356,10 @@ struct CassandraSync:public Callback
        uint8_t *strblkMerkleRoot = allocHash256();
        toHex(strprevBlkHash,prevBlkHash);
        toHex(strblkMerkleRoot,blkMerkleRoot);
+       uint64_t msTime = time*1000;
        std::string query = str(boost::format(
        "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) "
-       "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % time % bits %
+       "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
             diff(bits) % nonce % blkTxCount % baseReward % inputValue % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());
@@ -350,9 +421,13 @@ struct CassandraSync:public Callback
             if(switch_keyspace() && verbose) {
                 info("switched successfully to keyspace %s",keyspace.c_str());
             }
+            int block_count = get_block_count();
+            info("found %d existing blocks",block_count);
             if(create_block_table() && verbose) {
                 info("successfully created/did not delete block table");
             }
+            create_counter_table();
+            create_time_counter_table();
             info("starting block insert process");
 
         }
@@ -392,9 +467,8 @@ struct CassandraSync:public Callback
         if(block_exists()) {
             skip = true;
             block_existing++;
-        } else {
+        } else 
             skip = false;
-        }
     }
 
     virtual void startTX(
@@ -444,6 +518,7 @@ struct CassandraSync:public Callback
             inputValue += value;
         } else {
             blockFee += value;
+            //if(verbose) printf("blockfee %f\n",blockFee*1e-6);
         }
     }
 
@@ -463,6 +538,7 @@ struct CassandraSync:public Callback
             baseReward += value;
         } else {
             blockFee -= value;
+            //if(verbose) printf("blockfee %f\n",blockFee*1e-6);
         } 
         
 
@@ -483,6 +559,7 @@ struct CassandraSync:public Callback
                     baseReward = stakeEarned;
                 }
              add_block();
+             increment_counters();
         }
         if(((int)currBlock % 10000) == 0)
             info("processed block %d...%d/%d inserts/existing",(int)currBlock,block_inserts,block_existing);

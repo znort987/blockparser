@@ -51,7 +51,16 @@ void log_callback(
     {
         std::cout << "LOG: " << message << std::endl;
     }
-
+long from_counter(const std::string& value) {
+    union  {
+        long    v;
+        char    cc[8];
+    } xx;
+    for (size_t i=0; i < 8;++i) {
+        xx.cc[7-i]=value.at(i);
+    }
+    return xx.v;
+}
 struct CassandraSync:public Callback
 {
     optparse::OptionParser parser;
@@ -78,6 +87,7 @@ struct CassandraSync:public Callback
 
     int block_inserts;
     int block_existing;
+    int64_t database_block_count;
 
     std::string hostname;
     unsigned short port;
@@ -213,26 +223,24 @@ struct CassandraSync:public Callback
         return true;
 
     }
-    virtual uint get_block_count() {
+    virtual int64_t get_block_count() {
        shared_ptr<cql::cql_query_t> create_keyspace(new cql::cql_query_t(
        str(boost::format("SELECT value from counters where name = 'blocks'"))));
        future = session->query(create_keyspace);
        future.wait();
        if(future.get().error.is_err()) {
           std::cout << boost::format("cql error: %1%") % future.get().error.message << "\n";
-          errFatal("Failed to create new keyspace");
+          errFatal("Failed to query for block count");
         }
+        //print_rows(*future.get().result);
         shared_ptr<cql::cql_result_t> result_ptr = future.get().result;
         cql::cql_result_t& result = *result_ptr;
-        while(result.next()) {
-            cql::cql_byte_t* data = NULL;
-            cql::cql_int_t size = 0;
-            //result.get_data("value",&data,size);
-            cql::cql_int_t count;
-            result.get_int("value",count);
-            //uintptr_t count = *(uintptr_t *)data;
-            //size_t* count = reinterpret_cast<size_t*>(data);
-            info("%d %d %d", size, &count, count);
+        if(result.next()) {
+            std::string str_counter; 
+            //counters need to be fetched as strings and converted
+            result.get_string("value",str_counter);
+            int64_t count = from_counter(str_counter);
+            //info("%lld %"PRIu64" %d", count, count, sizeof(int64_t));
             return count;
             
         } 
@@ -408,8 +416,10 @@ struct CassandraSync:public Callback
                 }
             }
             //print_rows(*future.get().result);
-            if(keyspace_exists(keyspace)) {
+            bool exists = keyspace_exists(keyspace);
+            if(exists) {
                 info("keyspace %s already exists",keyspace.c_str());
+                
             } else {
                 info("keyspace %s does not exist",keyspace.c_str());
                 //create keyspace
@@ -421,13 +431,20 @@ struct CassandraSync:public Callback
             if(switch_keyspace() && verbose) {
                 info("switched successfully to keyspace %s",keyspace.c_str());
             }
-            int block_count = get_block_count();
-            info("found %d existing blocks",block_count);
+            if(!exists) {
+                //create counter tables
+                create_counter_table();
+                create_time_counter_table();
+            }
             if(create_block_table() && verbose) {
                 info("successfully created/did not delete block table");
             }
-            create_counter_table();
-            create_time_counter_table();
+            if(exists) {
+                database_block_count = get_block_count();
+                info("found %lld existing blocks",database_block_count);
+            } else {
+                database_block_count = 0;
+            }
             info("starting block insert process");
 
         }
@@ -464,7 +481,8 @@ struct CassandraSync:public Callback
         txCount = 0;
         blkTxCount = nbTX;
         blockFee = 0;
-        if(block_exists()) {
+        //currblock will be 1 less then block_count but < works out
+        if((int)currBlock < database_block_count || block_exists()) {
             skip = true;
             block_existing++;
         } else 

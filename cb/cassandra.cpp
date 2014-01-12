@@ -70,6 +70,7 @@ struct CassandraSync:public Callback
     bool verbose;
     bool emptyOutput;
     bool skip;
+    bool drop;
     uint64_t inputValue;
     uint64_t baseReward;
     uint8_t txCount;
@@ -316,7 +317,26 @@ struct CassandraSync:public Callback
             "bits varchar,"
             "diff float,"
             "nonce bigint,"
-            "transcount int,"
+            "txcount int,"
+            "reward bigint,"
+            "staked bigint,"
+            "destroyed bigint)"
+            " with caching = 'all';"
+       );
+    }
+    //need to make it parse txns
+    virtual bool create_tx_table() {
+       return call_query(
+       "CREATE TABLE IF NOT EXISTS transactions ("
+            "id int PRIMARY KEY,"
+            "POS boolean,"
+            "hashPrevBlock varchar,"
+            "hashMerkleRoot varchar,"
+            "time timestamp,"
+            "bits varchar,"
+            "diff float,"
+            "nonce bigint,"
+            "txcount int,"
             "reward bigint,"
             "staked bigint,"
             "destroyed bigint)"
@@ -325,6 +345,9 @@ struct CassandraSync:public Callback
     }
 
     virtual bool block_exists() {
+       if(drop) {
+            return false;
+       }
        shared_ptr<cql::cql_query_t> block_exists(new cql::cql_query_t(str(boost::format("SELECT id FROM blocks WHERE ID = %1%;") % (int)currBlock)));
        future = session->query(block_exists);
        future.wait();
@@ -352,7 +375,7 @@ struct CassandraSync:public Callback
        toHex(strblkMerkleRoot,blkMerkleRoot);
        uint64_t msTime = time*1000;
        std::string query = str(boost::format(
-       "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,transcount,reward,staked,destroyed) "
+       "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,destroyed) "
        "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
             diff(bits) % nonce % blkTxCount % baseReward % inputValue % blockFee);
        if(verbose) {
@@ -385,7 +408,7 @@ struct CassandraSync:public Callback
         password = values["password"].c_str();
 
         bool cassandra_log = values.get("cassandra_log");
-        bool drop = values.get("drop");
+        drop = values.get("drop");
         verbose = values.get("verbose");
 
         info("connecting to %s@%s:%d in keyspace %s",username.c_str(),hostname.c_str(),port,keyspace.c_str());
@@ -423,6 +446,9 @@ struct CassandraSync:public Callback
                 create_stats_table();
             }
             if(create_block_table() && verbose) {
+                info("successfully created/did not delete block table");
+            }
+            if(create_tx_table() && verbose) {
                 info("successfully created/did not delete block table");
             }
             if(exists) {

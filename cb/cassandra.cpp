@@ -94,6 +94,8 @@ struct CassandraSync:public Callback
     uint32_t totalTrans;
     uint128_t totalSent;
     uint128_t totalReceived;
+    uint64_t block_sent;
+    uint64_t block_received;
 
     int block_inserts;
     int block_existing;
@@ -292,7 +294,7 @@ struct CassandraSync:public Callback
     }
     virtual bool create_stats_table() {
         return call_query("CREATE TABLE IF NOT EXISTS stats ("
-        " time timestamp PRIMARY KEY,"
+        " time timestamp,"
         " last_block int,"
         " POS_blocks int,"
         " POW_blocks int,"
@@ -301,9 +303,11 @@ struct CassandraSync:public Callback
         " destroyed_fees bigint,"
         " minted_coins bigint,"
         " mined_coins bigint,"
+        " PRIMARY KEY (last_block)"
         //" sent bigint,"
         //" received bigint,"
-        ");");
+        ") with caching = 'all';"
+        );
 
     }
     virtual bool create_block_table() {
@@ -320,12 +324,15 @@ struct CassandraSync:public Callback
             "txcount int,"
             "reward bigint,"
             "staked bigint,"
+            "sent bigint,"
+            "received bigint,"
             "destroyed bigint)"
             " with caching = 'all';"
        );
     }
     //need to make it parse txns
     virtual bool create_tx_table() {
+       return false;
        return call_query(
        "CREATE TABLE IF NOT EXISTS transactions ("
             "id int PRIMARY KEY,"
@@ -375,9 +382,9 @@ struct CassandraSync:public Callback
        toHex(strblkMerkleRoot,blkMerkleRoot);
        uint64_t msTime = time*1000;
        std::string query = str(boost::format(
-       "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,destroyed) "
-       "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
-            diff(bits) % nonce % blkTxCount % baseReward % inputValue % blockFee);
+       "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
+       "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
+            diff(bits) % nonce % blkTxCount % baseReward % inputValue % block_sent % block_received % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());
        }
@@ -503,6 +510,8 @@ struct CassandraSync:public Callback
         txCount = 0;
         blkTxCount = nbTX;
         blockFee = 0;
+        block_sent = 0;
+        block_received = 0;
         //currblock will be 1 less then block_count but < works out
         if((int)currBlock < database_block_count || block_exists()) {
             skip = true;
@@ -558,6 +567,7 @@ struct CassandraSync:public Callback
             inputValue += value;
         } else {
             totalSent += value;
+            block_sent += value;
             blockFee += value;
             //if(verbose) printf("blockfee %f\n",blockFee*1e-6);
         }
@@ -580,6 +590,7 @@ struct CassandraSync:public Callback
         } else {
             blockFee -= value;
             totalReceived += value;
+            block_received += value;
             //if(verbose) printf("blockfee %f\n",blockFee*1e-6);
         } 
         

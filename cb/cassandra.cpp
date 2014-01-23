@@ -313,8 +313,10 @@ struct CassandraSync:public Callback
     virtual bool create_block_table() {
        return call_query(
        "CREATE TABLE IF NOT EXISTS blocks ("
-            "id int PRIMARY KEY,"
+            "id int,"
+            "chain int,"
             "POS boolean,"
+            "hash varchar,"
             "hashPrevBlock varchar,"
             "hashMerkleRoot varchar,"
             "time timestamp,"
@@ -326,7 +328,8 @@ struct CassandraSync:public Callback
             "staked bigint,"
             "sent bigint,"
             "received bigint,"
-            "destroyed bigint)"
+            "destroyed bigint,"
+            "PRIMARY KEY (id,chain))"
             " with caching = 'all';"
        );
     }
@@ -335,9 +338,11 @@ struct CassandraSync:public Callback
        return false;
        return call_query(
        "CREATE TABLE IF NOT EXISTS transactions ("
-            "id int PRIMARY KEY,"
+            "id int,"
+            "chain int,"
             "POS boolean,"
             "hashPrevBlock varchar,"
+            "hash varchar,"
             "hashMerkleRoot varchar,"
             "time timestamp,"
             "bits varchar,"
@@ -346,7 +351,8 @@ struct CassandraSync:public Callback
             "txcount int,"
             "reward bigint,"
             "staked bigint,"
-            "destroyed bigint)"
+            "destroyed bigint,"
+            "PRIMARY KEY (id,chain))"
             " with caching = 'all';"
        );
     }
@@ -382,8 +388,8 @@ struct CassandraSync:public Callback
        toHex(strblkMerkleRoot,blkMerkleRoot);
        uint64_t msTime = time*1000;
        std::string query = str(boost::format(
-       "INSERT INTO blocks (id,pos,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
-       "VALUES (%d,%s,'%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
+       "INSERT INTO blocks (id,chain,pos,hash,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
+       "VALUES (%d,0,%s,'SEE NEXT BLOCK','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
             diff(bits) % nonce % blkTxCount % baseReward % inputValue % block_sent % block_received % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());

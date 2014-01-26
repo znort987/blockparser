@@ -6,6 +6,7 @@ CPLUS = g++
 
 INC =                           \
         -I.                     \
+        -I/usr/local/ssl/include    \
         -DPEERCOIN              \
         -DNDEBUG                \
 #        -DLITECOIN              \
@@ -37,6 +38,7 @@ COPT =                          \
 
 LOPT =                          \
 	-L/usr/local/lib			\
+	-L/usr/local/ssl/lib		\
 
     #-s                          \
 
@@ -134,12 +136,12 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/transactions.cpp -o .objs/transactions.o
 	@mv .objs/transactions.d .deps
 
-#.objs/cassandra.o : cb/cassandra.cpp
-#	@echo c++ -- cb/cassandra.cpp
-#	@mkdir -p .deps
-#	@mkdir -p .objs
-#	@${CPLUS} -MD ${INC} ${COPT}  -c cb/cassandra.cpp -o .objs/cassandra.o
-#	@mv .objs/cassandra.d .deps
+.objs/cassandra.o : cb/cassandra.cpp
+	@echo c++ -- cb/cassandra.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/cassandra.cpp -o .objs/cassandra.o
+	@mv .objs/cassandra.d .deps
 
 .objs/opcodes.o : opcodes.cpp
 	@echo c++ -- opcodes.cpp
@@ -199,11 +201,10 @@ OBJS=                       \
     .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
+    .objs/cassandra.o 	    \
     .objs/util.o            \
     .objs/dumpTX.o          \
     .objs/peerstats.o        
-
-    #.objs/cassandra.o 	    \
 
 parser:${OBJS}
 	@echo lnk -- parser 
@@ -211,6 +212,12 @@ parser:${OBJS}
 
 clean:
 	-rm -r -f *.o *.i .objs .deps *.d parser
+
+install: all install_sw
+
+install_sw:
+	cp parser /usr/local/bin/parser
+	chmod 555 /usr/local/bin/parser
 
 -include .deps/*
 

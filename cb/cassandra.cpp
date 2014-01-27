@@ -315,6 +315,7 @@ struct CassandraSync:public Callback
        "CREATE TABLE IF NOT EXISTS blocks ("
             "id int,"
             "chain int,"
+            "coindays int,"
             "POS boolean,"
             "hash varchar,"
             "hashPrevBlock varchar,"
@@ -388,8 +389,8 @@ struct CassandraSync:public Callback
        toHex(strblkMerkleRoot,blkMerkleRoot);
        uint64_t msTime = time*1000;
        std::string query = str(boost::format(
-       "INSERT INTO blocks (id,chain,pos,hash,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
-       "VALUES (%d,0,%s,'SEE NEXT BLOCK','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
+       "INSERT INTO blocks (id,chain,coindays,pos,hash,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
+       "VALUES (%d,0,-1,%s,'SEE NEXT BLOCK','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
             diff(bits) % nonce % blkTxCount % baseReward % inputValue % block_sent % block_received % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());

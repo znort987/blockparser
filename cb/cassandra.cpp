@@ -618,12 +618,16 @@ struct CassandraSync:public Callback
                baseReward = stakeEarned;
            POScount++;
            totalStakeEarned += baseReward;
-           if((int)currBlock > 0)
-            totalTrans += txCount - 2;
+           //if((int)currBlock > 0)
+           blkTxCount -= 2;
+           txCount -= 2;
+           totalTrans += txCount;
         } else {
             POWcount++;
             totalMined += baseReward;
-            totalTrans += txCount - 1;
+            blkTxCount -= 1;
+            txCount -= 1;
+            totalTrans += txCount;
         }
         totalFeeDestroyed += blockFee;
         if(!skip) {

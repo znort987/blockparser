@@ -112,6 +112,8 @@ struct CassandraSync:public Callback
     boost::shared_future<cql::cql_future_result_t> future;
     shared_ptr<cql::cql_builder_t> builder;
 
+    uint8_t *blockHash;
+
     CassandraSync()
     {
         parser
@@ -385,12 +387,14 @@ struct CassandraSync:public Callback
        std::string POS = proofOfStake ? "true" : "false";
        uint8_t *strprevBlkHash = allocHash256(); 
        uint8_t *strblkMerkleRoot = allocHash256();
+       uint8_t *strblockHash = allocHash256();
        toHex(strprevBlkHash,prevBlkHash);
        toHex(strblkMerkleRoot,blkMerkleRoot);
+       toHex(strblockHash, blockHash);
        uint64_t msTime = time*1000;
        std::string query = str(boost::format(
        "INSERT INTO blocks (id,chain,coindays,pos,hash,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
-       "VALUES (%d,0,-1,%s,'SEE NEXT BLOCK','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strprevBlkHash % strblkMerkleRoot % msTime % bits %
+       "VALUES (%d,0,-1,%s,'%s','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % POS % strblockHash % strprevBlkHash % strblkMerkleRoot % msTime % bits %
             diff(bits) % nonce % blkTxCount % baseReward % inputValue % block_sent % block_received % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());
@@ -462,9 +466,9 @@ struct CassandraSync:public Callback
             if(create_block_table() && verbose) {
                 info("successfully created/did not delete block table");
             }
-            if(create_tx_table() && verbose) {
-                info("successfully created/did not delete block table");
-            }
+            //if(create_tx_table() && verbose) {
+            //    info("successfully created/did not delete tx table");
+            //}
             if(exists) {
                 database_block_count = get_block_count();
                 info("found %lld existing blocks",database_block_count);
@@ -498,6 +502,8 @@ struct CassandraSync:public Callback
     )
     {
         const uint8_t *p = b->data;
+        blockHash = allocHash256();
+        sha256Twice(blockHash, p, 80); 
         SKIP(uint32_t, version, p);
         prevBlkHash = p;
         SKIP(uint256_t, prevhash, p);

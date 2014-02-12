@@ -101,7 +101,7 @@ struct CassandraSync:public Callback
     uint128_t totalReceived;
     uint64_t block_sent;
     uint64_t block_received;
-    uint32_t stakeAge; //age of stake transaction in seconds
+    double stakeAge; //age of stake transaction in days
 
     int block_inserts;
     int block_existing;
@@ -326,7 +326,7 @@ struct CassandraSync:public Callback
        "CREATE TABLE IF NOT EXISTS blocks ("
             "id int,"
             "chain int,"
-            "stakeage int,"
+            "stakeage float,"
             "POS boolean,"
             "hash varchar,"
             "hashPrevBlock varchar,"
@@ -403,7 +403,7 @@ struct CassandraSync:public Callback
        uint64_t msTime = time*1000;
        std::string query = str(boost::format(
        "INSERT INTO blocks (id,chain,stakeage,pos,hash,hashprevblock,hashmerkleroot,time,bits,diff,nonce,txcount,reward,staked,sent,received,destroyed) "
-       "VALUES (%d,0,%d,%s,'%s','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % stakeAge % POS % strblockHash % strprevBlkHash % strblkMerkleRoot % msTime % bits %
+       "VALUES (%d,0,%f,%s,'%s','%s','%s',%d,'%x',%f,%u,%d,%d,%d,%d,%d,%d)") % (int)currBlock % stakeAge % POS % strblockHash % strprevBlkHash % strblkMerkleRoot % msTime % bits %
             diff(bits) % nonce % blkTxCount % baseReward % inputValue % block_sent % block_received % blockFee);
        if(verbose) {
             printf("%s\n",query.c_str());
@@ -593,7 +593,7 @@ struct CassandraSync:public Callback
 
         if(proofOfStake && txCount == 2) {
             inputValue += value;
-            stakeAge = txTime - gTXTimeMap[upTXHash];
+            stakeAge = (txTime - gTXTimeMap[upTXHash]) / (float)(60*60*24);
         } else {
             totalSent += value;
             block_sent += value;

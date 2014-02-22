@@ -121,8 +121,8 @@ blockparser peercoin fork
         . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
         . cb/rewards.cpp        :   code to show all block rewards (including fees)
         . cb/simpleStats.cpp    :   code to compute simple stats.
-        . cb/peerstats.cpp      :   code to compute peercon specific simple stats.
-        . cb/sql.cpp            :   code to product an SQL dump of the blockchain*
+        . cb/peerstats.cpp      :   code to compute peercoin specific simple stats.
+        . cb/sql.cpp            :   code to produce a SQL dump of the blockchain*
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
         

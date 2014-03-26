@@ -205,7 +205,7 @@ static void parseInput(
 
         const uint8_t *upTXHash = p;
         const uint8_t *upTXOutputs = 0;
-
+        
         if(gNeedTXHash && !skip) {
             bool isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
             if(likely(false==isGenTX)) {
@@ -215,7 +215,7 @@ static void parseInput(
                 upTXOutputs = i->second;
             }
         }
-
+        
         SKIP(uint256_t, dummyUpTXhash, p);
         LOAD(uint32_t, upOutputIndex, p);
         LOAD_VARINT(inputScriptSize, p);
@@ -276,6 +276,7 @@ static void parseTX(
     if(!skip) startTX(p, txHash);
 
         SKIP(uint32_t, version, p);
+        SKIP(uint32_t, ntime, p);
 
         parseInputs<skip>(p, txHash);
 
@@ -303,7 +304,6 @@ static void parseBlock(
         SKIP(uint32_t, blkTime, p);
         SKIP(uint32_t, blkBits, p);
         SKIP(uint32_t, blkNonce, p);
-
         LOAD_VARINT(nbTX, p);
         for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex)
             parseTX<false>(p);
@@ -367,7 +367,9 @@ static void initCallback(
 static void mapBlockChainFiles()
 {
     std::string coinName(
-        #if defined LITECOIN
+        #if defined PEERCOIN
+            "/.ppcoin/"
+        #elif defined LITECOIN
             "/.litecoin/"
         #else
             "/.bitcoin/"
@@ -514,7 +516,9 @@ static bool buildBlock(
 )
 {
     static const uint32_t expected =
-    #if defined(LITECOIN)
+    #if defined(PEERCOIN)
+        0xe5e9e8e6
+    #elif defined(LITECOIN)
         0xdbb6c0fb
     #else
         0xd9b4bef9

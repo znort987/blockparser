@@ -7,16 +7,24 @@
 #include <option.h>
 #include <string.h>
 #include <callback.h>
+#include <ctime>
 
 struct Rewards:public Callback
 {
     optparse::OptionParser parser;
 
     bool fullDump;
-    uint64_t reward;
+    bool proofOfStake;
+    bool emptyOutput;
+    uint64_t inputValue;
+    uint64_t baseReward;
+    uint8_t txCount;
     size_t nbInputs;
     bool hasGenInput;
     uint64_t currBlock;
+    uint64_t blockFee;
+    uint32_t bits;
+    time_t time;
     const uint8_t *currTXHash;
 
     Rewards()
@@ -61,8 +69,15 @@ struct Rewards:public Callback
         SKIP(uint256_t, prevBlkHash, p);
         SKIP(uint256_t, blkMerkleRoot, p);
         LOAD(uint32_t, blkTime, p);
+        LOAD(uint32_t, blkBits, p);
         currBlock = b->height - 1;
-        reward = 0;
+        bits = blkBits;
+        time = blkTime;
+        proofOfStake = false;
+        baseReward = 0;
+        inputValue = 0;
+        txCount = 0;
+        blockFee = 0;
     }
 
     virtual void startTX(
@@ -71,11 +86,14 @@ struct Rewards:public Callback
     )
     {
         currTXHash = hash;
+        txCount++;
+        SKIP(uint32_t, version, p);
     }
 
     virtual void  startInputs(const uint8_t *p)
     {
         hasGenInput = false;
+        emptyOutput = false;
         nbInputs = 0;
     }
 
@@ -93,6 +111,29 @@ struct Rewards:public Callback
             if(1!=nbInputs) abort();
         }
     }
+    virtual void edge(
+        uint64_t      value,
+        const uint8_t *upTXHash,
+        uint64_t      outputIndex,
+        const uint8_t *outputScript,
+        
+        uint64_t      outputScriptSize,
+        const uint8_t *downTXHash,
+        uint64_t      inputIndex,
+        const uint8_t *inputScript,
+        uint64_t      inputScriptSize) {
+
+
+        if(proofOfStake && txCount == 2) {
+            inputValue += value;
+        } else {
+            //printf("adding %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
+            blockFee += value;
+        }    
+        //if((int)currBlock == 69530) {
+        //    printf("block %d found transaction %d : +%f = %f. fee:%f\n",(int)currBlock,txCount,value*1e-6,1e-6*inputValue,1e-6*blockFee);
+        //}
+    }
 
     virtual void endOutput(
         const uint8_t *p,
@@ -103,7 +144,17 @@ struct Rewards:public Callback
         uint64_t      outputScriptSize
     )
     {
-        if(!hasGenInput) return;
+        //printf("block %d output %d %f\n",(int)currBlock,(int)outputIndex,1e-6*value);
+        if(hasGenInput && outputScriptSize == 0) {
+            proofOfStake = true;
+        } 
+        if((proofOfStake && txCount == 2) || hasGenInput) {
+            baseReward += value;
+            //printf("setting base reward %f\n",1e-6*baseReward);
+        } else {
+            blockFee -= value;
+            //printf("subtracting %f from tx:%d fee:%f\n",1e-6*value,txCount,1e-6*blockFee);
+        } 
 
         uint8_t addrType[3];
         uint160_t pubKeyHash;
@@ -119,20 +170,19 @@ struct Rewards:public Callback
             printf("============================\n");
             printf("BLOCK %d ... RAW ASCII DUMP OF FAILING SCRIPT = ", (int)currBlock);
             fwrite(outputScript, outputScriptSize, 1, stdout);
-            printf("value = %16.8f\n", value*1e-8);
+            printf("value = %16.8f\n", value*1e-6);
             showScript(outputScript, outputScriptSize);
             printf("============================\n\n");
             printf("\n");
             errFatal("invalid script");
         }
 
-        reward += value;
         if(!fullDump) return;
 
         printf("%7d ", (int)currBlock);
         showHex(currTXHash);
 
-        printf(" %16.8f ", 1e-8*value);
+        printf(" %16.8f ", 1e-6*value);
 
         if(type<0) {
             printf("######################################## ##################################\n");
@@ -172,15 +222,34 @@ struct Rewards:public Callback
         const Block *b
     )
     {
-        uint64_t baseReward = getBaseReward(currBlock);
-        int64_t feesEarned = reward - (int64_t)baseReward;   // This sometimes goes <0 for some early, buggy blocks
-        printf(
-            "Summary for block %7d : baseReward=%16.8f fees=%16.8f total=%16.8f\n",
-            (int)currBlock,
-            1e-8*baseReward,
-            1e-8*feesEarned,
-            1e-8*reward
-        );
+        const char *blockType = (proofOfStake) ? "POS" : "POW";
+        if(!proofOfStake) {
+            printf(
+                "Summary for block %6d @ %s : type=%s diff=%.2f                  mined      =%12.6f destroyedfees=%8.6f\n",
+                (int)currBlock,
+                gettime(time),
+                blockType,
+                diff(bits),
+                1e-6*baseReward,
+                1e-6*blockFee
+            );
+        } else {
+            int64_t stakeEarned = baseReward - inputValue;
+            if(stakeEarned < 0) {
+                blockFee -= stakeEarned;
+                stakeEarned = 0;
+            }
+            printf(
+                "Summary for block %6d @ %s : type=%s diff=%.4f staked=%14.6f stakeEarned=%12.6f destroyedfees=%8.6f\n",
+                (int)currBlock,
+                gettime(time),
+                blockType,
+                diff(bits),
+                1e-6*inputValue,
+                1e-6*stakeEarned,
+                1e-6*blockFee
+            );            
+        }
     }
 };
 

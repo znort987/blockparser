@@ -92,10 +92,15 @@ struct Taint:public Callback
         if(0<rootHashes.size()) {
             info("computing taint from %d source transactions\n", (int)rootHashes.size());
         } else {
+        
+        #if defined(PEERCOIN)
+            warning("no TX hashes specified, using the a random transaction");
+            const char *defaultTX = "2d4b5d5fae6bb5be6ddc46256013ef2b1c5f9ba1b1f4da5307db2eb4910d0d06"; 
+        #else
             warning("no TX hashes specified, using the infamous 10K pizza TX");
-
             //const char *defaultTX = "34b84108a142ad7b6c36f0f3549a3e83dcdbb60e0ba0df96cd48f852da0b1acb"; // Linode slush hack
             const char *defaultTX = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
+        #endif 
             loadHash256List(rootHashes, defaultTX);
         }
 

@@ -16,6 +16,7 @@ struct DumpTX:public Callback
     bool dump;
     TxMap txMap;
     bool isGenTX;
+    bool isStakeTX;
     uint64_t bTime;
     uint64_t valueIn;
     uint64_t valueOut;
@@ -69,17 +70,27 @@ struct DumpTX:public Callback
         if(0<rootHashes.size()) {
             info("dumping %d transactions\n", (int)rootHashes.size());
         } else {
+        #if defined(PEERCOIN)
+            const char *defaultTX = "19093c85669bf82c9baa70eb437e2f319409f40b54b2c5ebc4dd334ab610fbe6"; 
+            warning("no TX hashes specified, using a random proof of stake peercoin transaction");
+        #else
             const char *defaultTX = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
             warning("no TX hashes specified, using the infamous 10K pizza TX");
+        #endif
             loadHash256List(rootHashes, defaultTX);
         }
 
         static uint8_t empty[kSHA256ByteSize] = { 0x42 };
         txMap.setEmptyKey(empty);
 
-        for(auto const &txHash : rootHashes) {
+        for(auto it = rootHashes.begin(); it != rootHashes.end(); it++) {
+            auto const &txHash = *it;
             txMap[txHash.v] = 1;
-        }
+         }
+
+        //for(auto const &txHash : rootHashes) {
+        //    txMap[txHash.v] = 1;
+        //}
 
         return 0;
     }
@@ -197,12 +208,12 @@ struct DumpTX:public Callback
             LOAD_VARINT(inputScriptSize, p);
             isGenTX = (0==memcmp(gNullHash.v, upTXHash.v, sizeof(gNullHash)));
             if(isGenTX) {
-                uint64_t reward = getBaseReward(currBlock);
+                //uint64_t reward = getBaseReward(currBlock);
                 printf("        generation transaction\n");
-                printf("        based on block height, reward = %.8f\n", 1e-8*reward);
+                //printf("        proof of work block reward:, reward = %.8f\n", 1e-6*reward);
                 printf("        hex dump of coinbase follows:\n\n");
                 canonicalHexDump(p, inputScriptSize, "        ");
-                valueIn += reward;
+                //valueIn += reward;
             }
         }
     }
@@ -272,7 +283,7 @@ struct DumpTX:public Callback
             uint8_t buf[1 + 2*kSHA256ByteSize];
             toHex(buf, upTXHash);
             printf("        outputIndex = %" PRIu64 "\n", outputIndex);
-            printf("        value = %.8f\n", value*1e-8);
+            printf("        value = %.8f\n", value*1e-6);
             printf("        upTXHash = %s\n\n", buf);
             printf("        # challenge answer script, bytes=%" PRIu64 " (on downstream input) =\n", inputScriptSize);
             showScript(inputScript, inputScriptSize, 0, "        ");
@@ -330,10 +341,15 @@ struct DumpTX:public Callback
     )
     {
         if(dump) {
-            printf("        value = %.8f\n", value*1e-8);
+            printf("        value = %.8f\n", value*1e-6);
             printf("        challenge script, bytes=%" PRIu64 " :\n", outputScriptSize);
-            showScript(outputScript, outputScriptSize, 0, "        ");
-            showScriptInfo(outputScript, outputScriptSize);
+            if(outputScriptSize == 0) {
+                printf("\n        proof of stake transaction: output[0] script empty\n");
+                isStakeTX = 1;
+            } else {
+                showScript(outputScript, outputScriptSize, 0, "        ");
+                showScriptInfo(outputScript, outputScriptSize);
+            }
             printf("    }\n\n");
             valueOut += value;
         }
@@ -349,10 +365,13 @@ struct DumpTX:public Callback
             printf("   nbOutputs = %" PRIu64 "\n", (uint64_t)nbOutputs);
             printf("    byteSize = %" PRIu64 "\n", (uint64_t)(p - txStart));
             printf("    lockTime = %" PRIu32 "\n", (uint32_t)lockTime);
-            printf("     valueIn =  %.2f\n", valueIn*1e-8);
-            printf("    valueOut =  %.2f\n", valueOut*1e-8);
-            if(!isGenTX) {
-                printf("        fees =  %.2f\n", (valueIn-valueOut)*1e-8);
+            printf("     valueIn = %.2f\n", valueIn*1e-6);
+            printf("    valueOut = %.2f\n", valueOut*1e-6);
+            if(!isGenTX && !isStakeTX) {
+                printf("        fees =  %.2f\n", (valueIn-valueOut)*1e-6);
+            }
+            if(isStakeTX) {
+                printf(" stakeEarned = %.2f\n", (valueOut-valueIn)*1e-6);
             }
             printf("}\n");
             ++nbDumped;

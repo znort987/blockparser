@@ -6,6 +6,8 @@
 #include <rmd160.h>
 #include <sha256.h>
 #include <opcodes.h>
+#include <iostream>
+#include <cmath>
 
 #include <string>
 #include <stdio.h>
@@ -33,6 +35,22 @@ double usecs()
     gettimeofday(&t, 0);
     return t.tv_usec + 1000000*((uint64_t)t.tv_sec);
 }
+
+float diff(uint32_t bits) {
+    double target = (bits & 0x00ffffff) * pow(2,8* ((bits >> 24) - 3));
+    double max_target = 0x00ffff * pow(2,8* (0x1d - 3));
+    //printf("target %8f",target);
+    //printf("max target %8f",target);
+    double diff = max_target / target;
+
+    //printf("diff %f",diff);
+    return diff;
+}
+char* gettime(time_t time) {
+      char* stime = new char[20];  
+      strftime(stime,20,"%F %H:%M:%S",gmtime(&time));
+      return stime;
+ }
 
 void toHex(
           uint8_t *dst,     // 2*size +1
@@ -428,7 +446,9 @@ bool addrToHash160(
 
         uint8_t data[1+kRIPEMD160ByteSize];
         memcpy(1+data, hash160, kRIPEMD160ByteSize);
-        #if defined(LITECOIN)
+        #if defined(PEERCOIN)
+            data[0] = 55;
+        #elif defined(LITECOIN)
             data[0] = 48;
         #else
             data[0] = 0;

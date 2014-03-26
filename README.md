@@ -43,6 +43,14 @@ blockparser peercoin fork
             make
             ./parser
 
+        . If you are interested in the Cassandra database syncer:
+
+            Install the datastax cpp cassandra driver: https://github.com/datastax/cpp-driver
+            git clone git://github.com/snakie/blockparser.git
+            cd blockparser
+            make -f Makefile.cassandra
+            ./parser
+
     Try it:
     -------
 
@@ -123,6 +131,7 @@ blockparser peercoin fork
         . cb/simpleStats.cpp    :   code to compute simple stats.
         . cb/peerstats.cpp      :   code to compute peercon specific simple stats.
         . cb/sql.cpp            :   code to product an SQL dump of the blockchain*
+        . cb/cassandra.cpp      :   code to sync block information into a cassandra instance.
         . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
         . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
         

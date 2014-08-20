@@ -582,15 +582,24 @@ static void buildNullBlock()
 static void firstPass()
 {
     buildNullBlock();
+
+    info("loading and checksumming all blocks ...");
     buildAllBlocks();
+
+    info("find parent for all blocks ...");
     linkAllBlocks();
 }
 
 static void secondPass()
 {
+    info("find longest chain in block chain ...");
     findLongestChain();
+
+    info("analyzing block chain ...");
+    gCallback->startLC();
     parseLongestChain();
     gCallback->wrapup();
+    info("done");
 }
 
 static void cleanMaps()

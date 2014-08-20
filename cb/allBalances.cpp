@@ -169,7 +169,6 @@ struct AllBalances:public Callback
             }
         }
 
-        info("analyzing blockchain ...");
         return 0;
     }
 
@@ -292,18 +291,13 @@ struct AllBalances:public Callback
         );
     }
 
-    virtual void wrapup()
-    {
-        info("done\n");
+    virtual void wrapup() {
 
+        CompareAddr compare;
+        auto e = allAddrs.end();
+        auto s = allAddrs.begin();
         info("sorting by balance ...");
-
-            CompareAddr compare;
-            auto e = allAddrs.end();
-            auto s = allAddrs.begin();
-            std::sort(s, e, compare);
-
-        info("done\n");
+        std::sort(s, e, compare);
 
         uint64_t nbRestricts = (uint64_t)restrictMap.size();
         if(0==nbRestricts) info("dumping all balances ...");
@@ -383,6 +377,10 @@ struct AllBalances:public Callback
     {
         firstBlock = s;
         lastBlock = e;
+    }
+
+    virtual void startLC() {
+        info("computing balance for all addresses");
     }
 
     virtual void startBlock(

@@ -41,6 +41,7 @@
         virtual void  startOutput(const uint8_t *p                     )       {               }  // Called when a TX output is encountered
         virtual void   startBlock(  const Block *b, uint64_t chainSize )       {               }  // Called when a new block is encountered
         virtual void     endBlock(  const Block *b                     )       {               }  // Called when an end of block is encountered
+        virtual void      startLC(                                     )       {               }  // Called when longest chain parse starts
         virtual void       wrapup(                                     )       {               }  // Called when the whole chain has been parsed
 
         // Called when an output has been fully parsed

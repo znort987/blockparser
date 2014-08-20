@@ -297,12 +297,27 @@ static void parseBlock(
 
         const uint8_t *p = block->data;
         const uint8_t *header = p;
+
         SKIP(uint32_t, version, p);
         SKIP(uint256_t, prevBlkHash, p);
         SKIP(uint256_t, blkMerkleRoot, p);
         SKIP(uint32_t, blkTime, p);
         SKIP(uint32_t, blkBits, p);
         SKIP(uint32_t, blkNonce, p);
+
+        #if defined PROTOSHARES
+            SKIP(uint32_t, nBirthdayA, p);
+            SKIP(uint32_t, nBirthdayB, p);
+        #endif
+
+        #if defined DARKCOIN
+        #endif
+
+        #if defined LITECOIN
+        #endif
+
+        #if defined BITCOIN
+        #endif
 
         LOAD_VARINT(nbTX, p);
         for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex)
@@ -367,11 +382,23 @@ static void initCallback(
 static void mapBlockChainFiles()
 {
     std::string coinName(
+
+        #if defined DARKCOIN
+            "/.darkcoin/"
+        #endif
+
+        #if defined PROTOSHARES
+            "/.protoshares/"
+        #endif
+
         #if defined LITECOIN
             "/.litecoin/"
-        #else
+        #endif
+
+        #if defined BITCOIN
             "/.bitcoin/"
         #endif
+
     );
 
     const char *home = getenv("HOME");
@@ -514,9 +541,20 @@ static bool buildBlock(
 )
 {
     static const uint32_t expected =
-    #if defined(LITECOIN)
+
+    #if defined PROTOSHARES
+        0xd9b5bdf9
+    #endif
+
+    #if defined DARKCOIN
+        0xbd6b0cbf
+    #endif
+
+    #if defined LITECOIN
         0xdbb6c0fb
-    #else
+    #endif
+
+    #if defined BITCOIN
         0xd9b4bef9
     #endif
     ;
@@ -545,7 +583,19 @@ static bool buildBlock(
     block->next = 0;
 
     uint8_t *hash = allocHash256();
-    sha256Twice(hash, p, 80);
+
+    #if defined(PROTOSHARES)
+        size_t headerSize = 88;
+    #else
+        size_t headerSize = 80;
+    #endif
+
+    #if defined(DARKCOIN)
+        h9(hash, p, headerSize);
+    #else
+        sha256Twice(hash, p, headerSize);
+    #endif
+
     gBlockMap[hash] = block;
     p += size;
     return false;

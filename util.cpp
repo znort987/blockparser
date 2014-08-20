@@ -428,9 +428,20 @@ bool addrToHash160(
 
         uint8_t data[1+kRIPEMD160ByteSize];
         memcpy(1+data, hash160, kRIPEMD160ByteSize);
+
+        #if defined(PROTOSHARES)
+            uint8_t type = 56
+        #endif
+
+        #if defined(DARKCOIN)
+            data[0] = 48 + 28;
+        #endif
+
         #if defined(LITECOIN)
             data[0] = 48;
-        #else
+        #endif
+
+        #if defined(BITCOIN)
             data[0] = 0;
         #endif
 
@@ -731,4 +742,19 @@ uint64_t getBaseReward(
     reward >>= shift;
     return reward;
 }
+
+#if defined(DARKCOIN)
+
+    #include <h9/h9.h>
+
+    void h9(
+              uint8_t *h9r,
+        const uint8_t *buf,
+        uint64_t      size
+    ) {
+        uint256 hash = Hash9(buf, size + buf);
+        memcpy(h9r, &hash, sizeof(hash));
+    }
+
+#endif
 

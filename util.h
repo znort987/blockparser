@@ -234,6 +234,14 @@
         uint8_t       *type
     );
 
+    #if defined(DARKCOIN)
+        void h9(
+                  uint8_t *h9r,
+            const uint8_t *buf,
+            uint64_t      size
+        );
+    #endif
+
     static inline void sha256Twice(
               uint8_t *sha,
         const uint8_t *buf,
@@ -255,10 +263,21 @@
     void hash160ToAddr(
               uint8_t *addr,
         const uint8_t *hash160,
+
+        #if defined(PROTOSHARES)
+            uint8_t type = 56
+        #endif
+
+        #if defined(DARKCOIN)
+            uint8_t type = 48 + 28
+        #endif
+
         #if defined(LITECOIN)
-              uint8_t type = 48
-        #else
-              uint8_t type = 0
+            uint8_t type = 48
+        #endif
+
+        #if defined(BITCOIN)
+            uint8_t type = 0
         #endif
     );
 

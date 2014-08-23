@@ -1,7 +1,3 @@
-
-SHELL=/bin/sh
-MAKEFLAGS=-j20
-
 CPLUS = g++
 
 INC =                           \

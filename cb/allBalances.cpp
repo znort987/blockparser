@@ -326,6 +326,9 @@ struct AllBalances:public Callback
             showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
+            // skip printing 0 balance addresses
+            if(0 == addr->sum) continue;
+
             if(i<showAddr || 0!=nbRestricts) {
                 uint8_t buf[64];
                 hash160ToAddr(buf, addr->hash.v);

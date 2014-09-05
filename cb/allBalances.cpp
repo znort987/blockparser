@@ -322,20 +322,17 @@ struct AllBalances:public Callback
                 if(restrictMap.end()==r) continue;
             }
 
-            printf("%24.8f ", (1e-8)*addr->sum);
-            showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
             // skip printing 0 balance addresses
             if(0 == addr->sum) continue;
 
-            if(i<showAddr || 0!=nbRestricts) {
-                uint8_t buf[64];
-                hash160ToAddr(buf, addr->hash.v);
-                printf(" %s", buf);
-            } else {
-                printf(" XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-            }
+            printf("%24.8f ", (1e-8)*addr->sum);
+            showHex(addr->hash.v, kRIPEMD160ByteSize, false);
+
+            uint8_t buf[64];
+            hash160ToAddr(buf, addr->hash.v);
+            printf(" %s", buf);
 
             char timeBuf[256];
             gmTime(timeBuf, addr->lastIn);

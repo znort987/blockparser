@@ -134,10 +134,10 @@ struct AllBalances:public Callback
         allAddrs.reserve(15 * 1000 * 1000);
 
         optparse::Values &values = parser.parse_args(argc, argv);
-        cutoffBlock = values.get("atBlock");
-        showAddr = values.get("withAddr");
+        cutoffBlock = (int)(values.get("atBlock"));
+        showAddr = (int)(values.get("withAddr"));
         detailed = values.get("detailed");
-        limit = values.get("limit");
+        limit = (int)(values.get("limit"));
 
         auto args = parser.args();
         for(size_t i=1; i<args.size(); ++i) {
@@ -322,17 +322,17 @@ struct AllBalances:public Callback
                 if(restrictMap.end()==r) continue;
             }
 
-            printf("%24.8f ", (1e-8)*addr->sum);
-            showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
-            if(i<showAddr || 0!=nbRestricts) {
-                uint8_t buf[64];
-                hash160ToAddr(buf, addr->hash.v);
-                printf(" %s", buf);
-            } else {
-                printf(" XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-            }
+            // skip printing 0 balance addresses
+            if(0 == addr->sum) continue;
+
+            printf("%24.8f ", (1e-8)*addr->sum);
+            showHex(addr->hash.v, kRIPEMD160ByteSize, false);
+
+            uint8_t buf[64];
+            hash160ToAddr(buf, addr->hash.v);
+            printf(" %s", buf);
 
             char timeBuf[256];
             gmTime(timeBuf, addr->lastIn);

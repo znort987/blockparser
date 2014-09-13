@@ -82,6 +82,10 @@ blockparser
         . OTOH, it is fairly simple, short, and efficient. If you want to understand how the blockchain
           data structure works, the code in parser.cpp is a solid way to start.
 
+        . blockparser uses mmap() extensively. There has been report that it does not play well with
+          encrypted partitions. Solution: move your blockchain to a normal disk. That's likely to make
+          your bitcoin install a lot more efficient anyways.
+
     Hacking the code:
     -----------------
 

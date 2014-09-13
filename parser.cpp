@@ -13,10 +13,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#if !defined(O_DIRECT)
-#   define O_DIRECT 0
-#endif
-
 struct Map
 {
     int fd;
@@ -427,7 +423,7 @@ static void mapBlockChainFiles()
             std::string(buf)
         ;
 
-        int blockMapFD = open(blockMapFileName.c_str(), O_DIRECT | O_RDONLY);
+        int blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
         if(blockMapFD<0) {
             if(1<blkDatId) break;
             sysErrFatal(
@@ -437,14 +433,35 @@ static void mapBlockChainFiles()
         }
 
         struct stat statBuf;
-        int r = fstat(blockMapFD, &statBuf);
-        if(r<0) sysErrFatal( "failed to fstat block chain file %s", blockMapFileName.c_str());
+        int st0 = fstat(blockMapFD, &statBuf);
+        if(st0<0) {
+            sysErrFatal(
+                "failed to fstat block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
 
         size_t mapSize = statBuf.st_size;
+        int st1 = posix_fadvise(blockMapFD, 0, mapSize, POSIX_FADV_NOREUSE);
+        if(st1<0) {
+            warning(
+                "failed to posix_fadvise on block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
+
         void *pMap = mmap(0, mapSize, PROT_READ, MAP_PRIVATE, blockMapFD, 0);
         if(((void*)-1)==pMap) {
             sysErrFatal(
                 "failed to mmap block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
+
+        int st2 = madvise(pMap, mapSize, MADV_SEQUENTIAL);
+        if(st2<0) {
+            warning(
+                "failed to madvises mmap'd block chain file %s",
                 blockMapFileName.c_str()
             );
         }

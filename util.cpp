@@ -444,6 +444,10 @@ bool addrToHash160(
         #if defined(BITCOIN)
             data[0] = 0;
         #endif
+        
+        #if defined(FEDORACOIN)
+            data[0] = 33;
+        #endif
 
         uint8_t sha[kSHA256ByteSize];
         sha256Twice(sha, data, 1+kRIPEMD160ByteSize);

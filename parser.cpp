@@ -567,7 +567,7 @@ static bool buildBlock(
     static const uint32_t expected =
 
     #if defined FEDORACOIN
-        0xdeadl337
+        0xdead1337
     #endif
     
     #if defined PROTOSHARES

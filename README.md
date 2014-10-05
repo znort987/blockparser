@@ -125,7 +125,7 @@ blockparser
           to overload to achieve your goal.
 
         . The code makes heavy use of the google dense hash maps. You can switch it to use sparse hash
-          maps (see util.h, search for: DENSE, undef it). Sparse hash maps are slower but save quite a
+          maps (see Makefile, search for: DENSE, undef it). Sparse hash maps are slower but save quite a
           bit of RAM.
 
     License:

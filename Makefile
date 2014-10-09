@@ -8,6 +8,7 @@ INC =                           \
         -I.                     \
         -DNDEBUG                \
         -DBITCOIN               \
+        -DWANT_DENSE            \
 
 #-DBITCOIN               \
 #-DDARKCOIN              \
@@ -19,12 +20,14 @@ COPT =                          \
         -O6                     \
         -m64                    \
         -Wall                   \
+        -flto                   \
         -msse3                  \
         -Wextra                 \
         -Wformat                \
         -pedantic               \
         -std=c++0x              \
         -ffast-math             \
+        -march=native           \
         -fno-check-new          \
         -funroll-loops          \
         -Wno-deprecated         \

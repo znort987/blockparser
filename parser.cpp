@@ -333,17 +333,12 @@ static void parseLongestChain() {
     }
 }
 
-static void findLongestChain()
-{
+static void wireLongestChain() {
+
+    info("pass 3 -- wire longest chain in block chain ...");
+
     Block *block = gMaxBlock;
     while(1) {
-
-        if(likely(0!=block->data)) {
-            const uint8_t *p = -4 + (block->data);
-            LOAD(uint32_t, size, p);
-            gChainSize += size;
-        }
-
         Block *prev = block->prev;
         if(unlikely(0==prev)) break;
         prev->next = block;
@@ -609,6 +604,12 @@ static bool buildBlock(
     block->prev = 0;
     block->next = 0;
 
+    // While we have our hands on the prev block hash, see if we can already link
+    auto i = gBlockMap.find(p + 4);
+    if(likely(gBlockMap.end()!=i)) {
+        block->prev = i->second;
+    }
+
     uint8_t *hash = allocHash256();
 
     #if defined(PROTOSHARES)
@@ -628,90 +629,133 @@ static bool buildBlock(
     return false;
 }
 
-static void buildAllBlocks()
-{
-    auto e = mapVec.end();
-    auto i = mapVec.begin();
-    while(i!=e) {
+static void buildAllBlocks() {
 
-        const Map *map = gCurMap = &(*(i++));
-        const uint8_t *end = map->size + map->p;
-        const uint8_t *p = map->p;
+    info("pass 1 -- walk all blocks and build headers ...");
+
+    gChainSize = 0;
+    for(const auto &map : mapVec) {
+        gChainSize += map.size;
+    }
+
+    size_t nbBlocks = 0;
+    size_t baseOffset = 0;
+    size_t lastReportOffset = 0;
+    const auto startTime = usecs();
+    const auto oneMeg = 1024 * 1024;
+    const auto reportStep = 100 * oneMeg;
+
+    for(const auto &map : mapVec) {
+
+        auto p = map.p;
+        auto s = map.p;
+        auto e = map.size + map.p;
 
         startMap(p);
 
-            while(1) {
-                if(unlikely(end<=p)) break;
-                bool done = buildBlock(p, end);
-                if(done) break;
+            while(likely(p<e)) {
+
+                auto fullOffset = (p - s) + baseOffset;
+                auto delta = fullOffset - lastReportOffset;
+                if(unlikely(reportStep<delta)) {
+
+                    auto now = usecs();
+                    auto elapsed = now - startTime;
+                    auto bytesPerSec = fullOffset / (elapsed*1e-6);
+                    auto bytesLeft = gChainSize - fullOffset;
+                    auto secsLeft = bytesLeft / bytesPerSec;
+                    printf(
+                        "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs\r",
+                        (100.0*fullOffset)/gChainSize,
+                        fullOffset/(1000.0*oneMeg),
+                        gChainSize/(1000.0*oneMeg),
+                        (int)nbBlocks,
+                        bytesPerSec*1e-6,
+                        secsLeft
+                    );
+                    lastReportOffset = fullOffset;
+                    fflush(stdout);
+                }
+                
+                if(buildBlock(p, e)) {
+                    break;
+                }
+                ++nbBlocks;
             }
 
         endMap(p);
+        baseOffset += map.size;
     }
+
+    auto elapsed = 1e-6*(usecs() - startTime);
+    info(
+        "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs                                               ",
+        elapsed,
+        (int)nbBlocks,
+        (gChainSize * 1e-9),
+        (gChainSize * 1e-6)/elapsed
+    );
 }
 
-static void buildNullBlock()
-{
+static void buildNullBlock() {
     gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
     gNullBlock->data = 0;
 }
 
-static void firstPass()
-{
+static void firstPart() {
     buildNullBlock();
-
-    info("loading and checksumming all blocks ...");
     buildAllBlocks();
-
-    info("find parent for all blocks ...");
     linkAllBlocks();
 }
 
-static void secondPass()
-{
-    info("find longest chain in block chain ...");
-    findLongestChain();
+static void secondPart() {
 
-    info("analyzing block chain ...");
+    wireLongestChain();
+
+    info("pass 4 -- full blockchain analysis ...");
     gCallback->startLC();
     parseLongestChain();
     gCallback->wrapup();
-    info("done");
+    info("pass 4 -- done.");
 }
 
-static void cleanMaps()
-{
-    auto e = mapVec.end();
-    auto i = mapVec.begin();
-    while(i!=e) {
+static void cleanMaps() {
 
-        const Map &map = *(i++);
+    for(const auto &map : mapVec) {
 
-        int r = munmap((void*)map.p, map.size);
-        if(r<0) sysErr("failed to unmap block chain file %s", map.name.c_str());
+        int r0 = munmap((void*)map.p, map.size);
+        if(r0<0) {
+            sysErr(
+                "failed to unmap block chain file %s",
+                map.name.c_str()
+            );
+        }
 
-        r = close(map.fd);
-        if(r<0) sysErr("failed to unmap block chain file %s", map.name.c_str());
-
+        int r1 = close(map.fd);
+        if(r1<0) {
+            sysErr(
+                "failed to unmap block chain file %s",
+                map.name.c_str()
+            );
+        }
     }
 }
 
 int main(
     int  argc,
     char *argv[]
-)
-{
+) {
     double start = usecs();
 
         initCallback(argc, argv);
         mapBlockChainFiles();
         initHashtables();
-        firstPass();
-        secondPass();
+        firstPart();
+        secondPart();
         cleanMaps();
 
     double elapsed = (usecs()-start)*1e-6;
-    info("all done in %.3f seconds\n", elapsed);
+    info("all done in %.2f seconds\n", elapsed);
     return 0;
 }
 

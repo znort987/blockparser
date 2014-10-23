@@ -67,8 +67,7 @@ static inline void endOutput(
     uint64_t      outputIndex,
     const uint8_t *outputScript,
     uint64_t      outputScriptSize
-)
-{
+) {
     gCallback->endOutput(
         p,
         value,
@@ -89,8 +88,7 @@ static inline void edge(
     uint64_t      inputIndex,
     const uint8_t *inputScript,
     uint64_t      inputScriptSize
-)
-{
+) {
     gCallback->edge(
         value,
         upTXHash,
@@ -117,8 +115,7 @@ static void parseOutput(
     const uint8_t *downInputScript,
     uint64_t      downInputScriptSize,
     bool          found = false
-)
-{
+) {
     if(!skip && !fullContext) startOutput(p);
 
         LOAD(uint64_t, value, p);
@@ -165,9 +162,10 @@ static void parseOutputs(
     uint64_t      downInputIndex = 0,
     const uint8_t *downInputScript = 0,
     uint64_t      downInputScriptSize = 0
-)
-{
-    if(!skip && !fullContext) startOutputs(p);
+) {
+    if(!skip && !fullContext) {
+        startOutputs(p);
+    }
 
         LOAD_VARINT(nbOutputs, p);
         for(uint64_t outputIndex=0; outputIndex<nbOutputs; ++outputIndex) {
@@ -185,7 +183,9 @@ static void parseOutputs(
             if(found) break;
         }
 
-    if(!skip && !fullContext) endOutputs(p);
+    if(!skip && !fullContext) {
+        endOutputs(p);
+    }
 }
 
 template<
@@ -195,8 +195,7 @@ static void parseInput(
     const uint8_t *&p,
     const uint8_t *txHash,
     uint64_t      inputIndex
-)
-{
+) {
     if(!skip) startInput(p);
 
         const uint8_t *upTXHash = p;
@@ -241,13 +240,13 @@ template<
 static void parseInputs(
     const uint8_t *&p,
     const uint8_t *txHash
-)
-{
+) {
     if(!skip) startInputs(p);
 
         LOAD_VARINT(nbInputs, p);
-        for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex)
+        for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
             parseInput<skip>(p, txHash, inputIndex);
+        }
 
     if(!skip) endInputs(p);
 }
@@ -257,8 +256,7 @@ template<
 >
 static void parseTX(
     const uint8_t *&p
-)
-{
+) {
     uint8_t *txHash = 0;
     const uint8_t *txStart = p;
 
@@ -287,8 +285,7 @@ static void parseTX(
 
 static void parseBlock(
     const Block *block
-)
-{
+) {
     startBlock(block);
 
         const uint8_t *p = block->data;
@@ -325,8 +322,8 @@ static void parseBlock(
     endBlock(block);
 }
 
-static void parseLongestChain()
-{
+static void parseLongestChain() {
+
     Block *blk = gNullBlock->next;
 
     start(blk, gMaxBlock);
@@ -357,8 +354,7 @@ static void findLongestChain()
 static void initCallback(
     int  argc,
     char *argv[]
-)
-{
+) {
     const char *methodName = 0;
     if(0<argc) methodName = argv[1];
     if(0==methodName) methodName = "";
@@ -378,8 +374,7 @@ static void initCallback(
     gNeedTXHash = gCallback->needTXHash();
 }
 
-static void mapBlockChainFiles()
-{
+static void mapBlockChainFiles() {
     std::string coinName(
 
         #if defined DARKCOIN
@@ -482,8 +477,9 @@ static void mapBlockChainFiles()
     }
 }
 
-static void initHashtables()
-{
+static void initHashtables() {
+
+    info("initializing hash tables");
     gTXMap.setEmptyKey(empty);
     gBlockMap.setEmptyKey(empty);
 
@@ -503,8 +499,9 @@ static void initHashtables()
 
 static void linkBlock(
     Block *block
-)
-{
+) {
+
+    // Root block
     if(unlikely(0==block->data)) {
         block->height = 0;
         block->prev = 0;
@@ -512,58 +509,60 @@ static void linkBlock(
         return;
     }
 
-    int depth = 0;
+    // Walk up until we hit a block whose depth is known
     Block *b = block;
     while(b->height<0) {
 
-        auto i = gBlockMap.find(4 + b->data);
-        if(unlikely(gBlockMap.end()==i)) {
-            uint8_t buf[2*kSHA256ByteSize + 1];
-            toHex(buf, 4 + b->data);
-            warning("at depth %d in chain, failed to locate parent block %s", depth, buf);
-            return;
+        // In case we haven't linked yet, try now that we have all block headers
+        if(0==b->prev) {
+            auto i = gBlockMap.find(4 + b->data);
+            if(unlikely(gBlockMap.end()==i)) {
+                uint8_t buf[2*kSHA256ByteSize + 1];
+                toHex(buf, 4 + b->data);
+                warning(
+                    "failed to locate parent block %s",
+                    buf
+                );
+                return;
+            }
+            b->prev = i->second;
         }
 
-        Block *prev = i->second;
-        prev->next = b;
-        b->prev = prev;
-        b = prev;
-        ++depth;
+        b->prev->next = b;
+        b = b->prev;
     }
 
-    uint64_t h = b->height;
+    // Walk back down and label blocks with their correct height
+    uint64_t height = b->height;
     while(block!=b) {
 
         Block *next = b->next;
-        b->height = h;
+        b->height = height;
         b->next = 0;
 
-        if(likely(gMaxHeight<h)) {
-            gMaxHeight = h;
+        if(likely(gMaxHeight<height)) {
+            gMaxHeight = height;
             gMaxBlock = b;
         }
 
         b = next;
-        ++h;
+        ++height;
     }
 }
 
-static void linkAllBlocks()
-{
-    auto e = gBlockMap.end();
-    auto i = gBlockMap.begin();
-    while(i!=e) {
+static void linkAllBlocks() {
 
-        Block *block = (i++)->second;
-        linkBlock(block);
+    info("pass 2 -- link all blocks ...");
+    for(const auto &pair:gBlockMap) {
+        linkBlock(pair.second);
     }
 }
 
 static bool buildBlock(
     const uint8_t *&p,
     const uint8_t *e
-)
-{
+) {
+
     static const uint32_t expected =
 
     #if defined FEDORACOIN

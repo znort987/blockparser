@@ -314,7 +314,10 @@ static void parseBlock(
 
         #if defined BITCOIN
         #endif
-
+        
+        #if defined FEDORACOIN
+        #endif
+        
         LOAD_VARINT(nbTX, p);
         for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex)
             parseTX<false>(p);
@@ -393,6 +396,10 @@ static void mapBlockChainFiles()
 
         #if defined BITCOIN
             "/.bitcoin/"
+        #endif
+        
+        #if defined FEDORACOIN
+            "/.fedoracoin/"
         #endif
 
     );
@@ -559,6 +566,10 @@ static bool buildBlock(
 {
     static const uint32_t expected =
 
+    #if defined FEDORACOIN
+        0xdead1337
+    #endif
+    
     #if defined PROTOSHARES
         0xd9b5bdf9
     #endif

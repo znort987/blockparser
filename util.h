@@ -278,6 +278,10 @@
         #if defined(BITCOIN)
             uint8_t type = 0
         #endif
+        
+        #if defined(FEDORACOIN)
+            uint8_t type = 33
+        #endif
     );
 
     bool addrToHash160(

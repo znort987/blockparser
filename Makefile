@@ -14,7 +14,7 @@ INC =                           \
 #-DDARKCOIN              \
 #-DLITECOIN              \
 #-DPROTOSHARES           \
-#-DFEDORACOIN           \
+#-DFEDORACOIN            \
 
 COPT =                          \
         -g0                     \

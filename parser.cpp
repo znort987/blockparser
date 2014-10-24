@@ -13,8 +13,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-struct Map
-{
+struct Map {
     int fd;
     uint64_t size;
     const uint8_t *p;
@@ -116,7 +115,9 @@ static void parseOutput(
     uint64_t      downInputScriptSize,
     bool          found = false
 ) {
-    if(!skip && !fullContext) startOutput(p);
+    if(!skip && !fullContext) {
+        startOutput(p);
+    }
 
         LOAD(uint64_t, value, p);
         LOAD_VARINT(outputScriptSize, p);
@@ -180,7 +181,9 @@ static void parseOutputs(
                 downInputScriptSize,
                 found
             );
-            if(found) break;
+            if(found) {
+                break;
+            }
         }
 
     if(!skip && !fullContext) {
@@ -196,7 +199,9 @@ static void parseInput(
     const uint8_t *txHash,
     uint64_t      inputIndex
 ) {
-    if(!skip) startInput(p);
+    if(!skip) {
+        startInput(p);
+    }
 
         const uint8_t *upTXHash = p;
         const uint8_t *upTXOutputs = 0;
@@ -205,8 +210,9 @@ static void parseInput(
             bool isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
             if(likely(false==isGenTX)) {
                 auto i = gTXMap.find(upTXHash);
-                if(unlikely(gTXMap.end()==i))
+                if(unlikely(gTXMap.end()==i)) {
                     errFatal("failed to locate upstream TX");
+                }
                 upTXOutputs = i->second;
             }
         }
@@ -231,7 +237,9 @@ static void parseInput(
         p += inputScriptSize;
         SKIP(uint32_t, sequence, p);
 
-    if(!skip) endInput(p);
+    if(!skip) {
+        endInput(p);
+    }
 }
 
 template<
@@ -241,14 +249,18 @@ static void parseInputs(
     const uint8_t *&p,
     const uint8_t *txHash
 ) {
-    if(!skip) startInputs(p);
+    if(!skip) {
+        startInputs(p);
+    }
 
         LOAD_VARINT(nbInputs, p);
         for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
             parseInput<skip>(p, txHash, inputIndex);
         }
 
-    if(!skip) endInputs(p);
+    if(!skip) {
+        endInputs(p);
+    }
 }
 
 template<
@@ -267,20 +279,25 @@ static void parseTX(
         sha256Twice(txHash, txStart, txEnd - txStart);
     }
 
-    if(!skip) startTX(p, txHash);
+    if(!skip) {
+        startTX(p, txHash);
+    }
 
         SKIP(uint32_t, version, p);
 
         parseInputs<skip>(p, txHash);
 
-        if(gNeedTXHash && !skip)
+        if(gNeedTXHash && !skip) {
             gTXMap[txHash] = p;
+        }
 
         parseOutputs<skip, false>(p, txHash);
 
         SKIP(uint32_t, lockTime, p);
 
-    if(!skip) endTX(p);
+    if(!skip) {
+        endTX(p);
+    }
 }
 
 static void parseBlock(
@@ -316,8 +333,9 @@ static void parseBlock(
         #endif
         
         LOAD_VARINT(nbTX, p);
-        for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex)
+        for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex) {
             parseTX<false>(p);
+        }
 
     endBlock(block);
 }
@@ -325,7 +343,6 @@ static void parseBlock(
 static void parseLongestChain() {
 
     Block *blk = gNullBlock->next;
-
     start(blk, gMaxBlock);
     while(likely(0!=blk)) {
         parseBlock(blk);
@@ -335,12 +352,14 @@ static void parseLongestChain() {
 
 static void wireLongestChain() {
 
-    info("pass 3 -- wire longest chain in block chain ...");
+    info("pass 3 -- wire longest chain ...");
 
     Block *block = gMaxBlock;
     while(1) {
         Block *prev = block->prev;
-        if(unlikely(0==prev)) break;
+        if(unlikely(0==prev)) {
+            break;
+        }
         prev->next = block;
         block = prev;
     }
@@ -351,9 +370,15 @@ static void initCallback(
     char *argv[]
 ) {
     const char *methodName = 0;
-    if(0<argc) methodName = argv[1];
-    if(0==methodName) methodName = "";
-    if(0==methodName[0]) methodName = "help";
+    if(0<argc) {
+        methodName = argv[1];
+    }
+    if(0==methodName) {
+        methodName = "";
+    }
+    if(0==methodName[0]) {
+        methodName = "help";
+    }
     gCallback = Callback::find(methodName);
     fprintf(stderr, "\n");
 
@@ -361,16 +386,21 @@ static void initCallback(
 
     if(argv[1]) {
         int i = 0;
-        while('-'==argv[1][i]) argv[1][i++] = 'x';
+        while('-'==argv[1][i]) {
+            argv[1][i++] = 'x';
+        }
     }
 
     int ir = gCallback->init(argc, (const char **)argv);
-    if(ir<0) errFatal("callback init failed");
+    if(ir<0) {
+        errFatal("callback init failed");
+    }
     gNeedTXHash = gCallback->needTXHash();
 }
 
 static void mapBlockChainFiles() {
-    std::string coinName(
+
+    std::string coinDirName(
 
         #if defined DARKCOIN
             "/.darkcoin/"
@@ -401,7 +431,7 @@ static void mapBlockChainFiles() {
     }
 
     std::string homeDir(home);
-    std::string blockDir = homeDir + coinName + std::string("blocks");
+    std::string blockDir = homeDir + coinDirName + std::string("blocks");
 
     struct stat statBuf;
     int r = stat(blockDir.c_str(), &statBuf);
@@ -416,13 +446,15 @@ static void mapBlockChainFiles() {
 
         std::string blockMapFileName =
             homeDir                             +
-            coinName                            +
+            coinDirName                         +
             std::string(buf)
         ;
 
         int blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
         if(blockMapFD<0) {
-            if(1<blkDatId) break;
+            if(1<blkDatId) {
+                break;
+            }
             sysErrFatal(
                 "failed to open block chain file %s",
                 blockMapFileName.c_str()
@@ -455,13 +487,15 @@ static void mapBlockChainFiles() {
             );
         }
 
-        int st2 = madvise(pMap, mapSize, MADV_SEQUENTIAL);
-        if(st2<0) {
-            warning(
-                "failed to madvises mmap'd block chain file %s",
-                blockMapFileName.c_str()
-            );
-        }
+        #if 0 // This slows things down in the first pass
+            int st2 = madvise(pMap, mapSize, MADV_SEQUENTIAL);
+            if(st2<0) {
+                warning(
+                    "failed to madvises mmap'd block chain file %s",
+                    blockMapFileName.c_str()
+                );
+            }
+        #endif
 
         Map map;
         map.size = mapSize;
@@ -478,17 +512,17 @@ static void initHashtables() {
     gTXMap.setEmptyKey(empty);
     gBlockMap.setEmptyKey(empty);
 
-    auto e = mapVec.end();
-    uint64_t totalSize = 0;
-    auto i = mapVec.begin();
-    while(i!=e) totalSize += (i++)->size;
+    gChainSize = 0;
+    for(const auto &map : mapVec) {
+        gChainSize += map.size;
+    }
 
     double txPerBytes = (3976774.0 / 1713189944.0);
-    size_t nbTxEstimate = (1.5 * txPerBytes * totalSize);
+    size_t nbTxEstimate = (1.5 * txPerBytes * gChainSize);
     gTXMap.resize(nbTxEstimate);
 
     double blocksPerBytes = (184284.0 / 1713189944.0);
-    size_t nbBlockEstimate = (1.5 * blocksPerBytes * totalSize);
+    size_t nbBlockEstimate = (1.5 * blocksPerBytes * gChainSize);
     gBlockMap.resize(nbBlockEstimate);
 }
 
@@ -504,12 +538,12 @@ static void linkBlock(
         return;
     }
 
-    // Walk up until we hit a block whose depth is known
+    // Walk up the chain until we hit a block whose depth is known
     Block *b = block;
     while(b->height<0) {
 
-        // In case we haven't linked yet, try now that we have all block headers
-        if(0==b->prev) {
+        // In case we haven't linked yet, try to do that now that we have all block headers
+        if(unlikely(0==b->prev)) {
             auto i = gBlockMap.find(4 + b->data);
             if(unlikely(gBlockMap.end()==i)) {
                 uint8_t buf[2*kSHA256ByteSize + 1];
@@ -523,6 +557,7 @@ static void linkBlock(
             b->prev = i->second;
         }
 
+        // Link down and move up
         b->prev->next = b;
         b = b->prev;
     }
@@ -531,17 +566,15 @@ static void linkBlock(
     uint64_t height = b->height;
     while(block!=b) {
 
-        Block *next = b->next;
-        b->height = height;
-        b->next = 0;
-
         if(likely(gMaxHeight<height)) {
             gMaxHeight = height;
             gMaxBlock = b;
         }
 
+        Block *next = b->next;
+        b->height = height++;
+        b->next = 0;
         b = next;
-        ++height;
     }
 }
 
@@ -582,19 +615,16 @@ static bool buildBlock(
     ;
 
     if(unlikely(e<=(8+p))) {
-        //printf("end of map, reason : pointer past EOF\n");
         return true;
     }
 
     LOAD(uint32_t, magic, p);
     if(unlikely(expected!=magic)) {
-        //printf("end of map, reason : magic is fucked %d away from EOF\n", (int)(e-p));
         return true;
     }
 
     LOAD(uint32_t, size, p);
     if(unlikely(e<(p+size))) {
-        //printf("end of map, reason : end of block past EOF, %d past EOF\n", (int)((p+size)-e));
         return true;
     }
 
@@ -633,11 +663,6 @@ static void buildAllBlocks() {
 
     info("pass 1 -- walk all blocks and build headers ...");
 
-    gChainSize = 0;
-    for(const auto &map : mapVec) {
-        gChainSize += map.size;
-    }
-
     size_t nbBlocks = 0;
     size_t baseOffset = 0;
     size_t lastReportOffset = 0;
@@ -665,7 +690,7 @@ static void buildAllBlocks() {
                     auto bytesLeft = gChainSize - fullOffset;
                     auto secsLeft = bytesLeft / bytesPerSec;
                     printf(
-                        "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs\r",
+                        "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs            \r",
                         (100.0*fullOffset)/gChainSize,
                         fullOffset/(1000.0*oneMeg),
                         gChainSize/(1000.0*oneMeg),

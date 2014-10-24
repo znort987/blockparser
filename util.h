@@ -60,8 +60,12 @@
         }
     };
 
-    struct Block
-    {
+    struct Map;
+
+    struct Block {
+        const Map     *map;
+        uint64_t      size;
+        uint64_t      offset;
         const uint8_t *data;
         int64_t       height;
         Block         *prev;

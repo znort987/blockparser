@@ -16,7 +16,6 @@
 struct Map {
     int fd;
     uint64_t size;
-    const uint8_t *p;
     std::string name;
 };
 
@@ -342,12 +341,16 @@ static void parseBlock(
 
 static void parseLongestChain() {
 
+    info("pass 4 -- full blockchain analysis ...");
+
     Block *blk = gNullBlock->next;
     start(blk, gMaxBlock);
     while(likely(0!=blk)) {
         parseBlock(blk);
         blk = blk->next;
     }
+
+    info("pass 4 -- done.");
 }
 
 static void wireLongestChain() {
@@ -398,140 +401,12 @@ static void initCallback(
     gNeedTXHash = gCallback->needTXHash();
 }
 
-static void mapBlockChainFiles() {
-
-    std::string coinDirName(
-
-        #if defined DARKCOIN
-            "/.darkcoin/"
-        #endif
-
-        #if defined PROTOSHARES
-            "/.protoshares/"
-        #endif
-
-        #if defined LITECOIN
-            "/.litecoin/"
-        #endif
-
-        #if defined BITCOIN
-            "/.bitcoin/"
-        #endif
-        
-        #if defined FEDORACOIN
-            "/.fedoracoin/"
-        #endif
-
-    );
-
-    const char *home = getenv("HOME");
-    if(0==home) {
-        warning("could not getenv(\"HOME\"), using \".\" instead.");
-        home = ".";
-    }
-
-    std::string homeDir(home);
-    std::string blockDir = homeDir + coinDirName + std::string("blocks");
-
-    struct stat statBuf;
-    int r = stat(blockDir.c_str(), &statBuf);
-    bool oldStyle = (r<0 || !S_ISDIR(statBuf.st_mode));
-
-    int blkDatId = oldStyle ? 1 : 0;
-    const char *fmt = oldStyle ? "blk%04d.dat" : "blocks/blk%05d.dat";
-    while(1) {
-
-        char buf[64];
-        sprintf(buf, fmt, blkDatId++);
-
-        std::string blockMapFileName =
-            homeDir                             +
-            coinDirName                         +
-            std::string(buf)
-        ;
-
-        int blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
-        if(blockMapFD<0) {
-            if(1<blkDatId) {
-                break;
-            }
-            sysErrFatal(
-                "failed to open block chain file %s",
-                blockMapFileName.c_str()
-            );
-        }
-
-        struct stat statBuf;
-        int st0 = fstat(blockMapFD, &statBuf);
-        if(st0<0) {
-            sysErrFatal(
-                "failed to fstat block chain file %s",
-                blockMapFileName.c_str()
-            );
-        }
-
-        size_t mapSize = statBuf.st_size;
-        int st1 = posix_fadvise(blockMapFD, 0, mapSize, POSIX_FADV_NOREUSE);
-        if(st1<0) {
-            warning(
-                "failed to posix_fadvise on block chain file %s",
-                blockMapFileName.c_str()
-            );
-        }
-
-        void *pMap = mmap(0, mapSize, PROT_READ, MAP_PRIVATE, blockMapFD, 0);
-        if(((void*)-1)==pMap) {
-            sysErrFatal(
-                "failed to mmap block chain file %s",
-                blockMapFileName.c_str()
-            );
-        }
-
-        #if 0 // This slows things down in the first pass
-            int st2 = madvise(pMap, mapSize, MADV_SEQUENTIAL);
-            if(st2<0) {
-                warning(
-                    "failed to madvises mmap'd block chain file %s",
-                    blockMapFileName.c_str()
-                );
-            }
-        #endif
-
-        Map map;
-        map.size = mapSize;
-        map.fd = blockMapFD;
-        map.name = blockMapFileName;
-        map.p = (const uint8_t*)pMap;
-        mapVec.push_back(map);
-    }
-}
-
-static void initHashtables() {
-
-    info("initializing hash tables");
-    gTXMap.setEmptyKey(empty);
-    gBlockMap.setEmptyKey(empty);
-
-    gChainSize = 0;
-    for(const auto &map : mapVec) {
-        gChainSize += map.size;
-    }
-
-    double txPerBytes = (3976774.0 / 1713189944.0);
-    size_t nbTxEstimate = (1.5 * txPerBytes * gChainSize);
-    gTXMap.resize(nbTxEstimate);
-
-    double blocksPerBytes = (184284.0 / 1713189944.0);
-    size_t nbBlockEstimate = (1.5 * blocksPerBytes * gChainSize);
-    gBlockMap.resize(nbBlockEstimate);
-}
-
 static void linkBlock(
     Block *block
 ) {
 
     // Root block
-    if(unlikely(0==block->data)) {
+    if(unlikely(gNullBlock==block)) {
         block->height = 0;
         block->prev = 0;
         block->next = 0;
@@ -544,10 +419,29 @@ static void linkBlock(
 
         // In case we haven't linked yet, try to do that now that we have all block headers
         if(unlikely(0==b->prev)) {
-            auto i = gBlockMap.find(4 + b->data);
+
+            auto where = lseek64(b->map->fd, b->offset, SEEK_SET);
+            if(where!=b->offset) {
+                sysErrFatal(
+                    "failed to seek into block chain file %s",
+                    block->map->name.c_str()
+                );
+            }
+
+            uint8_t buf[512];
+            auto sz = sizeof(buf);
+            auto nbRead = read(b->map->fd, buf, sz);
+            if(sz!=nbRead) {
+                sysErrFatal(
+                    "failed to read from block chain file %s",
+                    block->map->name.c_str()
+                );
+            }
+
+            auto i = gBlockMap.find(4 + buf);
             if(unlikely(gBlockMap.end()==i)) {
                 uint8_t buf[2*kSHA256ByteSize + 1];
-                toHex(buf, 4 + b->data);
+                toHex(buf, 4 + buf);
                 warning(
                     "failed to locate parent block %s",
                     buf
@@ -586,12 +480,9 @@ static void linkAllBlocks() {
     }
 }
 
-static bool buildBlock(
-    const uint8_t *&p,
-    const uint8_t *e
-) {
+static uint32_t getExpectedMagic() {
 
-    static const uint32_t expected =
+    return
 
     #if defined FEDORACOIN
         0xdead1337
@@ -612,40 +503,38 @@ static bool buildBlock(
     #if defined BITCOIN
         0xd9b4bef9
     #endif
+
     ;
+}
 
-    if(unlikely(e<=(8+p))) {
-        return true;
-    }
+static Block *buildBlock(
+    const uint8_t *p
+) {
 
+    // Check magic
     LOAD(uint32_t, magic, p);
+    const uint32_t expected = getExpectedMagic();
     if(unlikely(expected!=magic)) {
-        return true;
+        return 0;
     }
 
-    LOAD(uint32_t, size, p);
-    if(unlikely(e<(p+size))) {
-        return true;
-    }
-
+    // Make a new block header
     Block *block = allocBlock();
-    block->height = -1;
-    block->data = p;
+    LOAD(uint32_t, size, p);
+    block->size = size;
     block->prev = 0;
-    block->next = 0;
 
-    // While we have our hands on the prev block hash, see if we can already link
+    // Since we have our hands on the prev block hash, see if we can already link
     auto i = gBlockMap.find(p + 4);
     if(likely(gBlockMap.end()!=i)) {
         block->prev = i->second;
     }
 
+    size_t headerSize = 80;
     uint8_t *hash = allocHash256();
 
     #if defined(PROTOSHARES)
         size_t headerSize = 88;
-    #else
-        size_t headerSize = 80;
     #endif
 
     #if defined(DARKCOIN)
@@ -655,61 +544,64 @@ static bool buildBlock(
     #endif
 
     gBlockMap[hash] = block;
-    p += size;
-    return false;
+    return block;
 }
 
 static void buildAllBlocks() {
 
     info("pass 1 -- walk all blocks and build headers ...");
 
+    uint8_t buf[512];
     size_t nbBlocks = 0;
     size_t baseOffset = 0;
-    size_t lastReportOffset = 0;
+    const auto sz = sizeof(buf);
     const auto startTime = usecs();
     const auto oneMeg = 1024 * 1024;
-    const auto reportStep = 100 * oneMeg;
 
     for(const auto &map : mapVec) {
 
-        auto p = map.p;
-        auto s = map.p;
-        auto e = map.size + map.p;
+        while(1) {
 
-        startMap(p);
-
-            while(likely(p<e)) {
-
-                auto fullOffset = (p - s) + baseOffset;
-                auto delta = fullOffset - lastReportOffset;
-                if(unlikely(reportStep<delta)) {
-
-                    auto now = usecs();
-                    auto elapsed = now - startTime;
-                    auto bytesPerSec = fullOffset / (elapsed*1e-6);
-                    auto bytesLeft = gChainSize - fullOffset;
-                    auto secsLeft = bytesLeft / bytesPerSec;
-                    printf(
-                        "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs            \r",
-                        (100.0*fullOffset)/gChainSize,
-                        fullOffset/(1000.0*oneMeg),
-                        gChainSize/(1000.0*oneMeg),
-                        (int)nbBlocks,
-                        bytesPerSec*1e-6,
-                        secsLeft
-                    );
-                    lastReportOffset = fullOffset;
-                    fflush(stdout);
-                }
-                
-                if(buildBlock(p, e)) {
-                    break;
-                }
-                ++nbBlocks;
+            auto nbRead = read(map.fd, buf, sz);
+            if(sz!=(unsigned)nbRead) {
+                break;
             }
 
-        endMap(p);
+            auto b = buildBlock(buf);
+            if(0==b) {
+                break;
+            }
+
+            b->offset = lseek64(map.fd, 0, SEEK_CUR) - sz + 8;
+            b->height = -1;
+            b->map = &map;
+            b->data = 0;
+            b->next = 0;
+
+            auto r = lseek(map.fd, (b->size + 8)-sz, SEEK_CUR);
+            if(r<0) {
+                break;
+            }
+
+            ++nbBlocks;
+        }
         baseOffset += map.size;
+
+        auto now = usecs();
+        auto elapsed = now - startTime;
+        auto bytesPerSec = baseOffset / (elapsed*1e-6);
+        auto bytesLeft = gChainSize - baseOffset;
+        auto secsLeft = bytesLeft / bytesPerSec;
+        printf(
+            "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs            \r",
+            (100.0*baseOffset)/gChainSize,
+            baseOffset/(1000.0*oneMeg),
+            gChainSize/(1000.0*oneMeg),
+            (int)nbBlocks,
+            bytesPerSec*1e-6,
+            secsLeft
+        );
+        fflush(stdout);
     }
 
     auto elapsed = 1e-6*(usecs() - startTime);
@@ -718,7 +610,7 @@ static void buildAllBlocks() {
         elapsed,
         (int)nbBlocks,
         (gChainSize * 1e-9),
-        (gChainSize * 1e-6)/elapsed
+        (gChainSize * 1e-6) / elapsed
     );
 }
 
@@ -727,39 +619,123 @@ static void buildNullBlock() {
     gNullBlock->data = 0;
 }
 
-static void firstPart() {
-    buildNullBlock();
-    buildAllBlocks();
-    linkAllBlocks();
+static std::string coinDirName() {
+
+    return
+
+        #if defined DARKCOIN
+            "/.darkcoin/"
+        #endif
+
+        #if defined PROTOSHARES
+            "/.protoshares/"
+        #endif
+
+        #if defined LITECOIN
+            "/.litecoin/"
+        #endif
+
+        #if defined BITCOIN
+            "/.bitcoin/"
+        #endif
+        
+        #if defined FEDORACOIN
+            "/.fedoracoin/"
+        #endif
+    ;
 }
 
-static void secondPart() {
+static void initHashtables() {
 
-    wireLongestChain();
+    info("initializing hash tables");
+    gTXMap.setEmptyKey(empty);
+    gBlockMap.setEmptyKey(empty);
 
-    info("pass 4 -- full blockchain analysis ...");
-    gCallback->startLC();
-    parseLongestChain();
-    gCallback->wrapup();
-    info("pass 4 -- done.");
-}
-
-static void cleanMaps() {
-
+    gChainSize = 0;
     for(const auto &map : mapVec) {
+        gChainSize += map.size;
+    }
 
-        int r0 = munmap((void*)map.p, map.size);
-        if(r0<0) {
-            sysErr(
-                "failed to unmap block chain file %s",
-                map.name.c_str()
+    double txPerBytes = (3976774.0 / 1713189944.0);
+    size_t nbTxEstimate = (1.5 * txPerBytes * gChainSize);
+    gTXMap.resize(nbTxEstimate);
+
+    double blocksPerBytes = (184284.0 / 1713189944.0);
+    size_t nbBlockEstimate = (1.5 * blocksPerBytes * gChainSize);
+    gBlockMap.resize(nbBlockEstimate);
+}
+
+static void makeMaps() {
+
+    const char *home = getenv("HOME");
+    if(0==home) {
+        warning("could not getenv(\"HOME\"), using \".\" instead.");
+        home = ".";
+    }
+
+    std::string homeDir(home);
+    std::string blockDir = homeDir + coinDirName() + std::string("blocks");
+
+    struct stat statBuf;
+    int r = stat(blockDir.c_str(), &statBuf);
+    bool oldStyle = (r<0 || !S_ISDIR(statBuf.st_mode));
+
+    int blkDatId = oldStyle ? 1 : 0;
+    const char *fmt = oldStyle ? "blk%04d.dat" : "blocks/blk%05d.dat";
+    while(1) {
+
+        char buf[64];
+        sprintf(buf, fmt, blkDatId++);
+
+        std::string blockMapFileName =
+            homeDir                             +
+            coinDirName()                       +
+            std::string(buf)
+        ;
+
+        int blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
+        if(blockMapFD<0) {
+            if(1<blkDatId) {
+                break;
+            }
+            sysErrFatal(
+                "failed to open block chain file %s",
+                blockMapFileName.c_str()
             );
         }
 
-        int r1 = close(map.fd);
-        if(r1<0) {
+        struct stat statBuf;
+        int st0 = fstat(blockMapFD, &statBuf);
+        if(st0<0) {
+            sysErrFatal(
+                "failed to fstat block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
+
+        size_t mapSize = statBuf.st_size;
+        int st1 = posix_fadvise(blockMapFD, 0, mapSize, POSIX_FADV_NOREUSE);
+        if(st1<0) {
+            warning(
+                "failed to posix_fadvise on block chain file %s",
+                blockMapFileName.c_str()
+            );
+        }
+
+        Map map;
+        map.size = mapSize;
+        map.fd = blockMapFD;
+        map.name = blockMapFileName;
+        mapVec.push_back(map);
+    }
+}
+
+static void cleanMaps() {
+    for(const auto &map : mapVec) {
+        int r = close(map.fd);
+        if(r<0) {
             sysErr(
-                "failed to unmap block chain file %s",
+                "failed to close block chain file %s",
                 map.name.c_str()
             );
         }
@@ -773,10 +749,18 @@ int main(
     double start = usecs();
 
         initCallback(argc, argv);
-        mapBlockChainFiles();
-        initHashtables();
-        firstPart();
-        secondPart();
+        makeMaps();
+
+            initHashtables();
+            buildNullBlock();
+            buildAllBlocks();
+            linkAllBlocks();
+            wireLongestChain();
+
+            gCallback->startLC();
+            parseLongestChain();
+            gCallback->wrapup();
+
         cleanMaps();
 
     double elapsed = (usecs()-start)*1e-6;

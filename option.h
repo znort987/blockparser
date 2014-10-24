@@ -171,7 +171,7 @@ class OptionParser {
       return std::vector<std::string>(_leftover.begin(), _leftover.end());
     }
 
-    std::string format_help(unsigned int indent = 4) const;
+    std::string format_help() const;
     std::string format_option_help(unsigned int indent = 2) const;
     void print_help() const;
 

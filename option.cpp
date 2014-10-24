@@ -100,7 +100,7 @@ static string str_inc(const string& s) {
   return ss.str();
 }
 static unsigned int cols() {
-  unsigned int n = 256;
+  unsigned int n = 80;
 #ifndef _WIN32
   const char *s = getenv("COLUMNS");
   if (s)
@@ -372,32 +372,28 @@ string OptionParser::format_option_help(unsigned int indent /* = 2 */) const {
   return ss.str();
 }
 
-string OptionParser::format_help(unsigned int indent /* = 4 */) const {
-
+string OptionParser::format_help() const {
   stringstream ss;
-  string pad(indent, ' ');
 
   if (usage() != SUPPRESS_USAGE)
     ss << get_usage() << endl;
 
   if (description() != "")
-    ss << pad << pad << str_format(description(), 0, cols()) << endl;
+    ss << str_format(description(), 0, cols()) << endl;
 
-  if (!_opts.empty()) {
-    ss << pad << pad << _("Options") << ":" << endl;
-    ss << format_option_help(indent*3);
+  ss << _("Options") << ":" << endl;
+  ss << format_option_help();
 
-    for (list<OptionGroup const*>::const_iterator it = _groups.begin(); it != _groups.end(); ++it) {
-      const OptionGroup& group = **it;
-      ss << endl << pad << pad << "  " << group.title() << ":" << endl;
-      if (group.group_description() != "")
-        ss << str_format(group.group_description(), 2*indent, cols()) << endl;
-      ss << group.format_option_help(2*indent);
-    }
-
-    if (epilog() != "")
-      ss << endl << str_format(epilog(), indent, cols());
+  for (list<OptionGroup const*>::const_iterator it = _groups.begin(); it != _groups.end(); ++it) {
+    const OptionGroup& group = **it;
+    ss << endl << "  " << group.title() << ":" << endl;
+    if (group.group_description() != "")
+      ss << str_format(group.group_description(), 4, cols()) << endl;
+    ss << group.format_option_help(4);
   }
+
+  if (epilog() != "")
+    ss << endl << str_format(epilog(), 0, cols());
 
   return ss.str();
 }
@@ -415,8 +411,7 @@ void OptionParser::set_usage(const string& u) {
 }
 string OptionParser::format_usage(const string& u) const {
   stringstream ss;
-  //ss << _("Usage") << ": " << u << endl;
-  ss << u << endl;
+  ss << _("Usage") << ": " << u << endl;
   return ss.str();
 }
 string OptionParser::get_usage() const {

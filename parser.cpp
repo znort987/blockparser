@@ -560,10 +560,12 @@ static void buildBlockHeaders() {
     size_t nbBlocks = 0;
     size_t baseOffset = 0;
     const auto sz = sizeof(buf);
-    const auto startTime = usecs();
     const auto oneMeg = 1024 * 1024;
+    const auto firstStartTime = usecs();
 
     for(const auto &map : mapVec) {
+
+        const auto startTime = usecs();
 
         while(1) {
 
@@ -572,29 +574,30 @@ static void buildBlockHeaders() {
                 break;
             }
 
-            auto b = buildBlock(buf);
-            if(0==b) {
+            auto block = buildBlockHeader(buf);
+            if(0==block) {
                 break;
             }
 
-            b->offset = lseek64(map.fd, 0, SEEK_CUR) - sz + 8;
-            b->height = -1;
-            b->map = &map;
-            b->data = 0;
-            b->next = 0;
+            block->height = -1;
+            block->map = &map;
+            block->data = 0;
+            block->next = 0;
 
-            auto r = lseek(map.fd, (b->size + 8)-sz, SEEK_CUR);
-            if(r<0) {
+            auto where = lseek(map.fd, (block->size + 8) - sz, SEEK_CUR);
+            if(where<0) {
                 break;
             }
 
+            block->offset = where - block->size;
             ++nbBlocks;
         }
+
         baseOffset += map.size;
 
         auto now = usecs();
         auto elapsed = now - startTime;
-        auto bytesPerSec = baseOffset / (elapsed*1e-6);
+        auto bytesPerSec = map.size / (elapsed*1e-6);
         auto bytesLeft = gChainSize - baseOffset;
         auto secsLeft = bytesLeft / bytesPerSec;
         printf(

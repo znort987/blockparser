@@ -402,6 +402,44 @@ static void initCallback(
 }
 
 static void linkBlock(
+    Block *b
+)
+{
+    // Seek to block header
+    auto where = lseek64(b->map->fd, b->offset, SEEK_SET);
+    if(where!=(signed)b->offset) {
+        sysErrFatal(
+            "failed to seek into block chain file %s",
+            b->map->name.c_str()
+        );
+    }
+
+    // Read block header
+    uint8_t buf[512];
+    auto sz = sizeof(buf);
+    auto nbRead = read(b->map->fd, buf, sz);
+    if(sz!=(unsigned)nbRead) {
+        sysErrFatal(
+            "failed to read from block chain file %s",
+            b->map->name.c_str()
+        );
+    }
+
+    // Try to find parent
+    auto i = gBlockMap.find(4 + buf);
+    if(unlikely(gBlockMap.end()==i)) {
+        uint8_t tmp[2*kSHA256ByteSize + 1];
+        toHex(tmp, 4 + buf);
+        warning(
+            "failed to locate parent block %s",
+            tmp
+        );
+        return;
+    }
+    b->prev = i->second;
+}
+
+static void computeBlockHeight(
     Block *block
 ) {
 
@@ -417,42 +455,9 @@ static void linkBlock(
     Block *b = block;
     while(b->height<0) {
 
-        // In case we haven't linked yet, try to do that now that we have all block headers
+        // In case we haven't linked up yet, try to do that now that we have all block headers
         if(unlikely(0==b->prev)) {
-
-            // Seek to block header
-            auto where = lseek64(b->map->fd, b->offset, SEEK_SET);
-            if(where!=(signed)b->offset) {
-                sysErrFatal(
-                    "failed to seek into block chain file %s",
-                    block->map->name.c_str()
-                );
-            }
-
-            // Read block header
-            uint8_t buf[512];
-            auto sz = sizeof(buf);
-            auto nbRead = read(b->map->fd, buf, sz);
-            if(sz!=(unsigned)nbRead) {
-                sysErrFatal(
-                    "failed to read from block chain file %s",
-                    block->map->name.c_str()
-                );
-            }
-
-            // Try to find parent
-            auto i = gBlockMap.find(4 + buf);
-            if(unlikely(gBlockMap.end()==i)) {
-                uint8_t tmp[2*kSHA256ByteSize + 1];
-                toHex(tmp, 4 + buf);
-                warning(
-                    "failed to locate parent block %s",
-                    tmp
-                );
-                return;
-            }
-
-            b->prev = i->second;
+            linkBlock(b);
         }
 
         // Link down and move up
@@ -476,11 +481,11 @@ static void linkBlock(
     }
 }
 
-static void linkAllBlocks() {
+static void computeBlockHeights() {
 
     info("pass 2 -- link all blocks ...");
     for(const auto &pair:gBlockMap) {
-        linkBlock(pair.second);
+        computeBlockHeight(pair.second);
     }
 }
 
@@ -560,12 +565,10 @@ static void buildBlockHeaders() {
     size_t nbBlocks = 0;
     size_t baseOffset = 0;
     const auto sz = sizeof(buf);
+    const auto startTime = usecs();
     const auto oneMeg = 1024 * 1024;
-    const auto firstStartTime = usecs();
 
     for(const auto &map : mapVec) {
-
-        const auto startTime = usecs();
 
         while(1) {
 
@@ -597,7 +600,7 @@ static void buildBlockHeaders() {
 
         auto now = usecs();
         auto elapsed = now - startTime;
-        auto bytesPerSec = map.size / (elapsed*1e-6);
+        auto bytesPerSec = baseOffset / (elapsed*1e-6);
         auto bytesLeft = gChainSize - baseOffset;
         auto secsLeft = bytesLeft / bytesPerSec;
         printf(
@@ -617,7 +620,7 @@ static void buildBlockHeaders() {
         exit(1);
     }
 
-    auto elapsed = 1e-6*(usecs() - firstStartTime);
+    auto elapsed = 1e-6*(usecs() - startTime);
     info(
         "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs                                               ",
         elapsed,
@@ -767,7 +770,7 @@ int main(
             initHashtables();
             buildNullBlock();
             buildBlockHeaders();
-            linkAllBlocks();
+            computeBlockHeights();
             wireLongestChain();
 
             gCallback->startLC();

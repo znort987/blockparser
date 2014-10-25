@@ -420,24 +420,27 @@ static void linkBlock(
         // In case we haven't linked yet, try to do that now that we have all block headers
         if(unlikely(0==b->prev)) {
 
+            // Seek to block header
             auto where = lseek64(b->map->fd, b->offset, SEEK_SET);
-            if(where!=b->offset) {
+            if(where!=(signed)b->offset) {
                 sysErrFatal(
                     "failed to seek into block chain file %s",
                     block->map->name.c_str()
                 );
             }
 
+            // Read block header
             uint8_t buf[512];
             auto sz = sizeof(buf);
             auto nbRead = read(b->map->fd, buf, sz);
-            if(sz!=nbRead) {
+            if(sz!=(unsigned)nbRead) {
                 sysErrFatal(
                     "failed to read from block chain file %s",
                     block->map->name.c_str()
                 );
             }
 
+            // Try to find parent
             auto i = gBlockMap.find(4 + buf);
             if(unlikely(gBlockMap.end()==i)) {
                 uint8_t buf[2*kSHA256ByteSize + 1];
@@ -448,6 +451,7 @@ static void linkBlock(
                 );
                 return;
             }
+
             b->prev = i->second;
         }
 
@@ -507,7 +511,7 @@ static uint32_t getExpectedMagic() {
     ;
 }
 
-static Block *buildBlock(
+static Block *buildBlockHeader(
     const uint8_t *p
 ) {
 
@@ -530,6 +534,7 @@ static Block *buildBlock(
         block->prev = i->second;
     }
 
+    // Hash block header
     size_t headerSize = 80;
     uint8_t *hash = allocHash256();
 
@@ -547,7 +552,7 @@ static Block *buildBlock(
     return block;
 }
 
-static void buildAllBlocks() {
+static void buildBlockHeaders() {
 
     info("pass 1 -- walk all blocks and build headers ...");
 
@@ -604,7 +609,12 @@ static void buildAllBlocks() {
         fflush(stdout);
     }
 
-    auto elapsed = 1e-6*(usecs() - startTime);
+    if(0==nbBlocks) {
+        warning("found no blocks - giving up");
+        exit(1);
+    }
+
+    auto elapsed = 1e-6*(usecs() - firstStartTime);
     info(
         "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs                                               ",
         elapsed,
@@ -753,7 +763,7 @@ int main(
 
             initHashtables();
             buildNullBlock();
-            buildAllBlocks();
+            buildBlockHeaders();
             linkAllBlocks();
             wireLongestChain();
 

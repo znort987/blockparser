@@ -443,11 +443,11 @@ static void linkBlock(
             // Try to find parent
             auto i = gBlockMap.find(4 + buf);
             if(unlikely(gBlockMap.end()==i)) {
-                uint8_t buf[2*kSHA256ByteSize + 1];
-                toHex(buf, 4 + buf);
+                uint8_t tmp[2*kSHA256ByteSize + 1];
+                toHex(tmp, 4 + buf);
                 warning(
                     "failed to locate parent block %s",
-                    buf
+                    tmp
                 );
                 return;
             }

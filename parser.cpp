@@ -34,9 +34,39 @@ static uint8_t empty[kSHA256ByteSize] = { 0x42 };
 
 static Block *gMaxBlock;
 static Block *gNullBlock;
+static int64_t gMaxHeight;
 static uint64_t gChainSize;
-static uint64_t gMaxHeight;
 static uint256_t gNullHash;
+
+#if defined BITCOIN
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.bitcoin/";
+    static const uint32_t gExpectedMagic = 0xd9b4bef9;
+#endif
+
+#if defined LITECOIN
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.litecoin/";
+    static const uint32_t gExpectedMagic = 0xdbb6c0fb;
+#endif
+
+#if defined DARKCOIN
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.darkcoin/";
+    static const uint32_t gExpectedMagic = 0xbd6b0cbf;
+#endif
+
+#if defined PROTOSHARES
+    static const size_t gHeaderSize = 88;
+    static auto gCoinDirName = "/.protoshares/";
+    static const uint32_t gExpectedMagic = 0xd9b5bdf9;
+#endif
+
+#if defined FEDORACOIN
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.fedoracoin/";
+    static const uint32_t gExpectedMagic = 0xdead1337;
+#endif
 
 #define DO(x) x
     static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
@@ -121,7 +151,7 @@ static void parseOutput(
         LOAD(uint64_t, value, p);
         LOAD_VARINT(outputScriptSize, p);
 
-        const uint8_t *outputScript = p;
+        auto outputScript = p;
         p += outputScriptSize;
 
         if(!skip && fullContext && found) {
@@ -169,7 +199,7 @@ static void parseOutputs(
 
         LOAD_VARINT(nbOutputs, p);
         for(uint64_t outputIndex=0; outputIndex<nbOutputs; ++outputIndex) {
-            bool found = fullContext && !skip && (stopAtIndex==outputIndex);
+            auto found = (fullContext && !skip && (stopAtIndex==outputIndex));
             parseOutput<skip, fullContext>(
                 p,
                 txHash,
@@ -202,11 +232,11 @@ static void parseInput(
         startInput(p);
     }
 
-        const uint8_t *upTXHash = p;
+        auto upTXHash = p;
         const uint8_t *upTXOutputs = 0;
 
         if(gNeedTXHash && !skip) {
-            bool isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
+            auto isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
             if(likely(false==isGenTX)) {
                 auto i = gTXMap.find(upTXHash);
                 if(unlikely(gTXMap.end()==i)) {
@@ -221,7 +251,7 @@ static void parseInput(
         LOAD_VARINT(inputScriptSize, p);
 
         if(!skip && 0!=upTXOutputs) {
-            const uint8_t *inputScript = p;
+            auto inputScript = p;
             parseOutputs<false, true>(
                 upTXOutputs,
                 upTXHash,
@@ -252,10 +282,10 @@ static void parseInputs(
         startInputs(p);
     }
 
-        LOAD_VARINT(nbInputs, p);
-        for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
-            parseInput<skip>(p, txHash, inputIndex);
-        }
+    LOAD_VARINT(nbInputs, p);
+    for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
+        parseInput<skip>(p, txHash, inputIndex);
+    }
 
     if(!skip) {
         endInputs(p);
@@ -268,11 +298,11 @@ template<
 static void parseTX(
     const uint8_t *&p
 ) {
+    auto txStart = p;
     uint8_t *txHash = 0;
-    const uint8_t *txStart = p;
 
     if(gNeedTXHash && !skip) {
-        const uint8_t *txEnd = p;
+        auto txEnd = p;
         parseTX<true>(txEnd);
         txHash = allocHash256();
         sha256Twice(txHash, txStart, txEnd - txStart);
@@ -283,7 +313,6 @@ static void parseTX(
     }
 
         SKIP(uint32_t, version, p);
-
         parseInputs<skip>(p, txHash);
 
         if(gNeedTXHash && !skip) {
@@ -291,7 +320,6 @@ static void parseTX(
         }
 
         parseOutputs<skip, false>(p, txHash);
-
         SKIP(uint32_t, lockTime, p);
 
     if(!skip) {
@@ -304,46 +332,37 @@ static void parseBlock(
 ) {
     startBlock(block);
 
-        const uint8_t *p = block->data;
-        const uint8_t *header = p;
+        auto p = block->getData();
 
-        SKIP(uint32_t, version, p);
-        SKIP(uint256_t, prevBlkHash, p);
-        SKIP(uint256_t, blkMerkleRoot, p);
-        SKIP(uint32_t, blkTime, p);
-        SKIP(uint32_t, blkBits, p);
-        SKIP(uint32_t, blkNonce, p);
+            auto header = p;
+            SKIP(uint32_t, version, p);
+            SKIP(uint256_t, prevBlkHash, p);
+            SKIP(uint256_t, blkMerkleRoot, p);
+            SKIP(uint32_t, blkTime, p);
+            SKIP(uint32_t, blkBits, p);
+            SKIP(uint32_t, blkNonce, p);
 
-        #if defined PROTOSHARES
-            SKIP(uint32_t, nBirthdayA, p);
-            SKIP(uint32_t, nBirthdayB, p);
-        #endif
+            #if defined PROTOSHARES
+                SKIP(uint32_t, nBirthdayA, p);
+                SKIP(uint32_t, nBirthdayB, p);
+            #endif
 
-        #if defined DARKCOIN
-        #endif
+            LOAD_VARINT(nbTX, p);
+            for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex) {
+                parseTX<false>(p);
+            }
 
-        #if defined LITECOIN
-        #endif
-
-        #if defined BITCOIN
-        #endif
-        
-        #if defined FEDORACOIN
-        #endif
-        
-        LOAD_VARINT(nbTX, p);
-        for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex) {
-            parseTX<false>(p);
-        }
+        block->releaseData();
 
     endBlock(block);
 }
 
 static void parseLongestChain() {
 
+    gCallback->startLC();
     info("pass 4 -- full blockchain analysis ...");
 
-    Block *blk = gNullBlock->next;
+    auto blk = gNullBlock->next;
     start(blk, gMaxBlock);
     while(likely(0!=blk)) {
         parseBlock(blk);
@@ -351,25 +370,31 @@ static void parseLongestChain() {
     }
 
     info("pass 4 -- done.");
+    gCallback->wrapup();
 }
 
 static void wireLongestChain() {
 
     info("pass 3 -- wire longest chain ...");
 
-    Block *block = gMaxBlock;
+    auto block = gMaxBlock;
     while(1) {
-        Block *prev = block->prev;
+        auto prev = block->prev;
         if(unlikely(0==prev)) {
             break;
         }
         prev->next = block;
         block = prev;
     }
+
+    info(
+        "pass 3 -- done, maxHeight=%d",
+        (int)gMaxHeight
+    );
 }
 
 static void initCallback(
-    int  argc,
+    int   argc,
     char *argv[]
 ) {
     const char *methodName = 0;
@@ -388,24 +413,23 @@ static void initCallback(
     info("starting command \"%s\"", gCallback->name());
 
     if(argv[1]) {
-        int i = 0;
+        auto i = 0;
         while('-'==argv[1][i]) {
             argv[1][i++] = 'x';
         }
     }
 
-    int ir = gCallback->init(argc, (const char **)argv);
+    auto ir = gCallback->init(argc, (const char **)argv);
     if(ir<0) {
         errFatal("callback init failed");
     }
     gNeedTXHash = gCallback->needTXHash();
 }
 
-static void linkBlock(
+static void findBlockParent(
     Block *b
 )
 {
-    // Seek to block header
     auto where = lseek64(b->map->fd, b->offset, SEEK_SET);
     if(where!=(signed)b->offset) {
         sysErrFatal(
@@ -414,25 +438,28 @@ static void linkBlock(
         );
     }
 
-    // Read block header
-    uint8_t buf[512];
-    auto sz = sizeof(buf);
-    auto nbRead = read(b->map->fd, buf, sz);
-    if(sz!=(unsigned)nbRead) {
+    uint8_t buf[gHeaderSize];
+    auto nbRead = read(b->map->fd, buf, gHeaderSize);
+    if(nbRead<(signed)gHeaderSize) {
         sysErrFatal(
             "failed to read from block chain file %s",
             b->map->name.c_str()
         );
     }
 
-    // Try to find parent
     auto i = gBlockMap.find(4 + buf);
     if(unlikely(gBlockMap.end()==i)) {
-        uint8_t tmp[2*kSHA256ByteSize + 1];
-        toHex(tmp, 4 + buf);
+
+        uint8_t bHash[2*kSHA256ByteSize + 1];
+        toHex(bHash, b->hash);
+
+        uint8_t pHash[2*kSHA256ByteSize + 1];
+        toHex(pHash, 4 + buf);
+
         warning(
-            "failed to locate parent block %s",
-            tmp
+            "in block %s failed to locate parent block %s",
+            bHash,
+            pHash
         );
         return;
     }
@@ -440,130 +467,108 @@ static void linkBlock(
 }
 
 static void computeBlockHeight(
-    Block *block
+    Block  *block,
+    size_t &lateLinks
 ) {
 
-    // Root block
     if(unlikely(gNullBlock==block)) {
-        block->height = 0;
-        block->prev = 0;
-        block->next = 0;
         return;
     }
 
-    // Walk up the chain until we hit a block whose depth is known
-    Block *b = block;
+    auto b = block;
     while(b->height<0) {
 
-        // In case we haven't linked up yet, try to do that now that we have all block headers
         if(unlikely(0==b->prev)) {
-            linkBlock(b);
+
+            findBlockParent(b);
+            ++lateLinks;
+
+            if(0==b->prev) {
+                warning("failed to locate parent block");
+                return;
+            }
         }
 
-        // Link down and move up
         b->prev->next = b;
         b = b->prev;
     }
 
-    // Walk back down and label blocks with their correct height
-    uint64_t height = b->height;
-    while(block!=b) {
+    auto height = b->height;
+    while(1) {
 
-        if(likely(gMaxHeight<height)) {
-            gMaxHeight = height;
+        b->height = height++;
+
+        if(likely(gMaxHeight<b->height)) {
+            gMaxHeight = b->height;
             gMaxBlock = b;
         }
 
-        Block *next = b->next;
-        b->height = height++;
+        auto next = b->next;
         b->next = 0;
+
+        if(block==b) {
+            break;
+        }
+
         b = next;
     }
 }
 
 static void computeBlockHeights() {
 
+    size_t lateLinks = 0;
     info("pass 2 -- link all blocks ...");
     for(const auto &pair:gBlockMap) {
-        computeBlockHeight(pair.second);
+        computeBlockHeight(pair.second, lateLinks);
     }
+
+    info(
+        "pass 2 -- done, did %d late links",
+        (int)lateLinks
+    ); 
 }
 
-static uint32_t getExpectedMagic() {
-
-    return
-
-    #if defined FEDORACOIN
-        0xdead1337
-    #endif
-    
-    #if defined PROTOSHARES
-        0xd9b5bdf9
-    #endif
-
-    #if defined DARKCOIN
-        0xbd6b0cbf
-    #endif
-
-    #if defined LITECOIN
-        0xdbb6c0fb
-    #endif
-
-    #if defined BITCOIN
-        0xd9b4bef9
-    #endif
-
-    ;
-}
-
-static Block *buildBlockHeader(
+static void getBlockHeader(
+    size_t         &size,
+    Block         *&prev,
+          uint8_t *&hash,
+    size_t         &earlyMissCnt,
     const uint8_t *p
 ) {
 
-    // Check magic
     LOAD(uint32_t, magic, p);
-    const uint32_t expected = getExpectedMagic();
-    if(unlikely(expected!=magic)) {
-        return 0;
+    if(unlikely(gExpectedMagic!=magic)) {
+        hash = 0;
+        return;
     }
 
-    // Make a new block header
-    Block *block = allocBlock();
-    LOAD(uint32_t, size, p);
-    block->size = size;
-    block->prev = 0;
+    LOAD(uint32_t, sz, p);
+    size = sz;
+    prev = 0;
 
-    // Since we have our hands on the prev block hash, see if we can already link
+    hash = allocHash256();
+    #if defined(DARKCOIN)
+        h9(hash, p, gHeaderSize);
+    #else
+        sha256Twice(hash, p, gHeaderSize);
+    #endif
+
     auto i = gBlockMap.find(p + 4);
     if(likely(gBlockMap.end()!=i)) {
-        block->prev = i->second;
+        prev = i->second;
+    } else {
+        ++earlyMissCnt;
     }
-
-    // Hash block header
-    size_t headerSize = 80;
-    uint8_t *hash = allocHash256();
-
-    #if defined(PROTOSHARES)
-        size_t headerSize = 88;
-    #endif
-
-    #if defined(DARKCOIN)
-        h9(hash, p, headerSize);
-    #else
-        sha256Twice(hash, p, headerSize);
-    #endif
-
-    gBlockMap[hash] = block;
-    return block;
 }
 
 static void buildBlockHeaders() {
 
     info("pass 1 -- walk all blocks and build headers ...");
 
-    uint8_t buf[512];
     size_t nbBlocks = 0;
     size_t baseOffset = 0;
+    size_t earlyMissCnt = 0;
+    uint8_t buf[8+gHeaderSize];
     const auto sz = sizeof(buf);
     const auto startTime = usecs();
     const auto oneMeg = 1024 * 1024;
@@ -573,29 +578,29 @@ static void buildBlockHeaders() {
         while(1) {
 
             auto nbRead = read(map.fd, buf, sz);
-            if(sz!=(unsigned)nbRead) {
+            if(nbRead<(signed)sz) {
                 break;
             }
 
-            auto block = buildBlockHeader(buf);
-            if(0==block) {
+            uint8_t *hash = 0;
+            Block *prevBlock = 0;
+            size_t blockSize = 0;
+            getBlockHeader(blockSize, prevBlock, hash, earlyMissCnt, buf);
+            if(unlikely(0==hash)) {
                 break;
             }
 
-            block->height = -1;
-            block->map = &map;
-            block->data = 0;
-            block->next = 0;
-
-            auto where = lseek(map.fd, (block->size + 8) - sz, SEEK_CUR);
+            auto where = lseek(map.fd, (blockSize + 8) - sz, SEEK_CUR);
+            auto blockOffset = where - blockSize;
             if(where<0) {
                 break;
             }
 
-            block->offset = where - block->size;
+            auto block = allocBlock();
+            block->init(hash, &map, blockSize, prevBlock, blockOffset);
+            gBlockMap[hash] = block;
             ++nbBlocks;
         }
-
         baseOffset += map.size;
 
         auto now = usecs();
@@ -603,7 +608,8 @@ static void buildBlockHeaders() {
         auto bytesPerSec = baseOffset / (elapsed*1e-6);
         auto bytesLeft = gChainSize - baseOffset;
         auto secsLeft = bytesLeft / bytesPerSec;
-        printf(
+        fprintf(
+            stderr,
             "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs            \r",
             (100.0*baseOffset)/gChainSize,
             baseOffset/(1000.0*oneMeg),
@@ -612,7 +618,7 @@ static void buildBlockHeaders() {
             bytesPerSec*1e-6,
             secsLeft
         );
-        fflush(stdout);
+        fflush(stderr);
     }
 
     if(0==nbBlocks) {
@@ -620,50 +626,34 @@ static void buildBlockHeaders() {
         exit(1);
     }
 
+    char msg[128];
+    msg[0] = 0;
+    if(0<earlyMissCnt) {
+        sprintf(msg, ", %d early link misses", (int)earlyMissCnt);
+    }
+
     auto elapsed = 1e-6*(usecs() - startTime);
     info(
-        "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs                                               ",
+        "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs %s                                            ",
         elapsed,
         (int)nbBlocks,
         (gChainSize * 1e-9),
-        (gChainSize * 1e-6) / elapsed
+        (gChainSize * 1e-6) / elapsed,
+        msg
     );
 }
 
 static void buildNullBlock() {
     gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
-    gNullBlock->data = 0;
+    gNullBlock->init(gNullHash.v, 0, 0, 0, 0);
+    gNullBlock->height = 0;
 }
 
-static std::string coinDirName() {
-
-    return
-
-        #if defined DARKCOIN
-            "/.darkcoin/"
-        #endif
-
-        #if defined PROTOSHARES
-            "/.protoshares/"
-        #endif
-
-        #if defined LITECOIN
-            "/.litecoin/"
-        #endif
-
-        #if defined BITCOIN
-            "/.bitcoin/"
-        #endif
-        
-        #if defined FEDORACOIN
-            "/.fedoracoin/"
-        #endif
-    ;
-}
 
 static void initHashtables() {
 
     info("initializing hash tables");
+
     gTXMap.setEmptyKey(empty);
     gBlockMap.setEmptyKey(empty);
 
@@ -672,16 +662,16 @@ static void initHashtables() {
         gChainSize += map.size;
     }
 
-    double txPerBytes = (3976774.0 / 1713189944.0);
-    size_t nbTxEstimate = (1.5 * txPerBytes * gChainSize);
+    auto txPerBytes = (3976774.0 / 1713189944.0);
+    auto nbTxEstimate = (size_t)(1.5 * txPerBytes * gChainSize);
     gTXMap.resize(nbTxEstimate);
 
-    double blocksPerBytes = (184284.0 / 1713189944.0);
-    size_t nbBlockEstimate = (1.5 * blocksPerBytes * gChainSize);
+    auto blocksPerBytes = (184284.0 / 1713189944.0);
+    auto nbBlockEstimate = (size_t)(1.5 * blocksPerBytes * gChainSize);
     gBlockMap.resize(nbBlockEstimate);
 }
 
-static void makeMaps() {
+static void makeBlockMaps() {
 
     const char *home = getenv("HOME");
     if(0==home) {
@@ -690,26 +680,26 @@ static void makeMaps() {
     }
 
     std::string homeDir(home);
-    std::string blockDir = homeDir + coinDirName() + std::string("blocks");
+    std::string blockDir = homeDir + gCoinDirName + std::string("blocks");
 
     struct stat statBuf;
-    int r = stat(blockDir.c_str(), &statBuf);
-    bool oldStyle = (r<0 || !S_ISDIR(statBuf.st_mode));
+    auto r = stat(blockDir.c_str(), &statBuf);
+    auto oldStyle = (r<0 || !S_ISDIR(statBuf.st_mode));
 
-    int blkDatId = oldStyle ? 1 : 0;
-    const char *fmt = oldStyle ? "blk%04d.dat" : "blocks/blk%05d.dat";
+    int blkDatId = (oldStyle ? 1 : 0);
+    auto fmt = oldStyle ? "blk%04d.dat" : "blocks/blk%05d.dat";
     while(1) {
 
         char buf[64];
         sprintf(buf, fmt, blkDatId++);
 
-        std::string blockMapFileName =
-            homeDir                             +
-            coinDirName()                       +
+        auto blockMapFileName =
+            homeDir          +
+            gCoinDirName     +
             std::string(buf)
         ;
 
-        int blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
+        auto blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
         if(blockMapFD<0) {
             if(1<blkDatId) {
                 break;
@@ -729,8 +719,8 @@ static void makeMaps() {
             );
         }
 
-        size_t mapSize = statBuf.st_size;
-        int st1 = posix_fadvise(blockMapFD, 0, mapSize, POSIX_FADV_NOREUSE);
+        auto mapSize = statBuf.st_size;
+        auto st1 = posix_fadvise(blockMapFD, 0, mapSize, POSIX_FADV_NOREUSE);
         if(st1<0) {
             warning(
                 "failed to posix_fadvise on block chain file %s",
@@ -748,7 +738,7 @@ static void makeMaps() {
 
 static void cleanMaps() {
     for(const auto &map : mapVec) {
-        int r = close(map.fd);
+        auto r = close(map.fd);
         if(r<0) {
             sysErr(
                 "failed to close block chain file %s",
@@ -759,27 +749,23 @@ static void cleanMaps() {
 }
 
 int main(
-    int  argc,
+    int   argc,
     char *argv[]
 ) {
-    double start = usecs();
 
-        initCallback(argc, argv);
-        makeMaps();
+    auto start = usecs();
 
-            initHashtables();
-            buildNullBlock();
-            buildBlockHeaders();
-            computeBlockHeights();
-            wireLongestChain();
+    initCallback(argc, argv);
+    makeBlockMaps();
+    initHashtables();
+    buildNullBlock();
+    buildBlockHeaders();
+    computeBlockHeights();
+    wireLongestChain();
+    parseLongestChain();
+    cleanMaps();
 
-            gCallback->startLC();
-            parseLongestChain();
-            gCallback->wrapup();
-
-        cleanMaps();
-
-    double elapsed = (usecs()-start)*1e-6;
+    auto elapsed = (usecs() - start)*1e-6;
     info("all done in %.2f seconds\n", elapsed);
     return 0;
 }

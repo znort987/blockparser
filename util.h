@@ -16,13 +16,12 @@
     struct Hash160Hasher { uint64_t operator()( const Hash160 &hash160) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash160); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
     struct Hash256Hasher { uint64_t operator()( const Hash256 &hash256) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash256); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
 
-    struct Hash160Equal
-    {
+    struct Hash160Equal {
+
         bool operator()(
             const Hash160 &ha,
             const Hash160 &hb
-        ) const
-        {
+        ) const {
             uintptr_t ia = reinterpret_cast<uintptr_t>(ha);
             uintptr_t ib = reinterpret_cast<uintptr_t>(hb);
 
@@ -39,13 +38,12 @@
         }
     };
 
-    struct Hash256Equal
-    {
+    struct Hash256Equal {
+
         bool operator()(
             const Hash256 &ha,
             const Hash256 &hb
-        ) const
-        {
+        ) const {
             uintptr_t ia = reinterpret_cast<uintptr_t>(ha);
             uintptr_t ib = reinterpret_cast<uintptr_t>(hb);
 
@@ -63,27 +61,54 @@
     struct Map;
 
     struct Block {
+    private:
+    public:
+        const uint8_t *data;
+        const uint8_t *hash;
         const Map     *map;
         uint64_t      size;
         uint64_t      offset;
-        const uint8_t *data;
         int64_t       height;
         Block         *prev;
         Block         *next;
+
+        const uint8_t *getData() const {
+            return data;
+        }
+
+        void releaseData() const {
+        }
+
+        void init(
+            const uint8_t *_hash,
+            const Map     *_map,
+            size_t         _size,
+            Block         *_prev,
+            uint64_t       _offset      
+        ) {
+            data = 0;
+            hash = _hash;
+            map = _map;
+            size = _size;
+            offset = _offset;
+            height = -1;
+            prev = _prev;
+            next = 0;
+        }
     };
 
     template<
         typename T,
         size_t   kPageSize = 16384
     >
-    struct PagedAllocator
-    {
+    struct PagedAllocator {
+
         static uint8_t *pool;
         static uint8_t *poolEnd;
         enum { kPageByteSize = sizeof(T)*kPageSize };
 
-        static uint8_t *alloc()
-        {
+        static uint8_t *alloc() {
+
             if(unlikely(poolEnd<=pool)) {
                 pool = (uint8_t*)malloc(kPageByteSize);
                 poolEnd = kPageByteSize + pool;
@@ -111,8 +136,8 @@
             typename Hasher,
             typename Equal
         >
-        struct GoogMap
-        {
+        struct GoogMap {
+
             typedef google::dense_hash_map<
                 Key,
                 Value,
@@ -120,8 +145,7 @@
                 Equal
             > MapBase;
 
-            struct Map:public MapBase
-            {
+            struct Map:public MapBase {
                 void setEmptyKey(
                     const Key &empty
                 )
@@ -143,8 +167,8 @@
             typename Hasher,
             typename Equal
         >
-        struct GoogMap
-        {
+        struct GoogMap {
+
             typedef google::sparse_hash_map<
                 Key,
                 Value,
@@ -152,12 +176,11 @@
                 Equal
             > MapBase;
 
-            struct Map:public MapBase
-            {
+            struct Map:public MapBase {
+
                 void setEmptyKey(
                     const Key &empty
-                )
-                {
+                ) {
                 }
             };
         };
@@ -176,8 +199,7 @@
 
     static inline uint64_t loadVarInt(
         const uint8_t *&p
-    )
-    {
+    ) {
         uint64_t r = *(p++);
         if(likely(r<0xFD))  {                       return r; }
         if(likely(0xFD==r)) { LOAD(uint16_t, v, p); return v; }
@@ -249,8 +271,7 @@
               uint8_t *sha,
         const uint8_t *buf,
         uint64_t      size
-    )
-    {
+    ) {
         sha256(sha, buf, size);
         sha256(sha, sha, kSHA256ByteSize);
     }

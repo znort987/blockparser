@@ -27,8 +27,7 @@ template<> uint8_t *PagedAllocator<uint256_t>::poolEnd = 0;
 template<> uint8_t *PagedAllocator<uint160_t>::pool = 0;
 template<> uint8_t *PagedAllocator<uint160_t>::poolEnd = 0;
 
-double usecs()
-{
+double usecs() {
     struct timeval t;
     gettimeofday(&t, 0);
     return t.tv_usec + 1000000*((uint64_t)t.tv_sec);

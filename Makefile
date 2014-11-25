@@ -134,77 +134,77 @@ all:parser
 	@mv .objs/transactions.d .deps
 
 .objs/blake.o : h9/blake.c
-	@echo cc  -- h9/blake.c
+	@echo 'cc ' -- h9/blake.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/blake.c -o .objs/blake.o
 	@mv .objs/blake.d .deps
 
 .objs/bmw.o : h9/bmw.c
-	@echo cc  -- h9/bmw.c
+	@echo 'cc ' -- h9/bmw.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/bmw.c -o .objs/bmw.o
 	@mv .objs/bmw.d .deps
 
 .objs/cubehash.o : h9/cubehash.c
-	@echo cc  -- h9/cubehash.c
+	@echo 'cc ' -- h9/cubehash.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/cubehash.c -o .objs/cubehash.o
 	@mv .objs/cubehash.d .deps
 
 .objs/echo.o : h9/echo.c
-	@echo cc  -- h9/echo.c
+	@echo 'cc ' -- h9/echo.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/echo.c -o .objs/echo.o
 	@mv .objs/echo.d .deps
 
 .objs/groestl.o : h9/groestl.c
-	@echo cc  -- h9/groestl.c
+	@echo 'cc ' -- h9/groestl.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/groestl.c -o .objs/groestl.o
 	@mv .objs/groestl.d .deps
 
 .objs/jh.o : h9/jh.c
-	@echo cc  -- h9/jh.c
+	@echo 'cc ' -- h9/jh.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/jh.c -o .objs/jh.o
 	@mv .objs/jh.d .deps
 
 .objs/keccak.o : h9/keccak.c
-	@echo cc  -- h9/keccak.c
+	@echo 'cc ' -- h9/keccak.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/keccak.c -o .objs/keccak.o
 	@mv .objs/keccak.d .deps
 
 .objs/luffa.o : h9/luffa.c
-	@echo cc  -- h9/luffa.c
+	@echo 'cc ' -- h9/luffa.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/luffa.c -o .objs/luffa.o
 	@mv .objs/luffa.d .deps
 
 .objs/shavite.o : h9/shavite.c
-	@echo cc  -- h9/shavite.c
+	@echo 'cc ' -- h9/shavite.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/shavite.c -o .objs/shavite.o
 	@mv .objs/shavite.d .deps
 
 .objs/simd.o : h9/simd.c
-	@echo cc  -- h9/simd.c
+	@echo 'cc ' -- h9/simd.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/simd.c -o .objs/simd.o
 	@mv .objs/simd.d .deps
 
 .objs/skein.o : h9/skein.c
-	@echo cc  -- h9/skein.c
+	@echo 'cc ' -- h9/skein.c
 	@mkdir -p .deps
 	@mkdir -p .objs
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/skein.c -o .objs/skein.o
@@ -251,36 +251,37 @@ all:parser
 	@mkdir -p .objs
 	@${CPLUS} -MD ${INC} ${COPT}  -c util.cpp -o .objs/util.o
 	@mv .objs/util.d .deps
-
 OBJS=                       \
     .objs/allBalances.o     \
-    .objs/blake.o           \
-    .objs/bmw.o             \
-    .objs/callback.o        \
     .objs/closure.o         \
-    .objs/cubehash.o        \
     .objs/dumpTX.o          \
-    .objs/echo.o            \
-    .objs/groestl.o         \
     .objs/help.o            \
-    .objs/jh.o              \
-    .objs/keccak.o          \
-    .objs/luffa.o           \
-    .objs/opcodes.o         \
-    .objs/option.o          \
-    .objs/parser.o          \
     .objs/pristine.o        \
     .objs/rawdump.o         \
     .objs/rewards.o         \
-    .objs/rmd160.o          \
-    .objs/sha256.o          \
-    .objs/shavite.o         \
-    .objs/simd.o            \
     .objs/simpleStats.o     \
-    .objs/skein.o           \
     .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
+                            \
+    .objs/blake.o           \
+    .objs/bmw.o             \
+    .objs/cubehash.o        \
+    .objs/echo.o            \
+    .objs/groestl.o         \
+    .objs/jh.o              \
+    .objs/keccak.o          \
+    .objs/luffa.o           \
+    .objs/shavite.o         \
+    .objs/simd.o            \
+    .objs/skein.o           \
+                            \
+    .objs/callback.o        \
+    .objs/opcodes.o         \
+    .objs/option.o          \
+    .objs/parser.o          \
+    .objs/rmd160.o          \
+    .objs/sha256.o          \
     .objs/util.o            \
 
 parser:${OBJS}

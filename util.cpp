@@ -449,6 +449,10 @@ bool addrToHash160(
             data[0] = 33;
         #endif
 
+        #if defined(PEERCOIN)
+            data[0] = 48 + 7;
+        #endif
+
         uint8_t sha[kSHA256ByteSize];
         sha256Twice(sha, data, 1+kRIPEMD160ByteSize);
 

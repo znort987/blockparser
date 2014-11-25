@@ -282,6 +282,10 @@
         #if defined(FEDORACOIN)
             uint8_t type = 33
         #endif
+
+        #if defined(PEERCOIN)
+            uint8_t type = 48 + 7
+        #endif
     );
 
     bool addrToHash160(

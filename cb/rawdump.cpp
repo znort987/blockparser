@@ -153,9 +153,7 @@ struct RawDump:public Callback {
 
         printf("%sscript = '\n", spaces);
             pop();
-                pop();
                 showScript(p, inputScriptSize, 0, (const char *)spaces);
-                push();
             push();
         printf("%s'\n", spaces);
 

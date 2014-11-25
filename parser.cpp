@@ -677,13 +677,16 @@ static void initHashtables() {
         gChainSize += map.size;
     }
 
-    auto txPerBytes = (3976774.0 / 1713189944.0);
-    auto nbTxEstimate = (size_t)(1.5 * txPerBytes * gChainSize);
+    auto txPerBytes = (52149122.0 / 26645195995.0);
+    auto nbTxEstimate = (size_t)(1.1 * txPerBytes * gChainSize);
     gTXMap.resize(nbTxEstimate);
 
-    auto blocksPerBytes = (184284.0 / 1713189944.0);
-    auto nbBlockEstimate = (size_t)(1.5 * blocksPerBytes * gChainSize);
+    auto blocksPerBytes = (331284.0 / 26645195995.0);
+    auto nbBlockEstimate = (size_t)(1.1 * blocksPerBytes * gChainSize);
     gBlockMap.resize(nbBlockEstimate);
+
+    info("estimated number of blocks = %.2fK", 1e-3*nbBlockEstimate);
+    info("estimated number of transactions = %.2fM", 1e-6*nbTxEstimate);
 }
 
 static void makeBlockMaps() {

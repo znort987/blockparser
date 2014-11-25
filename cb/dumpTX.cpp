@@ -53,7 +53,7 @@ struct DumpTX:public Callback
     }
 
     virtual int init(
-        int argc,
+        int        argc,
         const char *argv[]
     )
     {
@@ -70,7 +70,7 @@ struct DumpTX:public Callback
             info("dumping %d transactions\n", (int)rootHashes.size());
         } else {
             const char *defaultTX = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"; // Expensive pizza
-            warning("no TX hashes specified, using the infamous 10K pizza TX");
+            warning("no TX hashes specified, using the famous 10K pizza TX");
             loadHash256List(rootHashes, defaultTX);
         }
 
@@ -195,6 +195,8 @@ struct DumpTX:public Callback
             LOAD(uint256_t, upTXHash, p);
             LOAD(uint32_t, upOutputIndex, p);
             LOAD_VARINT(inputScriptSize, p);
+            showScript(p, inputScriptSize, 0, "        ");
+
             isGenTX = (0==memcmp(gNullHash.v, upTXHash.v, sizeof(gNullHash)));
             if(isGenTX) {
                 uint64_t reward = getBaseReward(currBlock);

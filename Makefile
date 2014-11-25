@@ -91,6 +91,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/help.cpp -o .objs/help.o
 	@mv .objs/help.d .deps
 
+.objs/rawdump.o : cb/rawdump.cpp
+	@echo c++ -- cb/rawdump.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/rawdump.cpp -o .objs/rawdump.o
+	@mv .objs/rawdump.d .deps
+
 .objs/rewards.o : cb/rewards.cpp
 	@echo c++ -- cb/rewards.cpp
 	@mkdir -p .deps
@@ -246,33 +253,34 @@ all:parser
 	@mv .objs/util.d .deps
 
 OBJS=                       \
-    .objs/callback.o        \
     .objs/allBalances.o     \
-    .objs/closure.o         \
-    .objs/dumpTX.o          \
-    .objs/help.o            \
-    .objs/pristine.o        \
-    .objs/rewards.o         \
-    .objs/simpleStats.o     \
-    .objs/sql.o             \
-    .objs/taint.o           \
-    .objs/transactions.o    \
     .objs/blake.o           \
     .objs/bmw.o             \
+    .objs/callback.o        \
+    .objs/closure.o         \
     .objs/cubehash.o        \
+    .objs/dumpTX.o          \
     .objs/echo.o            \
     .objs/groestl.o         \
+    .objs/help.o            \
     .objs/jh.o              \
     .objs/keccak.o          \
     .objs/luffa.o           \
-    .objs/shavite.o         \
-    .objs/simd.o            \
-    .objs/skein.o           \
     .objs/opcodes.o         \
     .objs/option.o          \
     .objs/parser.o          \
+    .objs/pristine.o        \
+    .objs/rawdump.o         \
+    .objs/rewards.o         \
     .objs/rmd160.o          \
     .objs/sha256.o          \
+    .objs/shavite.o         \
+    .objs/simd.o            \
+    .objs/simpleStats.o     \
+    .objs/skein.o           \
+    .objs/sql.o             \
+    .objs/taint.o           \
+    .objs/transactions.o    \
     .objs/util.o            \
 
 parser:${OBJS}

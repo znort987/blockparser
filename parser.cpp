@@ -13,14 +13,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-struct Map {
-    int fd;
-    uint64_t size;
-    std::string name;
-};
-
-typedef GoogMap<Hash256, const uint8_t*, Hash256Hasher, Hash256Equal>::Map TXMap;
-typedef GoogMap<Hash256,         Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
+typedef GoogMap<Hash256, const TX*, Hash256Hasher, Hash256Equal>::Map TXMap;
+typedef GoogMap<Hash256,    Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
 
 static bool gNeedTXHash;
 static Callback *gCallback;
@@ -71,6 +65,8 @@ static uint256_t gNullHash;
 #define DO(x) x
     static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
     static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }
+    static inline void     startTXs(const uint8_t *p)                      { DO(gCallback->startTXs(p));      }
+    static inline void       endTXs(const uint8_t *p)                      { DO(gCallback->endTXs(p));        }
     static inline void      startTX(const uint8_t *p, const uint8_t *hash) { DO(gCallback->startTX(p, hash)); }
     static inline void        endTX(const uint8_t *p)                      { DO(gCallback->endTX(p));         }
     static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));   }
@@ -233,16 +229,16 @@ static void parseInput(
     }
 
         auto upTXHash = p;
-        const uint8_t *upTXOutputs = 0;
+        const TX *upTX = 0;
 
         if(gNeedTXHash && !skip) {
             auto isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
             if(likely(false==isGenTX)) {
                 auto i = gTXMap.find(upTXHash);
                 if(unlikely(gTXMap.end()==i)) {
-                    errFatal("failed to locate upstream TX");
+                    errFatal("failed to locate upstream transaction");
                 }
-                upTXOutputs = i->second;
+                upTX = i->second;
             }
         }
 
@@ -250,17 +246,20 @@ static void parseInput(
         LOAD(uint32_t, upOutputIndex, p);
         LOAD_VARINT(inputScriptSize, p);
 
-        if(!skip && 0!=upTXOutputs) {
-            auto inputScript = p;
-            parseOutputs<false, true>(
-                upTXOutputs,
-                upTXHash,
-                upOutputIndex,
-                txHash,
-                inputIndex,
-                inputScript,
-                inputScriptSize
-            );
+        if(!skip && 0!=upTX) {
+            const uint8_t *upBlockData = upTX->block->getData();
+                const uint8_t *upTXOutputs = upTX->outputsOffset + upBlockData;
+                auto inputScript = p;
+                parseOutputs<false, true>(
+                    upTXOutputs,
+                    upTXHash,
+                    upOutputIndex,
+                    txHash,
+                    inputIndex,
+                    inputScript,
+                    inputScriptSize
+                );
+            upTX->block->releaseData();
         }
 
         p += inputScriptSize;
@@ -296,6 +295,7 @@ template<
     bool skip
 >
 static void parseTX(
+    const Block   *block,
     const uint8_t *&p
 ) {
     auto txStart = p;
@@ -303,8 +303,8 @@ static void parseTX(
 
     if(gNeedTXHash && !skip) {
         auto txEnd = p;
-        parseTX<true>(txEnd);
         txHash = allocHash256();
+        parseTX<true>(block, txEnd);
         sha256Twice(txHash, txStart, txEnd - txStart);
     }
 
@@ -316,7 +316,10 @@ static void parseTX(
         parseInputs<skip>(p, txHash);
 
         if(gNeedTXHash && !skip) {
-            gTXMap[txHash] = p;
+            TX *tx = allocTX();
+            tx->block = block;
+            tx->outputsOffset = p - block->getData();
+            gTXMap[txHash] = tx;
         }
 
         parseOutputs<skip, false>(p, txHash);
@@ -347,10 +350,12 @@ static void parseBlock(
                 SKIP(uint32_t, nBirthdayB, p);
             #endif
 
-            LOAD_VARINT(nbTX, p);
-            for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex) {
-                parseTX<false>(p);
-            }
+            startTXs(p);
+                LOAD_VARINT(nbTX, p);
+                for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex) {
+                    parseTX<false>(block, p);
+                }
+            endTXs(p);
 
         block->releaseData();
 
@@ -359,18 +364,20 @@ static void parseBlock(
 
 static void parseLongestChain() {
 
-    gCallback->startLC();
     info("pass 4 -- full blockchain analysis ...");
 
-    auto blk = gNullBlock->next;
-    start(blk, gMaxBlock);
-    while(likely(0!=blk)) {
-        parseBlock(blk);
-        blk = blk->next;
-    }
+    gCallback->startLC();
+
+        auto blk = gNullBlock->next;
+        start(blk, gMaxBlock);
+        while(likely(0!=blk)) {
+            parseBlock(blk);
+            blk = blk->next;
+        }
+
+    gCallback->wrapup();
 
     info("pass 4 -- done.");
-    gCallback->wrapup();
 }
 
 static void wireLongestChain() {
@@ -575,6 +582,8 @@ static void buildBlockHeaders() {
 
     for(const auto &map : mapVec) {
 
+        startMap(0);
+
         while(1) {
 
             auto nbRead = read(map.fd, buf, sz);
@@ -582,9 +591,12 @@ static void buildBlockHeaders() {
                 break;
             }
 
+            startBlock((uint8_t*)0);
+
             uint8_t *hash = 0;
             Block *prevBlock = 0;
             size_t blockSize = 0;
+
             getBlockHeader(blockSize, prevBlock, hash, earlyMissCnt, buf);
             if(unlikely(0==hash)) {
                 break;
@@ -599,6 +611,7 @@ static void buildBlockHeaders() {
             auto block = allocBlock();
             block->init(hash, &map, blockSize, prevBlock, blockOffset);
             gBlockMap[hash] = block;
+            endBlock((uint8_t*)0);
             ++nbBlocks;
         }
         baseOffset += map.size;
@@ -619,6 +632,8 @@ static void buildBlockHeaders() {
             secsLeft
         );
         fflush(stderr);
+
+        endMap(0);
     }
 
     if(0==nbBlocks) {

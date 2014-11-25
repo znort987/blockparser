@@ -56,7 +56,7 @@ struct Rewards:public Callback
         uint64_t
     )
     {
-        const uint8_t *p = b->data;
+        const uint8_t *p = b->getData();
         SKIP(uint32_t, version, p);
         SKIP(uint256_t, prevBlkHash, p);
         SKIP(uint256_t, blkMerkleRoot, p);

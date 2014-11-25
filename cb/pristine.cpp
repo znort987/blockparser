@@ -55,7 +55,7 @@ struct Pristine:public Callback
         uint64_t
     )
     {
-        const uint8_t *p = b->data;
+        const uint8_t *p = b->getData();
         SKIP(uint32_t, version, p);
         SKIP(uint256_t, prevBlkHash, p);
         SKIP(uint256_t, blkMerkleRoot, p);
@@ -87,7 +87,9 @@ struct Pristine:public Callback
     {
         static uint256_t gNullHash;
         bool isGenInput = (0==memcmp(gNullHash.v, p, sizeof(gNullHash)));
-        if(isGenInput) hasGenInput = true;
+        if(isGenInput) {
+            hasGenInput = true;
+        }
         ++nbInputs;
     }
 
@@ -97,7 +99,9 @@ struct Pristine:public Callback
     {
         if(hasGenInput) {
 
-            if(1!=nbInputs) abort();
+            if(1!=nbInputs) {
+                abort();
+            }
 
             uint64_t age = currTime;
             uint64_t blk = currBlock;

@@ -4,8 +4,10 @@
     #include <string>
     #include <vector>
     #include <common.h>
+    #include <errlog.h>
     #include <rmd160.h>
     #include <sha256.h>
+    #include <unistd.h>
 
     typedef const uint8_t *Hash160;
     typedef const uint8_t *Hash256;
@@ -58,12 +60,17 @@
         }
     };
 
-    struct Map;
+    struct Map {
+        int fd;
+        uint64_t size;
+        std::string name;
+    };
 
     struct Block {
     private:
+        mutable uint8_t *data;
+
     public:
-        const uint8_t *data;
         const uint8_t *hash;
         const Map     *map;
         uint64_t      size;
@@ -73,10 +80,27 @@
         Block         *next;
 
         const uint8_t *getData() const {
+            if(0==data) {
+                auto where = lseek64(map->fd, offset, SEEK_SET);
+                if(where!=(signed)offset) {
+                    sysErrFatal(
+                        "failed to seek into block chain file %s",
+                        map->name.c_str()
+                    );
+                }
+
+                data = (uint8_t*)malloc(size);
+                auto sz = read(map->fd, data, size);
+                if(sz!=(signed)size) {
+                    //fatal("can't map block");
+                }
+            }
             return data;
         }
 
         void releaseData() const {
+            free(data);
+            data = 0;
         }
 
         void init(
@@ -95,6 +119,11 @@
             prev = _prev;
             next = 0;
         }
+    };
+
+    struct TX {
+        const Block *block;
+        size_t outputsOffset;
     };
 
     template<
@@ -120,6 +149,7 @@
         }
     };
 
+    static inline TX      *allocTX()      { return    (TX*)PagedAllocator<       TX>::alloc(); }
     static inline Block   *allocBlock()   { return (Block*)PagedAllocator<    Block>::alloc(); }
     static inline uint8_t *allocHash256() { return         PagedAllocator<uint256_t>::alloc(); }
     static inline uint8_t *allocHash160() { return         PagedAllocator<uint160_t>::alloc(); }

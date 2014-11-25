@@ -252,7 +252,9 @@ struct DumpTX:public Callback
         if(0<=r) {
             uint8_t btcAddr[64];
             hash160ToAddr(btcAddr, pubKeyHash);
-            printf("        script pays to address %s\n", btcAddr);
+            printf("        script pays to address %s (hash160 = ", btcAddr);
+            showHex(pubKeyHash, kRIPEMD160ByteSize, false);
+            printf(" )\n");
         }
     }
 

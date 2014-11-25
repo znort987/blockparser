@@ -30,6 +30,8 @@
 
         // Callback for second, deep parse -- only valid blocks are seen, and are parsed in details
         virtual void        start(  const Block *s, const Block *e     )       {               }  // Called when the second parse of the full chain starts
+        virtual void     startTXs(const uint8_t *p                     )       {               }  // Called when start list of TX is encountered
+        virtual void       endTXs(const uint8_t *p                     )       {               }  // Called when end list of TX is encountered
         virtual void      startTX(const uint8_t *p, const uint8_t *hash)       {               }  // Called when a new TX is encountered
         virtual void        endTX(const uint8_t *p                     )       {               }  // Called when an end of TX is encountered
         virtual void  startInputs(const uint8_t *p                     )       {               }  // Called when the start of a TX's input array is encountered

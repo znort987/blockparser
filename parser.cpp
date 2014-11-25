@@ -220,6 +220,7 @@ template<
     bool skip
 >
 static void parseInput(
+    const Block   *block,
     const uint8_t *&p,
     const uint8_t *txHash,
     uint64_t      inputIndex
@@ -259,7 +260,9 @@ static void parseInput(
                     inputScript,
                     inputScriptSize
                 );
-            upTX->block->releaseData();
+            if(block!=upTX->block) {
+                upTX->block->releaseData();
+            }
         }
 
         p += inputScriptSize;
@@ -274,6 +277,7 @@ template<
     bool skip
 >
 static void parseInputs(
+    const Block   *block,
     const uint8_t *&p,
     const uint8_t *txHash
 ) {
@@ -283,7 +287,7 @@ static void parseInputs(
 
     LOAD_VARINT(nbInputs, p);
     for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
-        parseInput<skip>(p, txHash, inputIndex);
+        parseInput<skip>(block, p, txHash, inputIndex);
     }
 
     if(!skip) {
@@ -313,7 +317,7 @@ static void parseTX(
     }
 
         SKIP(uint32_t, version, p);
-        parseInputs<skip>(p, txHash);
+        parseInputs<skip>(block, p, txHash);
 
         if(gNeedTXHash && !skip) {
             TX *tx = allocTX();

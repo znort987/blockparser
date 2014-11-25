@@ -330,5 +330,7 @@
         uint64_t h
     );
 
+    const char *getInterestingAddr();
+
 #endif // __UTIL_H__
 

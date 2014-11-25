@@ -751,6 +751,33 @@ uint64_t getBaseReward(
     return reward;
 }
 
+const char *getInterestingAddr() {
+
+    const char *addr =
+
+    #if defined(BITCOIN)
+
+        "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp"
+
+    #elif defined(LITECOIN)
+
+        "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o"
+
+    #elif defined(PEERCOIN)
+
+        "PDH9AeruMUGh2JzYYTpaNtjLAcfGV5LEto"
+
+    #else
+
+        fatal("no address specified")
+
+    #endif
+    ;
+
+    warning("no addresses specified, using popular address %s", addr);
+    return addr;
+}
+
 #if defined(DARKCOIN)
 
     #include <h9/h9.h>

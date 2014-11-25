@@ -707,13 +707,14 @@ static void buildAllBlocks() {
                     auto bytesLeft = gChainSize - fullOffset;
                     auto secsLeft = bytesLeft / bytesPerSec;
                     printf(
-                        "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs            \r",
+                        "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs -- ELAPSED %.0f secs            \r",
                         (100.0*fullOffset)/gChainSize,
                         fullOffset/(1000.0*oneMeg),
                         gChainSize/(1000.0*oneMeg),
                         (int)nbBlocks,
                         bytesPerSec*1e-6,
-                        secsLeft
+                        secsLeft,
+                        elapsed*1e-6
                     );
                     lastReportOffset = fullOffset;
                     fflush(stdout);

@@ -381,5 +381,17 @@
         uint64_t h
     );
 
+    void canonicalHexDump(
+        const uint8_t *p,
+               size_t size,
+           const char *indent
+    );
+
+    void showScriptInfo(
+        const uint8_t *outputScript,
+        uint64_t      outputScriptSize,
+        const uint8_t *indent
+    );
+
 #endif // __UTIL_H__
 

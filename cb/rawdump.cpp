@@ -165,7 +165,7 @@ struct RawDump:public Callback {
                 "%svalue = %" PRIu64 " # %.08f\n",
                 spaces,
                 value,
-                1e-8*value
+                satoshisToNormaForm(value)
             );
             printf("%scoinBase = '\n", spaces);
             push();
@@ -196,7 +196,7 @@ struct RawDump:public Callback {
             "%svalue = %" PRIu64 " # %.08f\n",
             spaces,
             value,
-            1e-8*value
+            satoshisToNormaForm(value)
         );
 
         printf(
@@ -269,7 +269,7 @@ struct RawDump:public Callback {
             "%svalue = %" PRIu64 " # %.08f\n",
             spaces,
             value,
-            1e-8*value
+            satoshisToNormaForm(value)
         );
 
         printf("%sscript = '\n", spaces);

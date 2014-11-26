@@ -451,6 +451,10 @@ bool addrToHash160(
             data[0] = 33;
         #endif
 
+        #if defined(PEERCOIN)
+            data[0] = 48 + 7;
+        #endif
+
         uint8_t sha[kSHA256ByteSize];
         sha256Twice(sha, data, 1+kRIPEMD160ByteSize);
 
@@ -747,6 +751,33 @@ uint64_t getBaseReward(
     uint64_t shift = (h/210000);
     reward >>= shift;
     return reward;
+}
+
+const char *getInterestingAddr() {
+
+    const char *addr =
+
+    #if defined(BITCOIN)
+
+        "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp"
+
+    #elif defined(LITECOIN)
+
+        "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o"
+
+    #elif defined(PEERCOIN)
+
+        "PDH9AeruMUGh2JzYYTpaNtjLAcfGV5LEto"
+
+    #else
+
+        fatal("no address specified")
+
+    #endif
+    ;
+
+    warning("no addresses specified, using popular address %s", addr);
+    return addr;
 }
 
 #if defined(DARKCOIN)

@@ -119,7 +119,7 @@ struct Rewards:public Callback
             printf("============================\n");
             printf("BLOCK %d ... RAW ASCII DUMP OF FAILING SCRIPT = ", (int)currBlock);
             fwrite(outputScript, outputScriptSize, 1, stdout);
-            printf("value = %16.8f\n", value*1e-8);
+            printf("value = %16.8f\n", satoshisToNormaForm(value));
             showScript(outputScript, outputScriptSize);
             printf("============================\n\n");
             printf("\n");
@@ -132,7 +132,7 @@ struct Rewards:public Callback
         printf("%7d ", (int)currBlock);
         showHex(currTXHash);
 
-        printf(" %16.8f ", 1e-8*value);
+        printf(" %16.8f ", satoshisToNormaForm(value));
 
         if(type<0) {
             printf("######################################## ##################################\n");
@@ -177,9 +177,9 @@ struct Rewards:public Callback
         printf(
             "Summary for block %7d : baseReward=%16.8f fees=%16.8f total=%16.8f\n",
             (int)currBlock,
-            1e-8*baseReward,
-            1e-8*feesEarned,
-            1e-8*reward
+            satoshisToNormaForm(baseReward),
+            satoshisToNormaForm(feesEarned),
+            satoshisToNormaForm(reward)
         );
     }
 };

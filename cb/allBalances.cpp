@@ -322,7 +322,7 @@ struct AllBalances:public Callback
                 if(restrictMap.end()==r) continue;
             }
 
-            printf("%24.8f ", (1e-8)*addr->sum);
+            printf("%24.8f ", satoshisToNormaForm(addr->sum));
             showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
@@ -345,7 +345,7 @@ struct AllBalances:public Callback
                 auto e = addr->outputVec->end();
                 auto s = addr->outputVec->begin();
                 while(s!=e) {
-                    printf("    %24.8f ", 1e-8*s->value);
+                    printf("    %24.8f ", satoshisToNormaForm(s->value));
                     gmTime(timeBuf, s->time);
                     showHex(s->upTXHash);
                     printf("%4" PRIu64 " %s", s->outputIndex, timeBuf);

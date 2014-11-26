@@ -165,7 +165,7 @@ struct DumpTX:public Callback
             if(isGenTX) {
                 uint64_t reward = getBaseReward(currBlock);
                 printf("        generation transaction\n");
-                printf("        based on block height, reward = %.8f\n", 1e-8*reward);
+                printf("        based on block height, reward = %.8f\n", satoshisToNormaForm(reward));
                 printf("        hex dump of coinbase follows:\n\n");
                 canonicalHexDump(p, inputScriptSize, "        ");
                 valueIn += reward;
@@ -189,7 +189,7 @@ struct DumpTX:public Callback
             uint8_t buf[1 + 2*kSHA256ByteSize];
             toHex(buf, upTXHash);
             printf("        outputIndex = %" PRIu64 "\n", outputIndex);
-            printf("        value = %.8f\n", value*1e-8);
+            printf("        value = %.8f\n", satoshisToNormaForm(value));
             printf("        upTXHash = %s\n\n", buf);
             printf("        # challenge answer script, bytes=%" PRIu64 " (on downstream input) =\n", inputScriptSize);
             showScript(inputScript, inputScriptSize, 0, "        ");
@@ -247,7 +247,7 @@ struct DumpTX:public Callback
     )
     {
         if(dump) {
-            printf("        value = %.8f\n", value*1e-8);
+            printf("        value = %.8f\n", satoshisToNormaForm(value));
             printf("        challenge script, bytes=%" PRIu64 " :\n", outputScriptSize);
             showScript(outputScript, outputScriptSize, 0, "        ");
             showScriptInfo(outputScript, outputScriptSize, (const uint8_t *)"        ");
@@ -266,10 +266,10 @@ struct DumpTX:public Callback
             printf("   nbOutputs = %" PRIu64 "\n", (uint64_t)nbOutputs);
             printf("    byteSize = %" PRIu64 "\n", (uint64_t)(p - txStart));
             printf("    lockTime = %" PRIu32 "\n", (uint32_t)lockTime);
-            printf("     valueIn =  %.2f\n", valueIn*1e-8);
-            printf("    valueOut =  %.2f\n", valueOut*1e-8);
+            printf("     valueIn =  %.2f\n", satoshisToNormaForm(valueIn));
+            printf("    valueOut =  %.2f\n", satoshisToNormaForm(valueOut));
             if(!isGenTX) {
-                printf("        fees =  %.2f\n", (valueIn-valueOut)*1e-8);
+                printf("        fees =  %.2f\n", satoshisToNormaForm(valueIn-valueOut));
             }
             printf("}\n");
             ++nbDumped;

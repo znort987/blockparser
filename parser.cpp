@@ -62,6 +62,12 @@ static uint256_t gNullHash;
     static const uint32_t gExpectedMagic = 0xdead1337;
 #endif
 
+#if defined PEERCOIN
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.ppcoin/";
+    static const uint32_t gExpectedMagic = 0xe5e9e8e6;
+#endif
+
 #define DO(x) x
     static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
     static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }
@@ -317,6 +323,10 @@ static void parseTX(
     }
 
         SKIP(uint32_t, version, p);
+        #if defined(PEERCOIN)
+            SKIP(uint32_t, nTime, p);
+        #endif
+
         parseInputs<skip>(block, p, txHash);
 
         if(gNeedTXHash && !skip) {
@@ -360,6 +370,11 @@ static void parseBlock(
                     parseTX<false>(block, p);
                 }
             endTXs(p);
+
+            #if defined(PEERCOIN)
+                LOAD_VARINT(vchBlockSigSize, p);
+                p += vchBlockSigSize;
+            #endif
 
         block->releaseData();
 
@@ -627,13 +642,14 @@ static void buildBlockHeaders() {
         auto secsLeft = bytesLeft / bytesPerSec;
         fprintf(
             stderr,
-            "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs            \r",
+            "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs -- ELAPSED %.0f secs            \r",
             (100.0*baseOffset)/gChainSize,
             baseOffset/(1000.0*oneMeg),
             gChainSize/(1000.0*oneMeg),
             (int)nbBlocks,
             bytesPerSec*1e-6,
-            secsLeft
+            secsLeft,
+            elapsed*1e-6
         );
         fflush(stderr);
 

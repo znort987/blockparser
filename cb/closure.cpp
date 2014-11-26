@@ -64,8 +64,7 @@ struct Closure:public Callback
         }
 
         if(0==rootHashes.size()) {
-            const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
-            warning("no addresses specified, using satoshi's dice address %s", addr);
+            const char *addr = getInterestingAddr();
             loadKeyList(rootHashes, addr);
         }
 

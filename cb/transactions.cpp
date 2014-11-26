@@ -75,13 +75,7 @@ struct Transactions:public Callback
         }
 
         if(0==rootHashes.size()) {
-            #if defined(LITECOIN)
-                const char *addr = "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o";
-                warning("no addresses specified, using popular address %s", addr);
-            #else
-                const char *addr = "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp";
-                warning("no addresses specified, using satoshi's dice address %s", addr);
-            #endif
+            const char *addr = getInterestingAddr();
             loadKeyList(rootHashes, addr);
         }
 
@@ -121,8 +115,8 @@ struct Transactions:public Callback
                 showHex(downTXHash ? downTXHash : txHash);
                 printf(
                     "\",%17.08f,%17.08f\n",
-                    (add ? 1e-8 : -1e-8)*value,
-                    newSum*1e-8
+                    (add ? 1.0 : -1.0)*satoshisToNormaForm(value),
+                    satoshisToNormaForm(newSum)
                 );
             } else {
 
@@ -144,10 +138,10 @@ struct Transactions:public Callback
 
                 printf(
                     " %24.08f %c %24.08f = %24.08f\n",
-                    sum*1e-8,
+                    satoshisToNormaForm(sum),
                     add ? '+' : '-',
-                    value*1e-8,
-                    newSum*1e-8
+                    satoshisToNormaForm(value),
+                    satoshisToNormaForm(newSum)
                 );
             }
 
@@ -247,9 +241,9 @@ struct Transactions:public Callback
                 "    balance       = %17.08f\n"
                 "\n",
                 nbTX,
-                adds*1e-8,
-                subs*1e-8,
-                sum*1e-8
+                satoshisToNormaForm(adds),
+                satoshisToNormaForm(subs),
+                satoshisToNormaForm(sum)
             );
         }
     }

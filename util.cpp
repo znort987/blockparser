@@ -882,10 +882,17 @@ void showScriptInfo(
         uint8_t btcAddr[64];
         hash160ToAddr(btcAddr, pubKeyHash);
         printf(
-            "%sscriptPaysTo = '%s'\n",
+            "%sscriptPaysToAddr = '%s'\n",
             indent,
             btcAddr
         );
+        printf(
+            "%sscriptPaysToHash160 = '%s",
+            indent,
+            btcAddr
+        );
+        showHex(pubKeyHash, kRIPEMD160ByteSize, false);
+        printf("'\n");
     }
 }
 

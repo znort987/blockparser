@@ -19,14 +19,12 @@
     struct Hash256Hasher { uint64_t operator()( const Hash256 &hash256) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash256); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
 
     struct Hash160Equal {
-
         bool operator()(
             const Hash160 &ha,
             const Hash160 &hb
         ) const {
             uintptr_t ia = reinterpret_cast<uintptr_t>(ha);
             uintptr_t ib = reinterpret_cast<uintptr_t>(hb);
-
             const uint64_t *a0 = reinterpret_cast<const uint64_t *>(ia);
             const uint64_t *b0 = reinterpret_cast<const uint64_t *>(ib);
             if(unlikely(a0[0]!=b0[0])) return false;
@@ -35,95 +33,25 @@
             const uint32_t *a1 = reinterpret_cast<const uint32_t *>(ia);
             const uint32_t *b1 = reinterpret_cast<const uint32_t *>(ib);
             if(unlikely(a1[4]!=b1[4])) return false;
-
             return true;
         }
     };
 
     struct Hash256Equal {
-
         bool operator()(
             const Hash256 &ha,
             const Hash256 &hb
         ) const {
             uintptr_t ia = reinterpret_cast<uintptr_t>(ha);
             uintptr_t ib = reinterpret_cast<uintptr_t>(hb);
-
             const uint64_t *a = reinterpret_cast<const uint64_t *>(ia);
             const uint64_t *b = reinterpret_cast<const uint64_t *>(ib);
-
             if(unlikely(a[0]!=b[0])) return false;
             if(unlikely(a[1]!=b[1])) return false;
             if(unlikely(a[2]!=b[2])) return false;
             if(unlikely(a[3]!=b[3])) return false;
             return true;
         }
-    };
-
-    struct Map {
-        int fd;
-        uint64_t size;
-        std::string name;
-    };
-
-    struct Block {
-    private:
-        mutable uint8_t *data;
-
-    public:
-        const uint8_t *hash;
-        const Map     *map;
-        uint64_t      size;
-        uint64_t      offset;
-        int64_t       height;
-        Block         *prev;
-        Block         *next;
-
-        const uint8_t *getData() const {
-            if(0==data) {
-                auto where = lseek64(map->fd, offset, SEEK_SET);
-                if(where!=(signed)offset) {
-                    sysErrFatal(
-                        "failed to seek into block chain file %s",
-                        map->name.c_str()
-                    );
-                }
-
-                data = (uint8_t*)malloc(size);
-                auto sz = read(map->fd, data, size);
-                if(sz!=(signed)size) {
-                    //fatal("can't map block");
-                }
-            }
-            return data;
-        }
-
-        void releaseData() const {
-            free(data);
-            data = 0;
-        }
-
-        void init(
-            const uint8_t *_hash,
-            const Map     *_map,
-            size_t         _size,
-            Block         *_prev,
-            uint64_t       _offset      
-        ) {
-            data = 0;
-            hash = _hash;
-            map = _map;
-            size = _size;
-            offset = _offset;
-            height = -1;
-            prev = _prev;
-            next = 0;
-        }
-    };
-
-    struct TX {
-        const Block *block;
-        size_t outputsOffset;
     };
 
     template<
@@ -137,27 +65,109 @@
         enum { kPageByteSize = sizeof(T)*kPageSize };
 
         static uint8_t *alloc() {
-
             if(unlikely(poolEnd<=pool)) {
                 pool = (uint8_t*)malloc(kPageByteSize);
                 poolEnd = kPageByteSize + pool;
             }
-
             uint8_t *result = pool;
             pool += sizeof(T);
             return result;
         }
     };
 
-    static inline TX      *allocTX()      { return    (TX*)PagedAllocator<       TX>::alloc(); }
-    static inline Block   *allocBlock()   { return (Block*)PagedAllocator<    Block>::alloc(); }
-    static inline uint8_t *allocHash256() { return         PagedAllocator<uint256_t>::alloc(); }
-    static inline uint8_t *allocHash160() { return         PagedAllocator<uint160_t>::alloc(); }
+    static inline uint8_t *allocHash256() { return PagedAllocator<uint256_t>::alloc(); }
+    static inline uint8_t *allocHash160() { return PagedAllocator<uint160_t>::alloc(); }
+
+    struct Map {
+        int fd;
+        uint64_t size;
+        std::string name;
+    };
+
+    struct Chunk {
+    private:
+        const Map *map;
+        size_t size;
+        size_t offset;
+        mutable uint8_t *data;
+
+    public:
+        void init(
+            const Map *_map,
+            size_t _size,
+            size_t _offset
+        ) {
+            data = 0;
+            map = _map;
+            size = _size;
+            offset = _offset;
+        }
+
+        const uint8_t *getData() const {
+            if(likely(0==data)) {
+                auto where = lseek64(map->fd, offset, SEEK_SET);
+                if(where!=(signed)offset) {
+                    sysErrFatal(
+                        "failed to seek into block chain file %s",
+                        map->name.c_str()
+                    );
+                }
+                data = (uint8_t*)malloc(size);
+
+                auto sz = read(map->fd, data, size);
+                if(sz!=(signed)size) {
+                    //fatal("can't map block");
+                }
+            }
+            return data;
+        }
+
+        void releaseData() const {
+            free(data);
+            data = 0;
+        }
+
+        size_t getSize() const    { return size;   }
+        size_t getOffset() const  { return offset; }
+        const Map *getMap() const { return map;    }
+
+        static Chunk *alloc() {
+            return (Chunk*)PagedAllocator<Chunk>::alloc();
+        }
+    };
+
+    struct Block {
+
+        Chunk         *chunk;
+        const uint8_t *hash;
+        int64_t       height;
+        Block         *prev;
+        Block         *next;
+
+        void init(
+            const uint8_t *_hash,
+            const Map     *_map,
+            size_t         _size,
+            Block         *_prev,
+            uint64_t       _offset      
+        ) {
+            chunk = Chunk::alloc();
+            chunk->init(_map, _size, _offset);
+
+            hash = _hash;
+            height = -1;
+            prev = _prev;
+            next = 0;
+        }
+
+        static Block *alloc() {
+            return (Block*)PagedAllocator<Block>::alloc();
+        }
+    };
 
     #if defined(WANT_DENSE)
 
         // Faster, uses more RAM
-
         #include <google/dense_hash_map>
 
         template<
@@ -188,7 +198,6 @@
     #else
 
         // Slower, uses less RAM
-
         #include <google/sparse_hash_map>
 
         template<

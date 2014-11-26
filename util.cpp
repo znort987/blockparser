@@ -27,8 +27,8 @@ template<> uint8_t *PagedAllocator<uint256_t>::poolEnd = 0;
 template<> uint8_t *PagedAllocator<uint160_t>::pool = 0;
 template<> uint8_t *PagedAllocator<uint160_t>::poolEnd = 0;
 
-template<> uint8_t *PagedAllocator<TX>::pool = 0;
-template<> uint8_t *PagedAllocator<TX>::poolEnd = 0;
+template<> uint8_t *PagedAllocator<Chunk>::pool = 0;
+template<> uint8_t *PagedAllocator<Chunk>::poolEnd = 0;
 
 double usecs() {
     struct timeval t;

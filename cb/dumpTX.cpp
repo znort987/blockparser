@@ -91,7 +91,7 @@ struct DumpTX:public Callback
     {
         currBlock = b->height;
 
-        const uint8_t *p = b->getData();
+        const uint8_t *p = b->chunk->getData();
         SKIP(uint32_t, version, p);
         SKIP(uint256_t, prevBlkHash, p);
         SKIP(uint256_t, blkMerkleRoot, p);

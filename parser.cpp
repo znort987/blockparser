@@ -13,8 +13,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-typedef GoogMap<Hash256, const TX*, Hash256Hasher, Hash256Equal>::Map TXMap;
-typedef GoogMap<Hash256,    Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
+typedef GoogMap<Hash256, Chunk*, Hash256Hasher, Hash256Equal>::Map TXOMap;
+typedef GoogMap<Hash256, Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
 
 static bool gNeedTXHash;
 static Callback *gCallback;
@@ -22,7 +22,7 @@ static Callback *gCallback;
 static const Map *gCurMap;
 static std::vector<Map> mapVec;
 
-static TXMap gTXMap;
+static TXOMap gTXOMap;
 static BlockMap gBlockMap;
 static uint8_t empty[kSHA256ByteSize] = { 0x42 };
 
@@ -236,13 +236,12 @@ static void parseInput(
     }
 
         auto upTXHash = p;
-        const TX *upTX = 0;
-
+        const Chunk *upTX = 0;
         if(gNeedTXHash && !skip) {
             auto isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
             if(likely(false==isGenTX)) {
-                auto i = gTXMap.find(upTXHash);
-                if(unlikely(gTXMap.end()==i)) {
+                auto i = gTXOMap.find(upTXHash);
+                if(unlikely(gTXOMap.end()==i)) {
                     errFatal("failed to locate upstream transaction");
                 }
                 upTX = i->second;
@@ -254,9 +253,8 @@ static void parseInput(
         LOAD_VARINT(inputScriptSize, p);
 
         if(!skip && 0!=upTX) {
-            const uint8_t *upBlockData = upTX->block->getData();
-                const uint8_t *upTXOutputs = upTX->outputsOffset + upBlockData;
-                auto inputScript = p;
+            auto inputScript = p;
+            auto upTXOutputs = upTX->getData();
                 parseOutputs<false, true>(
                     upTXOutputs,
                     upTXHash,
@@ -266,9 +264,7 @@ static void parseInput(
                     inputScript,
                     inputScriptSize
                 );
-            if(block!=upTX->block) {
-                upTX->block->releaseData();
-            }
+            upTX->releaseData();
         }
 
         p += inputScriptSize;
@@ -323,20 +319,33 @@ static void parseTX(
     }
 
         SKIP(uint32_t, version, p);
+
         #if defined(PEERCOIN)
             SKIP(uint32_t, nTime, p);
         #endif
 
         parseInputs<skip>(block, p, txHash);
 
+        Chunk *txo = 0;
+        size_t txoOffset = -1;
+        const uint8_t *outputsStart = p;
         if(gNeedTXHash && !skip) {
-            TX *tx = allocTX();
-            tx->block = block;
-            tx->outputsOffset = p - block->getData();
-            gTXMap[txHash] = tx;
+            txo = Chunk::alloc();
+            txoOffset = block->chunk->getOffset() + (p - block->chunk->getData());
+            gTXOMap[txHash] = txo;
         }
 
         parseOutputs<skip, false>(p, txHash);
+
+        if(txo) {
+            size_t txoSize = p - outputsStart;
+            txo->init(
+                block->chunk->getMap(),
+                txoSize,
+                txoOffset
+            );
+        }
+
         SKIP(uint32_t, lockTime, p);
 
     if(!skip) {
@@ -348,8 +357,7 @@ static void parseBlock(
     const Block *block
 ) {
     startBlock(block);
-
-        auto p = block->getData();
+        auto p = block->chunk->getData();
 
             auto header = p;
             SKIP(uint32_t, version, p);
@@ -376,8 +384,7 @@ static void parseBlock(
                 p += vchBlockSigSize;
             #endif
 
-        block->releaseData();
-
+        block->chunk->releaseData();
     endBlock(block);
 }
 
@@ -456,20 +463,28 @@ static void findBlockParent(
     Block *b
 )
 {
-    auto where = lseek64(b->map->fd, b->offset, SEEK_SET);
-    if(where!=(signed)b->offset) {
+    auto where = lseek64(
+        b->chunk->getMap()->fd,
+        b->chunk->getOffset(),
+        SEEK_SET
+    );
+    if(where!=(signed)b->chunk->getOffset()) {
         sysErrFatal(
             "failed to seek into block chain file %s",
-            b->map->name.c_str()
+            b->chunk->getMap()->name.c_str()
         );
     }
 
     uint8_t buf[gHeaderSize];
-    auto nbRead = read(b->map->fd, buf, gHeaderSize);
+    auto nbRead = read(
+        b->chunk->getMap()->fd,
+        buf,
+        gHeaderSize
+    );
     if(nbRead<(signed)gHeaderSize) {
         sysErrFatal(
             "failed to read from block chain file %s",
-            b->map->name.c_str()
+            b->chunk->getMap()->name.c_str()
         );
     }
 
@@ -627,7 +642,7 @@ static void buildBlockHeaders() {
                 break;
             }
 
-            auto block = allocBlock();
+            auto block = Block::alloc();
             block->init(hash, &map, blockSize, prevBlock, blockOffset);
             gBlockMap[hash] = block;
             endBlock((uint8_t*)0);
@@ -679,7 +694,7 @@ static void buildBlockHeaders() {
 }
 
 static void buildNullBlock() {
-    gBlockMap[gNullHash.v] = gNullBlock = allocBlock();
+    gBlockMap[gNullHash.v] = gNullBlock = Block::alloc();
     gNullBlock->init(gNullHash.v, 0, 0, 0, 0);
     gNullBlock->height = 0;
 }
@@ -689,7 +704,7 @@ static void initHashtables() {
 
     info("initializing hash tables");
 
-    gTXMap.setEmptyKey(empty);
+    gTXOMap.setEmptyKey(empty);
     gBlockMap.setEmptyKey(empty);
 
     gChainSize = 0;
@@ -699,7 +714,7 @@ static void initHashtables() {
 
     auto txPerBytes = (52149122.0 / 26645195995.0);
     auto nbTxEstimate = (size_t)(1.1 * txPerBytes * gChainSize);
-    gTXMap.resize(nbTxEstimate);
+    gTXOMap.resize(nbTxEstimate);
 
     auto blocksPerBytes = (331284.0 / 26645195995.0);
     auto nbBlockEstimate = (size_t)(1.1 * blocksPerBytes * gChainSize);

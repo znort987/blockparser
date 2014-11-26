@@ -80,19 +80,19 @@ struct RawDump:public Callback {
         printf(
             "%ssize = %" PRIu64 "\n",
             spaces,
-            b->size
+            b->chunk->getSize()
         );
 
         printf(
             "%soffset = %" PRIu64 "\n",
             spaces,
-            b->offset
+            b->chunk->getOffset()
         );
 
         printf(
             "%smap = '%s'\n",
             spaces,
-            b->map->name.c_str()
+            b->chunk->getMap()->name.c_str()
         );
 
         printf("%sblockHash = '", spaces);

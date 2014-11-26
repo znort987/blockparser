@@ -390,7 +390,7 @@ struct AllBalances:public Callback
     {
         curBlock = b;
 
-        const uint8_t *p = b->getData();
+        const uint8_t *p = b->chunk->getData();
         const uint8_t *sz = -4 + p;
         LOAD(uint32_t, size, sz);
         offset += size;

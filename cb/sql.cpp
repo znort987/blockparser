@@ -184,7 +184,7 @@ struct SQLDump:public Callback
     {
         if(0<=cutoffBlock && cutoffBlock<b->height) wrapup();
 
-        auto p = b->getData();
+        auto p = b->chunk->getData();
         uint8_t blockHash[kSHA256ByteSize];
         sha256Twice(blockHash, p, 80);
 

@@ -288,6 +288,18 @@
         #endif
     );
 
+    static inline double satoshisToNormaForm(
+        uint64_t satoshis
+    ) {
+        return satoshis*
+            #if defined(PEERCOIN)
+                1e-6
+            #else
+                1e-8
+            #endif
+        ;
+    }
+
     bool addrToHash160(
               uint8_t *hash160,
         const uint8_t *addr,

@@ -10,6 +10,7 @@ INC =                           \
         -DBITCOIN               \
         -DWANT_DENSE            \
 
+#-DCLAM                  \
 #-DBITCOIN               \
 #-DDARKCOIN              \
 #-DLITECOIN              \
@@ -211,6 +212,20 @@ all:parser
 	@${CC} -MD ${INC} ${COPT}  -w -c h9/skein.c -o .objs/skein.o
 	@mv .objs/skein.d .deps
 
+.objs/pbkdf2.o : scrypt/pbkdf2.cpp
+	@echo c++ -- scrypt/pbkdf2.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c scrypt/pbkdf2.cpp -o .objs/pbkdf2.o
+	@mv .objs/pbkdf2.d .deps
+
+.objs/scrypt.o : scrypt/scrypt.cpp
+	@echo c++ -- scrypt/scrypt.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c scrypt/scrypt.cpp -o .objs/scrypt.o
+	@mv .objs/scrypt.d .deps
+
 .objs/opcodes.o : opcodes.cpp
 	@echo c++ -- opcodes.cpp
 	@mkdir -p .deps
@@ -276,6 +291,9 @@ OBJS=                       \
     .objs/shavite.o         \
     .objs/simd.o            \
     .objs/skein.o           \
+                            \
+    .objs/pbkdf2.o          \
+    .objs/scrypt.o          \
                             \
     .objs/callback.o        \
     .objs/opcodes.o         \

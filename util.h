@@ -306,6 +306,14 @@
         );
     #endif
 
+    #if defined(CLAM)
+        void scrypt(
+                  uint8_t *h9r,
+            const uint8_t *buf,
+            uint64_t      size
+        );
+    #endif
+
     static inline void sha256Twice(
               uint8_t *sha,
         const uint8_t *buf,
@@ -349,6 +357,14 @@
 
         #if defined(PEERCOIN)
             uint8_t type = 48 + 7
+        #endif
+
+        #if defined(CLAM)
+            uint8_t type = 137
+        #endif
+
+        #if defined(DOGECOIN)
+            uint8_t type = 30
         #endif
     );
 

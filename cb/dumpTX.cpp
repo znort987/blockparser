@@ -22,6 +22,7 @@ struct DumpTX:public Callback
     uint64_t nbInputs;
     uint64_t nbOutputs;
     uint64_t currBlock;
+    uint32_t txVersion;
     uint64_t nbDumped;
     const uint8_t *txStart;
     std::vector<uint256_t> rootHashes;
@@ -104,6 +105,12 @@ struct DumpTX:public Callback
         const uint8_t *hash
     )
     {
+        #if defined(CLAM)
+            auto pBis = p;
+            LOAD(uint32_t, nVersion, pBis);
+            txVersion = nVersion;
+        #endif
+
         txStart = p;
         nbInputs = 0;
         nbOutputs = 0;
@@ -220,8 +227,19 @@ struct DumpTX:public Callback
 
     virtual void endOutputs(
         const uint8_t *p
-    )
-    {
+    ) {
+        #if defined(CLAM)
+            if(1<txVersion) {
+                LOAD_VARINT(strCLAMSpeechLen, p);
+                printf("    comment = '\n");
+                    canonicalHexDump(
+                        p,
+                        strCLAMSpeechLen,
+                        "    "
+                    );
+                printf("'\n");
+            }
+        #endif
     }
 
     virtual void startOutput(

@@ -68,6 +68,12 @@ static uint256_t gNullHash;
     static const uint32_t gExpectedMagic = 0xe5e9e8e6;
 #endif
 
+#if defined CLAM
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.clam/";
+    static const uint32_t gExpectedMagic = 0x15352203;
+#endif
+
 #define DO(x) x
     static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
     static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }
@@ -318,9 +324,13 @@ static void parseTX(
         startTX(p, txHash);
     }
 
-        SKIP(uint32_t, version, p);
+        #if defined(CLAM)
+            LOAD(uint32_t, nVersion, p);
+        #else
+            SKIP(uint32_t, nVersion, p);
+        #endif
 
-        #if defined(PEERCOIN)
+        #if defined(PEERCOIN) || defined(CLAM)
             SKIP(uint32_t, nTime, p);
         #endif
 
@@ -347,6 +357,13 @@ static void parseTX(
         }
 
         SKIP(uint32_t, lockTime, p);
+
+        #if defined(CLAM)
+            if(1<nVersion) {
+                LOAD_VARINT(strCLAMSpeechLen, p);
+                p += strCLAMSpeechLen;
+            }
+        #endif
 
     if(!skip) {
         endTX(p);
@@ -379,7 +396,7 @@ static void parseBlock(
                 }
             endTXs(p);
 
-            #if defined(PEERCOIN)
+            #if defined(PEERCOIN) || defined(CLAM)
                 LOAD_VARINT(vchBlockSigSize, p);
                 p += vchBlockSigSize;
             #endif
@@ -588,8 +605,17 @@ static void getBlockHeader(
     prev = 0;
 
     hash = allocHash256();
+
     #if defined(DARKCOIN)
         h9(hash, p, gHeaderSize);
+    #elif defined(CLAM)
+        auto pBis = p;
+        LOAD(uint32_t, nVersion, pBis);
+        if(6<nVersion) {
+            sha256Twice(hash, p, gHeaderSize);
+        } else {
+            scrypt(hash, p, gHeaderSize);
+        }
     #else
         sha256Twice(hash, p, gHeaderSize);
     #endif

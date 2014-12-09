@@ -455,6 +455,14 @@ bool addrToHash160(
             data[0] = 48 + 7;
         #endif
 
+        #if defined(CLAM)
+            data[0] = 137;
+        #endif
+
+        #if defined(DOGECOIN)
+            data[0] = 30;
+        #endif
+
         uint8_t sha[kSHA256ByteSize];
         sha256Twice(sha, data, 1+kRIPEMD160ByteSize);
 
@@ -769,6 +777,10 @@ const char *getInterestingAddr() {
 
         "PDH9AeruMUGh2JzYYTpaNtjLAcfGV5LEto"
 
+    #elif defined(CLAM)
+
+        "xQKq1LwJQQkg1A5cmB9znGozCKLkAaKJHW"
+
     #else
 
         fatal("no address specified")
@@ -791,6 +803,22 @@ const char *getInterestingAddr() {
     ) {
         uint256 hash = Hash9(buf, size + buf);
         memcpy(h9r, &hash, sizeof(hash));
+    }
+
+#endif
+
+#if defined CLAM
+
+    #include <scrypt/scrypt.h>
+
+    void scrypt(
+              uint8_t *scr,
+        const uint8_t *buf,
+        uint64_t      size
+    ) {
+        unsigned char scratchpad[SCRYPT_BUFFER_SIZE];
+        uint256 hash = scrypt_nosalt(buf, size, scratchpad);
+        memcpy(scr, &hash, sizeof(hash));
     }
 
 #endif

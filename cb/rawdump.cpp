@@ -12,6 +12,7 @@ struct RawDump:public Callback {
     uint32_t inputId;
     uint32_t outputId;
     uint32_t currBlock;
+    uint32_t txVersion;
     uint32_t txIdInBlock;
     uint32_t indentLevel;
     uint8_t spaces[1024];
@@ -113,12 +114,19 @@ struct RawDump:public Callback {
         const uint8_t *p,
         const uint8_t *hash
     ) {
+
         printf(
             "%stx%d = {\n",
             spaces,
             txIdInBlock
         );
         push();
+
+        #if defined(CLAM)
+            auto pBis = p;
+            LOAD(uint32_t, nVersion, pBis);
+            txVersion = nVersion;
+        #endif
 
         printf("%stxHash = '", spaces);
         showHex(hash);
@@ -287,6 +295,21 @@ struct RawDump:public Callback {
     virtual void endOutputs(
         const uint8_t *p
     ) {
+        #if defined(CLAM)
+            if(1<txVersion) {
+                LOAD_VARINT(strCLAMSpeechLen, p);
+                printf("%stxComment = '\n", spaces);
+                    push();
+                        canonicalHexDump(
+                            p,
+                            strCLAMSpeechLen,
+                            (const char *)spaces
+                        );
+                    pop();
+                printf("%s'\n", spaces);
+            }
+        #endif
+
         pop();
         printf("%s}\n", spaces);
     }

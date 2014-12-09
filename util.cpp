@@ -915,9 +915,8 @@ void showScriptInfo(
             btcAddr
         );
         printf(
-            "%sscriptPaysToHash160 = '%s",
-            indent,
-            btcAddr
+            "%sscriptPaysToHash160 = '",
+            indent
         );
         showHex(pubKeyHash, kRIPEMD160ByteSize, false);
         printf("'\n");

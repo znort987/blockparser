@@ -306,7 +306,7 @@
         );
     #endif
 
-    #if defined(CLAM)
+    #if defined(CLAM) || defined(JUMBUCKS)
         void scrypt(
                   uint8_t *h9r,
             const uint8_t *buf,
@@ -361,6 +361,10 @@
 
         #if defined(CLAM)
             uint8_t type = 137
+        #endif
+
+        #if defined(JUMBUCKS)
+            uint8_t type = 43
         #endif
 
         #if defined(DOGECOIN)

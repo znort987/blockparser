@@ -13,6 +13,7 @@ INC =                           \
 #-DCLAM                  \
 #-DBITCOIN               \
 #-DDARKCOIN              \
+#-DJUMBUCKS              \
 #-DLITECOIN              \
 #-DPEERCOIN              \
 #-DFEDORACOIN            \

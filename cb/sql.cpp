@@ -11,40 +11,6 @@
 static uint8_t empty[kSHA256ByteSize] = { 0x42 };
 typedef GoogMap<Hash256, uint64_t, Hash256Hasher, Hash256Equal>::Map OutputMap;
 
-static void writeEscapedBinaryBufferRev(
-    FILE          *f,
-    const uint8_t *p,
-    size_t        n
-)
-{
-    p += n;
-
-    while(n--) {
-        uint8_t c = *(--p);
-             if(unlikely(0==c))  { fputc('\\', f); c = '0'; }
-        else if(unlikely('\n'==c)) fputc('\\', f);
-        else if(unlikely('\t'==c)) fputc('\\', f);
-        else if(unlikely('\\'==c)) fputc('\\', f);
-        fputc(c, f);
-    }
-}
-
-static void writeEscapedBinaryBuffer(
-    FILE          *f,
-    const uint8_t *p,
-    size_t        n
-)
-{
-    while(n--) {
-        uint8_t c = *(p++);
-             if(unlikely(0==c))  { fputc('\\', f); c = '0'; }
-        else if(unlikely('\n'==c)) fputc('\\', f);
-        else if(unlikely('\t'==c)) fputc('\\', f);
-        else if(unlikely('\\'==c)) fputc('\\', f);
-        fputc(c, f);
-    }
-}
-
 struct SQLDump:public Callback
 {
     FILE *txFile;

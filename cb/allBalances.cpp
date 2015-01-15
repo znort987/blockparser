@@ -56,6 +56,7 @@ struct CompareAddr
 struct AllBalances:public Callback
 {
     bool detailed;
+    bool csv;
     int64_t limit;
     uint64_t offset;
     int64_t showAddr;
@@ -106,6 +107,12 @@ struct AllBalances:public Callback
             .set_default(false)
             .help("also show all unspent outputs")
         ;
+        parser
+            .add_option("-c", "--csv")
+            .action("store_true")
+            .set_default(false)
+            .help("produce CSV-formatted output instead column-formatted")
+        ;
     }
 
     virtual const char                   *name() const         { return "allBalances"; }
@@ -138,6 +145,7 @@ struct AllBalances:public Callback
         showAddr = values.get("withAddr");
         detailed = values.get("detailed");
         limit = values.get("limit");
+        csv = values.get("csv");
 
         auto args = parser.args();
         for(size_t i=1; i<args.size(); ++i) {
@@ -296,19 +304,22 @@ struct AllBalances:public Callback
         CompareAddr compare;
         auto e = allAddrs.end();
         auto s = allAddrs.begin();
-        info("sorting by balance ...");
-        std::sort(s, e, compare);
+        if (false==csv) {
+            info("sorting by balance ...");
+            std::sort(s, e, compare);
+        }
 
         uint64_t nbRestricts = (uint64_t)restrictMap.size();
         if(0==nbRestricts) info("dumping all balances ...");
         else               info("dumping balances for %" PRIu64 " addresses ...", nbRestricts);
 
-        printf(
-            "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-            "                 Balance                                  Hash160                             Base58   nbIn lastTimeIn                 nbOut lastTimeOut\n"
-            "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-        );
-
+        if (false==csv) {
+            printf(
+                "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+                "                 Balance                                  Hash160                             Base58   nbIn lastTimeIn                 nbOut lastTimeOut\n"
+                "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+            );
+        }
         int64_t i = 0;
         int64_t nonZeroCnt = 0;
         while(likely(s<e)) {
@@ -322,41 +333,51 @@ struct AllBalances:public Callback
                 if(restrictMap.end()==r) continue;
             }
 
-            printf("%24.8f ", satoshisToNormaForm(addr->sum));
-            showHex(addr->hash.v, kRIPEMD160ByteSize, false);
+            if (csv) printf("%" PRIu64 "\t", addr->sum);
+            else printf("%24.8f ", satoshisToNormaForm(addr->sum));
+
+            if (csv) {
+                printEscapedBinaryBuffer(addr->hash.v, kRIPEMD160ByteSize);
+                putchar('\t');
+            } else showHex(addr->hash.v, kRIPEMD160ByteSize, false);
             if(0<addr->sum) ++nonZeroCnt;
 
-            if(i<showAddr || 0!=nbRestricts) {
-                uint8_t buf[64];
-                hash160ToAddr(buf, addr->hash.v);
-                printf(" %s", buf);
+            if (csv) {
+                printf("%" PRIu64 "\t%" PRIu32 "\t%" PRIu64 "\t%" PRIu32 "\n",
+                    addr->nbIn, addr->lastIn, addr->nbOut, addr->lastOut);
             } else {
-                printf(" XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-            }
+                if(i<showAddr || 0!=nbRestricts) {
+                    uint8_t buf[64];
+                    hash160ToAddr(buf, addr->hash.v);
+                    printf(" %s", buf);
+                } else {
+                    printf(" XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+                }
 
-            char timeBuf[256];
-            gmTime(timeBuf, addr->lastIn);
-            printf(" %6" PRIu64 " %s ", addr->nbIn, timeBuf);
+                char timeBuf[256];
+                gmTime(timeBuf, addr->lastIn);
+                printf(" %6" PRIu64 " %s ", addr->nbIn, timeBuf);
 
-            gmTime(timeBuf, addr->lastOut);
-            printf(" %6" PRIu64 " %s\n", addr->nbOut, timeBuf);
+                gmTime(timeBuf, addr->lastOut);
+                printf(" %6" PRIu64 " %s\n", addr->nbOut, timeBuf);
 
-            if(detailed) {
-                auto e = addr->outputVec->end();
-                auto s = addr->outputVec->begin();
-                while(s!=e) {
-                    printf("    %24.8f ", satoshisToNormaForm(s->value));
-                    gmTime(timeBuf, s->time);
-                    showHex(s->upTXHash);
-                    printf("%4" PRIu64 " %s", s->outputIndex, timeBuf);
-                    if(s->downTXHash) {
-                        printf(" -> %4" PRIu64 " ", s->inputIndex);
+                if(detailed) {
+                    auto e = addr->outputVec->end();
+                    auto s = addr->outputVec->begin();
+                    while(s!=e) {
+                        printf("    %24.8f ", satoshisToNormaForm(s->value));
+                        gmTime(timeBuf, s->time);
                         showHex(s->upTXHash);
+                        printf("%4" PRIu64 " %s", s->outputIndex, timeBuf);
+                        if(s->downTXHash) {
+                            printf(" -> %4" PRIu64 " ", s->inputIndex);
+                            showHex(s->upTXHash);
+                        }
+                        printf("\n");
+                        ++s;
                     }
                     printf("\n");
-                    ++s;
                 }
-                printf("\n");
             }
 
             ++i;

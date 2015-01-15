@@ -969,3 +969,35 @@ void writeEscapedBinaryBuffer(
     }
 }
 
+void printEscapedBinaryBufferRev(
+    const uint8_t *p,
+    size_t        n
+)
+{
+    p += n;
+
+    while(n--) {
+        uint8_t c = *(--p);
+             if(unlikely(0==c))  { putchar('\\'); c = '0'; }
+        else if(unlikely('\n'==c)) putchar('\\');
+        else if(unlikely('\t'==c)) putchar('\\');
+        else if(unlikely('\\'==c)) putchar('\\');
+        putchar(c);
+    }
+}
+
+void printEscapedBinaryBuffer(
+    const uint8_t *p,
+    size_t        n
+)
+{
+    while(n--) {
+        uint8_t c = *(p++);
+             if(unlikely(0==c))  { putchar('\\'); c = '0'; }
+        else if(unlikely('\n'==c)) putchar('\\');
+        else if(unlikely('\t'==c)) putchar('\\');
+        else if(unlikely('\\'==c)) putchar('\\');
+        putchar(c);
+    }
+}
+

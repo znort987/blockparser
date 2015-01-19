@@ -773,6 +773,10 @@ const char *getInterestingAddr() {
 
         "LKvTVnkK2rAkJXfgPdkaDRgvEGvazxWS9o"
 
+    #elif defined(DARKCOIN)
+
+        "XnuCAYmAiVHE6Xv3D7Xw685wWzqtcfexLh"
+
     #elif defined(PEERCOIN)
 
         "PDH9AeruMUGh2JzYYTpaNtjLAcfGV5LEto"

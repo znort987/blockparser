@@ -459,6 +459,10 @@ bool addrToHash160(
             data[0] = 137;
         #endif
 
+        #if defined(JUMBUCKS)
+            data[0] = 43;
+        #endif
+
         #if defined(DOGECOIN)
             data[0] = 30;
         #endif
@@ -785,6 +789,10 @@ const char *getInterestingAddr() {
 
         "xQKq1LwJQQkg1A5cmB9znGozCKLkAaKJHW"
 
+    #elif defined(JUMBUCKS)
+
+        "JhbrvAmM7kNpwA6wD5KoAsbtikLWWMNPcM"
+
     #else
 
         fatal("no address specified")
@@ -811,7 +819,7 @@ const char *getInterestingAddr() {
 
 #endif
 
-#if defined CLAM
+#if defined(CLAM) || defined(JUMBUCKS)
 
     #include <scrypt/scrypt.h>
 

@@ -74,6 +74,12 @@ static uint256_t gNullHash;
     static const uint32_t gExpectedMagic = 0x15352203;
 #endif
 
+#if defined JUMBUCKS
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.coinmarketscoin/";
+    static const uint32_t gExpectedMagic = 0xb6f1f4fc;
+#endif
+
 #define DO(x) x
     static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
     static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }
@@ -330,7 +336,7 @@ static void parseTX(
             SKIP(uint32_t, nVersion, p);
         #endif
 
-        #if defined(PEERCOIN) || defined(CLAM)
+        #if defined(PEERCOIN) || defined(CLAM) || defined(JUMBUCKS)
             SKIP(uint32_t, nTime, p);
         #endif
 
@@ -396,7 +402,7 @@ static void parseBlock(
                 }
             endTXs(p);
 
-            #if defined(PEERCOIN) || defined(CLAM)
+            #if defined(PEERCOIN) || defined(CLAM) || defined(JUMBUCKS)
                 LOAD_VARINT(vchBlockSigSize, p);
                 p += vchBlockSigSize;
             #endif
@@ -616,6 +622,8 @@ static void getBlockHeader(
         } else {
             scrypt(hash, p, gHeaderSize);
         }
+    #elif defined(JUMBUCKS)
+        scrypt(hash, p, gHeaderSize);
     #else
         sha256Twice(hash, p, gHeaderSize);
     #endif

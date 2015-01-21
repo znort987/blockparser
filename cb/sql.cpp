@@ -77,7 +77,7 @@ struct SQLDump:public Callback
         const char *argv[]
     )
     {
-        txID = 0;
+        txID = -1;
         blkID = 0;
         inputID = 0;
         outputID = 0;
@@ -221,7 +221,7 @@ struct SQLDump:public Callback
         // id BIGINT PRIMARY KEY
         // hash BINARY(32)
         // blockID BIGINT
-        fprintf(txFile, "%" PRIu64 "\t", txID++);
+        fprintf(txFile, "%" PRIu64 "\t", ++txID);
 
         writeEscapedBinaryBuffer(txFile, hash, kSHA256ByteSize);
         fputc('\t', txFile);

@@ -55,8 +55,8 @@ struct CompareAddr
 
 struct AllBalances:public Callback
 {
-    bool detailed;
     bool csv;
+    bool detailed;
     int64_t limit;
     uint64_t offset;
     int64_t showAddr;
@@ -304,22 +304,26 @@ struct AllBalances:public Callback
         CompareAddr compare;
         auto e = allAddrs.end();
         auto s = allAddrs.begin();
-        if (false==csv) {
+        if(false==csv) {
             info("sorting by balance ...");
             std::sort(s, e, compare);
         }
 
         uint64_t nbRestricts = (uint64_t)restrictMap.size();
-        if(0==nbRestricts) info("dumping all balances ...");
-        else               info("dumping balances for %" PRIu64 " addresses ...", nbRestricts);
+        if(0==nbRestricts) {
+            info("dumping all balances ...");
+        } else {
+            info("dumping balances for %" PRIu64 " addresses ...", nbRestricts);
+        }
 
-        if (false==csv) {
+        if(false==csv) {
             printf(
                 "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
                 "                 Balance                                  Hash160                             Base58   nbIn lastTimeIn                 nbOut lastTimeOut\n"
                 "---------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
             );
         }
+
         int64_t i = 0;
         int64_t nonZeroCnt = 0;
         while(likely(s<e)) {
@@ -333,18 +337,31 @@ struct AllBalances:public Callback
                 if(restrictMap.end()==r) continue;
             }
 
-            if (csv) printf("%" PRIu64 "\t", addr->sum);
-            else printf("%24.8f ", satoshisToNormaForm(addr->sum));
+            if(csv) {
+                printf("%" PRIu64 "\t", addr->sum);
+            } else {
+                printf("%24.8f ", satoshisToNormaForm(addr->sum));
+            }
 
-            if (csv) {
+            if(csv) {
                 printEscapedBinaryBuffer(addr->hash.v, kRIPEMD160ByteSize);
                 putchar('\t');
-            } else showHex(addr->hash.v, kRIPEMD160ByteSize, false);
-            if(0<addr->sum) ++nonZeroCnt;
+            } else {
+                showHex(addr->hash.v, kRIPEMD160ByteSize, false);
+            }
 
-            if (csv) {
-                printf("%" PRIu64 "\t%" PRIu32 "\t%" PRIu64 "\t%" PRIu32 "\n",
-                    addr->nbIn, addr->lastIn, addr->nbOut, addr->lastOut);
+            if(0<addr->sum) {
+                ++nonZeroCnt;
+            }
+
+            if(csv) {
+                printf(
+                    "%" PRIu64 "\t%" PRIu32 "\t%" PRIu64 "\t%" PRIu32 "\n",
+                    addr->nbIn,
+                    addr->lastIn,
+                    addr->nbOut,
+                    addr->lastOut
+                );
             } else {
                 if(i<showAddr || 0!=nbRestricts) {
                     uint8_t buf[64];

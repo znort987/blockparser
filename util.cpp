@@ -935,6 +935,17 @@ void showScriptInfo(
     }
 }
 
+static inline void writeEscapedChar(
+    int  c,
+    FILE *f
+) {
+         if(unlikely(0==c))  { fputc('\\', f); c = '0'; }
+    else if(unlikely('\n'==c)) fputc('\\', f);
+    else if(unlikely('\t'==c)) fputc('\\', f);
+    else if(unlikely('\\'==c)) fputc('\\', f);
+    fputc(c, f);
+}
+
 void writeEscapedBinaryBufferRev(
     FILE          *f,
     const uint8_t *p,
@@ -945,11 +956,7 @@ void writeEscapedBinaryBufferRev(
 
     while(n--) {
         uint8_t c = *(--p);
-             if(unlikely(0==c))  { fputc('\\', f); c = '0'; }
-        else if(unlikely('\n'==c)) fputc('\\', f);
-        else if(unlikely('\t'==c)) fputc('\\', f);
-        else if(unlikely('\\'==c)) fputc('\\', f);
-        fputc(c, f);
+        writeEscapedChar(c, f);
     }
 }
 
@@ -961,43 +968,7 @@ void writeEscapedBinaryBuffer(
 {
     while(n--) {
         uint8_t c = *(p++);
-             if(unlikely(0==c))  { fputc('\\', f); c = '0'; }
-        else if(unlikely('\n'==c)) fputc('\\', f);
-        else if(unlikely('\t'==c)) fputc('\\', f);
-        else if(unlikely('\\'==c)) fputc('\\', f);
-        fputc(c, f);
-    }
-}
-
-void printEscapedBinaryBufferRev(
-    const uint8_t *p,
-    size_t        n
-)
-{
-    p += n;
-
-    while(n--) {
-        uint8_t c = *(--p);
-             if(unlikely(0==c))  { putchar('\\'); c = '0'; }
-        else if(unlikely('\n'==c)) putchar('\\');
-        else if(unlikely('\t'==c)) putchar('\\');
-        else if(unlikely('\\'==c)) putchar('\\');
-        putchar(c);
-    }
-}
-
-void printEscapedBinaryBuffer(
-    const uint8_t *p,
-    size_t        n
-)
-{
-    while(n--) {
-        uint8_t c = *(p++);
-             if(unlikely(0==c))  { putchar('\\'); c = '0'; }
-        else if(unlikely('\n'==c)) putchar('\\');
-        else if(unlikely('\t'==c)) putchar('\\');
-        else if(unlikely('\\'==c)) putchar('\\');
-        putchar(c);
+        writeEscapedChar(c, f);
     }
 }
 

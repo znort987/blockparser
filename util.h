@@ -450,17 +450,20 @@
         size_t        n
     );
 
-    void printEscapedBinaryBufferRev(
+    static inline void printEscapedBinaryBufferRev(
         const uint8_t *p,
         size_t        n
-    );
+    ) {
+        writeEscapedBinaryBufferRev(stdout, p, n);
+    }
 
-    void printEscapedBinaryBuffer(
+    static inline void printEscapedBinaryBuffer(
         const uint8_t *p,
         size_t        n
-    );
+    ) {
+        writeEscapedBinaryBuffer(stdout, p, n);
+    }
 
     const char *getInterestingAddr();
 
 #endif // __UTIL_H__
-

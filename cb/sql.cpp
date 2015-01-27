@@ -315,7 +315,7 @@ struct SQLDump:public Callback
             inputID++,
             src->second,
             txID,
-            (uint32_t)outputIndex
+            (uint32_t)inputIndex
         );
     }
 

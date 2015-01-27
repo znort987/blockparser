@@ -438,6 +438,28 @@
         const uint8_t *indent
     );
 
+    void writeEscapedBinaryBufferRev(
+        FILE          *f,
+        const uint8_t *p,
+        size_t        n
+    );
+
+    void writeEscapedBinaryBuffer(
+        FILE          *f,
+        const uint8_t *p,
+        size_t        n
+    );
+
+    void printEscapedBinaryBufferRev(
+        const uint8_t *p,
+        size_t        n
+    );
+
+    void printEscapedBinaryBuffer(
+        const uint8_t *p,
+        size_t        n
+    );
+
     const char *getInterestingAddr();
 
 #endif // __UTIL_H__

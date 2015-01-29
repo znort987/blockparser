@@ -766,8 +766,9 @@ static void makeBlockMaps() {
         home = ".";
     }
 
-    std::string homeDir(home);
-    std::string blockDir = homeDir + gCoinDirName + std::string("blocks");
+    std::string dataDir(home);
+    dataDir += gCoinDirName;
+    std::string blockDir = dataDir + std::string("blocks");
 
     struct stat statBuf;
     auto r = stat(blockDir.c_str(), &statBuf);
@@ -781,8 +782,7 @@ static void makeBlockMaps() {
         sprintf(buf, fmt, blkDatId++);
 
         auto blockMapFileName =
-            homeDir          +
-            gCoinDirName     +
+            dataDir          +
             std::string(buf)
         ;
 

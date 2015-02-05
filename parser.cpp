@@ -80,6 +80,18 @@ static uint256_t gNullHash;
     static const uint32_t gExpectedMagic = 0xb6f1f4fc;
 #endif
 
+#if defined MYRIADCOIN
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.myriadcoin/";
+    static const uint32_t gExpectedMagic = 0xee7645af;
+#endif
+
+#if defined UNOBTANIUM
+    static const size_t gHeaderSize = 80;
+    static auto gCoinDirName = "/.unobtanium/";
+    static const uint32_t gExpectedMagic = 0x03b5d503;
+#endif
+
 #define DO(x) x
     static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
     static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }

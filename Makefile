@@ -15,9 +15,11 @@ INC =                           \
 #-DDARKCOIN              \
 #-DJUMBUCKS              \
 #-DLITECOIN              \
+#-DMYRIADCOIN            \
 #-DPEERCOIN              \
 #-DFEDORACOIN            \
 #-DPROTOSHARES           \
+#-DUNOBTANIUM            \
 
 COPT =                          \
         -g0                     \

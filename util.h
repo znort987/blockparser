@@ -370,6 +370,14 @@
         #if defined(DOGECOIN)
             uint8_t type = 30
         #endif
+
+        #if defined(MYRIADCOIN)
+            uint8_t type = 50
+        #endif
+
+        #if defined(UNOBTANIUM)
+            uint8_t type = 130
+        #endif
     );
 
     static inline double satoshisToNormaForm(

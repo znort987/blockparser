@@ -466,12 +466,12 @@ bool addrToHash160(
         #if defined(DOGECOIN)
             data[0] = 30;
         #endif
-        
-		#if defined(MYRIADCOIN)
+
+        #if defined(MYRIADCOIN)
             data[0] = 50;
         #endif
 		
-		#if defined(UNOBTANIUM)
+        #if defined(UNOBTANIUM)
             data[0] = 130;
         #endif
 
@@ -801,11 +801,11 @@ const char *getInterestingAddr() {
 
         "JhbrvAmM7kNpwA6wD5KoAsbtikLWWMNPcM"
 
-	#elif defined(MYRIADCOIN)
+    #elif defined(MYRIADCOIN)
 
         "MDiceoNDTQboRxYKMTstxxRBY493Lg9bV2"
 
-	#elif defined(UNOBTANIUM)
+    #elif defined(UNOBTANIUM)
 
         "udicetdXSo6Zc7vhWgAZfz4XrwagAX34RK"
 

@@ -34,61 +34,61 @@ static uint256_t gNullHash;
 
 #if defined BITCOIN
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.bitcoin/";
+    static auto kCoinDirName = ".bitcoin";
     static const uint32_t gExpectedMagic = 0xd9b4bef9;
 #endif
 
 #if defined LITECOIN
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.litecoin/";
+    static auto kCoinDirName = ".litecoin";
     static const uint32_t gExpectedMagic = 0xdbb6c0fb;
 #endif
 
 #if defined DARKCOIN
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.darkcoin/";
+    static auto kCoinDirName = ".darkcoin";
     static const uint32_t gExpectedMagic = 0xbd6b0cbf;
 #endif
 
 #if defined PROTOSHARES
     static const size_t gHeaderSize = 88;
-    static auto gCoinDirName = "/.protoshares/";
+    static auto kCoinDirName = ".protoshares";
     static const uint32_t gExpectedMagic = 0xd9b5bdf9;
 #endif
 
 #if defined FEDORACOIN
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.fedoracoin/";
+    static auto kCoinDirName = ".fedoracoin";
     static const uint32_t gExpectedMagic = 0xdead1337;
 #endif
 
 #if defined PEERCOIN
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.ppcoin/";
+    static auto kCoinDirName = ".ppcoin";
     static const uint32_t gExpectedMagic = 0xe5e9e8e6;
 #endif
 
 #if defined CLAM
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.clam/";
+    static auto kCoinDirName = ".clam";
     static const uint32_t gExpectedMagic = 0x15352203;
 #endif
 
 #if defined JUMBUCKS
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.coinmarketscoin/";
+    static auto kCoinDirName = ".coinmarketscoin";
     static const uint32_t gExpectedMagic = 0xb6f1f4fc;
 #endif
 
 #if defined MYRIADCOIN
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.myriadcoin/";
+    static auto kCoinDirName = ".myriadcoin";
     static const uint32_t gExpectedMagic = 0xee7645af;
 #endif
 
 #if defined UNOBTANIUM
     static const size_t gHeaderSize = 80;
-    static auto gCoinDirName = "/.unobtanium/";
+    static auto kCoinDirName = ".unobtanium";
     static const uint32_t gExpectedMagic = 0x03b5d503;
 #endif
 
@@ -770,31 +770,58 @@ static void initHashtables() {
     info("estimated number of transactions = %.2fM", 1e-6*nbTxEstimate);
 }
 
-static void makeBlockMaps() {
+static std::string getNormalizedDirName(
+    const std::string &dirName
+) {
 
-    const char *home = getenv("HOME");
-    if(0==home) {
-        warning("could not getenv(\"HOME\"), using \".\" instead.");
-        home = ".";
+    auto t = canonicalize_file_name(dirName.c_str());
+    auto r = std::string(t);
+    free(t);
+
+    auto sz = r.size();
+    if(0<sz) {
+        if('/'==r[sz-1]) {
+            r = std::string(r, 0, sz-2);
+        }
     }
 
-    std::string homeDir(home);
-    std::string blockDir = homeDir + gCoinDirName + std::string("blocks");
+    return r;
+}
+
+static std::string getBlockchainDir() {
+    auto dir = getenv("BLOCKCHAIN_DIR");
+    if(0==dir) {
+        dir = getenv("HOME");
+        if(0==dir) {
+            errFatal("please  specify either env. variable HOME or BLOCKCHAIN_DIR");
+        }
+    }
+    return getNormalizedDirName(
+        dir              +
+        std::string("/") +
+        kCoinDirName
+    );
+}
+
+static void makeBlockMaps() {
+
+    auto blockChainDir = getBlockchainDir();
+    auto blockDir = blockChainDir + std::string("/blocks");
+    info("loading block chain from: %s", blockChainDir.c_str());
 
     struct stat statBuf;
     auto r = stat(blockDir.c_str(), &statBuf);
     auto oldStyle = (r<0 || !S_ISDIR(statBuf.st_mode));
 
     int blkDatId = (oldStyle ? 1 : 0);
-    auto fmt = oldStyle ? "blk%04d.dat" : "blocks/blk%05d.dat";
+    auto fmt = oldStyle ? "/blk%04d.dat" : "/blocks/blk%05d.dat";
     while(1) {
 
         char buf[64];
         sprintf(buf, fmt, blkDatId++);
 
         auto blockMapFileName =
-            homeDir          +
-            gCoinDirName     +
+            blockChainDir +
             std::string(buf)
         ;
 

@@ -34,6 +34,12 @@ blockparser
             git clone git://github.com/znort987/blockparser.git
             cd blockparser
             make
+         
+        . Problems: 
+        
+             anyone have this problem "Segmentation Fault" follow this to make a swap file:
+             http://askubuntu.com/questions/178712/how-to-increase-swap-space
+             Tested on ( Ubuntu 12.04, 250 ssd, 16gb ram, 9GB Swap )
 
     Try it:
     -------

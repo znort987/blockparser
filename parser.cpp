@@ -437,7 +437,17 @@ static void parseLongestChain() {
 
         auto blk = gNullBlock->next;
         start(blk, gMaxBlock);
+
         while(likely(0!=blk)) {
+            if((blk->height % 100) == 0) {
+                fprintf(
+                    stderr,
+                    " %.2f%% (Block %6d/%6d)            \r",
+                    (100.0 * blk->height) / gMaxHeight,
+                    (int)blk->height,
+                    (int)gMaxHeight);
+                fflush(stderr);
+            }
             parseBlock(blk);
             blk = blk->next;
         }
@@ -709,7 +719,7 @@ static void buildBlockHeaders() {
         auto secsLeft = bytesLeft / bytesPerSec;
         fprintf(
             stderr,
-            "%.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs -- ELAPSED %.0f secs            \r",
+            " %.2f%% (%.2f/%.2f Gigs) -- %6d blocks -- %.2f Megs/sec -- ETA %.0f secs -- ELAPSED %.0f secs            \r",
             (100.0*baseOffset)/gChainSize,
             baseOffset/(1000.0*oneMeg),
             gChainSize/(1000.0*oneMeg),

@@ -7,7 +7,7 @@ CPLUS = g++
 INC =                           \
         -I.                     \
         -DNDEBUG                \
-        -DBITCOIN               \
+        -DTESTNET               \
         -DWANT_DENSE            \
 
 #-DCLAM                  \

@@ -351,6 +351,10 @@
             uint8_t type = 0
         #endif
         
+        #if defined(TESTNET)
+            uint8_t type = 0
+        #endif
+        
         #if defined(FEDORACOIN)
             uint8_t type = 33
         #endif

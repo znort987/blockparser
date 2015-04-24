@@ -38,6 +38,12 @@ static uint256_t gNullHash;
     static const uint32_t gExpectedMagic = 0xd9b4bef9;
 #endif
 
+#if defined TESTNET
+    static const size_t gHeaderSize = 80;
+    static auto kCoinDirName = ".bitcoin/testnet3";
+    static const uint32_t gExpectedMagic = 0x0709110b;
+#endif
+
 #if defined LITECOIN
     static const size_t gHeaderSize = 80;
     static auto kCoinDirName = ".litecoin";

@@ -431,7 +431,10 @@ static void parseBlock(
 
 static void parseLongestChain() {
 
-    info("pass 4 -- full blockchain analysis ...");
+    info(
+        "pass 4 -- full blockchain analysis (with%s index)...",
+        gNeedTXHash ? "" : "out"
+    );
 
     gCallback->startLC();
 
@@ -439,7 +442,8 @@ static void parseLongestChain() {
         start(blk, gMaxBlock);
 
         while(likely(0!=blk)) {
-            if((blk->height % 100) == 0) {
+
+            if((blk->height % 1000) == 0) {
                 fprintf(
                     stderr,
                     " %.2f%% (Block %6d/%6d)            \r",
@@ -448,10 +452,12 @@ static void parseLongestChain() {
                     (int)gMaxHeight);
                 fflush(stderr);
             }
+
             parseBlock(blk);
             blk = blk->next;
         }
 
+    fprintf(stderr, "                                            \r");
     gCallback->wrapup();
 
     info("pass 4 -- done.");

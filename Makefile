@@ -103,13 +103,6 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/headers.cpp -o .objs/headers.o
 	@mv .objs/headers.d .deps
 
-.objs/lowestHash.o : cb/lowestHash.cpp
-	@echo c++ -- cb/lowestHash.cpp
-	@mkdir -p .deps
-	@mkdir -p .objs
-	@${CPLUS} -MD ${INC} ${COPT}  -c cb/lowestHash.cpp -o .objs/lowestHash.o
-	@mv .objs/lowestHash.d .deps
-
 .objs/rawdump.o : cb/rawdump.cpp
 	@echo c++ -- cb/rawdump.cpp
 	@mkdir -p .deps
@@ -291,7 +284,6 @@ OBJS=                       \
     .objs/dumpTX.o          \
     .objs/headers.o         \
     .objs/help.o            \
-    .objs/lowestHash.o      \
     .objs/pristine.o        \
     .objs/rawdump.o         \
     .objs/rewards.o         \

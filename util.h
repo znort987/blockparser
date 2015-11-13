@@ -351,7 +351,7 @@
             uint8_t type = 0
         #endif
         
-        #if defined(TESTNET)
+        #if defined(TESTNET3)
             uint8_t type = 0
         #endif
         

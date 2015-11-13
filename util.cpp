@@ -447,7 +447,7 @@ bool addrToHash160(
             data[0] = 0;
         #endif
         
-        #if defined(TESTNET)
+        #if defined(TESTNET3)
             data[0] = 0;
         #endif        
         
@@ -785,7 +785,7 @@ const char *getInterestingAddr() {
 
         "1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp"
         
-    #elif defined(TESTNET)
+    #elif defined(TESTNET3)
     
         "mxRN6AQJaDi5R6KmvMaEmZGe3n5ScV9u33"
 

@@ -38,7 +38,7 @@ static uint256_t gNullHash;
     static const uint32_t gExpectedMagic = 0xd9b4bef9;
 #endif
 
-#if defined TESTNET
+#if defined TESTNET3
     static const size_t gHeaderSize = 80;
     static auto kCoinDirName = ".bitcoin/testnet3";
     static const uint32_t gExpectedMagic = 0x0709110b;
@@ -781,6 +781,13 @@ static std::string getNormalizedDirName(
 ) {
 
     auto t = canonicalize_file_name(dirName.c_str());
+    if(0==t) {
+        errFatal(
+            "problem accessing directory %s",
+            dirName.c_str()
+        );
+    }
+
     auto r = std::string(t);
     free(t);
 

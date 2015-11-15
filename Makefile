@@ -1,3 +1,4 @@
+MAKEFLAGS=-r -k -j15
 
 SHELL=/bin/sh
 MAKEFLAGS=-j20

@@ -1,66 +1,174 @@
 blockparser
 ===========
 
-    Credits:
+    Who wrote it ?
+    --------------
+
+        Author:
+
+            znort987@yahoo.com
+
+        Tip here if you find it useful:
+
+            1ZnortsoStC1zSTXbW6CUtkvqew8czMMG
+
+        I've also been cherry-picking changes I found useful from numerous github
+        forks. For credits:
+
+             git log | grep Author | grep -iv Znort
+
+    Canonical source code repo:
+    ---------------------------
+
+        git clone github.com:znort987/blockparser.git
+
+    License:
     --------
 
-        Written by znort987@yahoo.com
-        If you find this useful: 1ZnortsoStC1zSTXbW6CUtkvqew8czMMG
+        Code is in the public domain.
 
-    What:
-    -----
+    What is it ?
+    ------------
 
-        A fairly fast, quick and dirty bitcoin whole blockchain parser.
+        A barebone C++ block parser that parses the entire block chain from scratch
+        to extract various types of information from it.
 
-    Why:
-    ----
+        The code chews "linearly" through the block chain and calls "user-defined"
+        callbacks when it hits on certain "events" in the chain. Here:
 
-        . Few dependencies: openssl-dev, boost
+            "events" essentially means that the parser is starting to assemble a new
+            blockchain data structure (a block, a tx, an input, etc ...), or that the
+            parser has just completed a data structure, in which case it will usually
+            run the callback with the completed data structure. The blockchain data
+            structure level of granularity at which these "events" happen is somewhat
+            arbitrary.  For example you won't get called every time a new byte is seen.
 
-        . Very quickly extract information from the entire blockchain.
+            "user-defined" means that if you want to extract new types of information
+            from the chain, you have to add your own C++ piece of code to those already
+            in directory "cb". Your C++ code will get called by the main parser at
+            "events" of your choosing.
 
-        . Code is simple and helps to understand how the data structure underlying bitcoin works.
+            "linearly" is a bit of an abuse because the parser code often has to jump
+            back to previously seen parts of the blockchain to provide user callbacks
+            with fully complete data structures. The parser code also has to walk the
+            blockchain a few times to compute the longest (valid) chain. But the user
+            callbacks get a fairly linear view of it all.
 
-    Build it:
-    ---------
 
-        . Turn your x86-64 Ubuntu box on
+        Blockparser was designed for bitcoin but works on most altcoins that were
+        derived from the bitcoin code base.
 
-        . Make sure you have an up to date satoshi client blockchain in ~/.bitcoin
+    What it is not:
+    ---------------
 
-        . Run this:
+        Blockparser is *not* a verifier. It assumes a clean blockchain, as typically
+        constructed and verified by the bitcoin core client. blockparser does not
+        perform any kind of verification and will likely crash if applied to an unclean
+        chain.
 
-            sudo apt-get install libssl-dev build-essential g++-4.4 libboost-all-dev libsparsehash-dev git-core perl
+        Blockparser is not very efficient if you want to perform repetitive tasks on
+        thr block chain: the basic idea/premise of blockparser is that it's going to
+        chew through the *entire* block chain, *every* time. Given the size of the
+        blockchain these days, that's not something you want to do very 5 minutes.
+
+        Blockparser is not lean and mean. It used to be, when the blockchain was still
+        relatively small.  Now that we are inching towards the 100's of gigabytes, the
+        very proposition that it has to chew through entire chain by design implies that
+        it's going to take quite a while, whichever way you slice it. Also, the entire
+        index is built on the fly and kept in RAM. At current sizes, this is not a very
+        smart choice. This might get addressed in the near future.
+
+    Why write this ?
+    ----------------
+
+        It started as an exercise for me to get a "close to the metal" understanding of
+        how bitcoin works. The quality and state of the original bitcoin codebase made
+        this damn near impossible (it's clear to me satosh, albeit clearly a genius, was
+        not a professional software engineer. Also, things have vastly improved since then).
+        It then grew into a fun hobby project.
+
+        The parser code is minimal and very easy to follow. If someone wants to quickly
+        understand "for real" how the block chain is structured, it is a good place to
+        start
+
+        It has also slowly grown into an altcoin zoo. It is very far from being a
+        compendium (there's so many of the darn things these days), but adding your
+        fave alt is very easy.
+
+        A side goal was also to build something that can independently (as in : the
+        codebase is *very* different from that of bitcoin core) verify some of the
+        conclusions of other bitcoin implementations, such as how many coins are
+        attached to an address.
+
+    How do I build it ?
+    -------------------
+
+        You'll need a 64-bit Unix box (because of RAM consumption, blockparser won't work
+        inside a 32bit address space).
+
+        If you are unfortunate enough to still have to use windows, there is a port floating
+        somehwere on github.
+
+        I also have heard rumors of it working on OSX.
+
+        You'll need a block chain somewhere on your hard drive. This is typically created
+        by a statoshi bitcoin client such as this one: https://github.com/bitcoin/bitcoin.git
+
+        Install dependencies:
+
+            sudo apt-get install libssl-dev build-essential g++ libboost-all-dev libsparsehash-dev git-core perl
+
+        Get the source:
+
             git clone git://github.com/znort987/blockparser.git
+
+        Build it:
+
             cd blockparser
             make
-         
-        . Problems: 
-        
-             anyone have this problem "Segmentation Fault" follow this to make a swap file:
-             http://askubuntu.com/questions/178712/how-to-increase-swap-space
-             Tested on ( Ubuntu 12.04, 250 ssd, 16gb ram, 9GB Swap )
 
-    Try it:
-    -------
+    It crashes
+    ----------
 
-        . Compute simple blockchain stats, full chain parse (< 1 second)
+        At this point, blockparser uses a *lot* of memory (20+ Gig is typical). This
+        can cause all sorts of woes on an under-dimensioned box, chief amongst which:
 
-            ./parser simpleStats
+            - box goes into heavy swapping, and parser takes for ever to complete task
 
-        . Extract all transactions for popular address 1dice6wBxymYi3t94heUAG6MpG5eceLG1 (20 seconds)
+            - parser eats up all RAM and all SWAP and crashes. Here's a possible remedy:
+
+                 http://askubuntu.com/questions/178712/how-to-increase-swap-space
+
+    Examples
+    --------
+
+        . Show all supported commands
+
+            ./parser help
+
+        . Show help for a specific command
+
+            ./parser allBalances --help
+
+        . Compute simple blockchain stats
+
+            ./parser simple
+
+        . Extract all transactions for a very popular address 1dice6wBxymYi3t94heUAG6MpG5eceLG1
 
             ./parser transactions 06f1b66fa14429389cbffa656966993eab656f37
 
-        . Compute the closure of an address, that is the list of addresses that provably belong to the same person (20 seconds):
+        . Compute the closure of an address, that is the list of addresses that very probably belong to the same person:
 
             ./parser closure 06f1b66fa14429389cbffa656966993eab656f37
 
-        . Compute and print the balance for all keys ever used in a TX since the beginning of time (30 seconds):
+        . Compute and print the balance for all keys ever used since the beginning of time:
 
-            ./parser allBalances >allBalances.txt
+            ./parser all >all.txt
 
-        . See how much of the BTC 10K pizza tainted each of the TX in the chain
+        . See how much of the BTC 10K pizza tainted all the subsequent TX in the chain
+          (chances are you have some dust coming from that famous TX lingering on one
+          of your addresses)
 
             ./parser taint >pizzaTaint.txt
 
@@ -68,35 +176,55 @@ blockparser
 
             ./parser rewards >rewards.txt
 
-        . See a greatly detailed dump of the pizza transaction
+        . See a greatly detailed dump of the famous pizza transaction
 
             ./parser show
+
+        . Track all mined blocks with unspent reward:
+
+            ./parser pristine
+
+    NOTE: the general syntax is:
+
+        ./parser <command> <option> <option> ... <arg> <arg> ...
+
+
+    NOTE: use "parser help <command>" or "parser <command> --help" to get detailed
+          help for a specific command.
+
+    NOTE: <command> may have multiple aliases and can also be abbreviated. For
+          example, "parser tx", "parser tr", and "parser transactions" are equivalent.
+
+    NOTE: whenever specifying a list of things (e.g. a list of addresses), you can
+          instead enter "file:list.txt" and the list will be read from the file.
+
+    NOTE: whenever specifying a list file, you can use "file:-" and blockparser
+          will read the list directly from stdin.
+
 
     Caveats:
     --------
 
-        . You need an x86-84 ubuntu box and a recent version of GCC(>=4.4), recent versions of boost
-          and openssl-dev. The whole thing is very unlikely to work or even compile on anything else.
+        . You will need an x86-84 ubuntu box and a recent version of GCC(>=4.4), a recent version of
+          boost and openssl-dev. You may be able to compile on other platforms, but the code wasn't
+          really designed for those.
 
-        . It needs quite a bit of RAM to work. Never exactly measured how much, but the hash maps will
-          grow quite fat. I might switch them to something different that spills over to disk at some
-          point. For now: it works fine with 8 Gigs.
+        . As of this writing, it needs a log of RAM to work, typically upwards of 25Gigs. I will switch
+          to an on-disk hash table at some point, but for now you'll just need that if you ever hope to
+          see it finish in a reasonable amount of time (or at all if your swap space is too small).
 
-        . The code isn't particularly clean or well architected. It was just a quick way for me to learn
-          about bitcoin. There isnt much in the way of comments either.
+        . The code could be cleaner and better architected. It was just a quick and dirty way for me
+          to learn about bitcoin. There really isn't much in the way of comments either :D
 
-        . OTOH, it is fairly simple, short, and efficient. If you want to understand how the blockchain
-          data structure works, the code in parser.cpp is a solid way to start.
-
-        . blockparser uses mmap() extensively. There has been report that it does not play well with
-          encrypted partitions. Solution: move your blockchain to a normal disk. That's likely to make
-          your bitcoin install a lot more efficient anyways.
+        . OTOH, it is fairly simple, short. If you want to understand how the blockchain data structures
+          work, the code in parser.cpp is a solid way to start.
 
     Hacking the code:
     -----------------
 
-        . parser.cpp contains a generic parser that mmaps the blockchain, parses it and calls
-          "user-defined" callbacks as it hits interesting bits of information.
+        . parser.cpp contains the generic parser that reads the blockchain, parses it and calls
+          "user-defined" callbacks as it hits interesting bits of information. It typically calls
+          out when it begins reading finishes assembling a data structure.
 
         . util.cpp contains a grab-bag of useful bitcoin related routines. Interesting examples include:
 
@@ -105,16 +233,18 @@ blockparser
             solveOutputScript
             decompressPublicKey
 
-        . cb/allBalances.cpp    :   code to all balance of all addresses.
-        . cb/closure.cpp        :   code to compute the transitive closure of an address
-        . cb/dumpTX.cpp         :   code to display a transaction in very great detail
-        . cb/help.cpp           :   code to dump detailed help for all other commands
-        . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
-        . cb/rewards.cpp        :   code to show all block rewards (including fees)
-        . cb/simpleStats.cpp    :   code to compute simple stats.
-        . cb/sql.cpp            :   code to product an SQL dump of the blockchain
-        . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
-        . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
+        . blockparser comes with a bunch of interesting "user callbacks".
+
+            . cb/allBalances.cpp    :   code to all balance of all addresses.
+            . cb/closure.cpp        :   code to compute the transitive closure of an address
+            . cb/dumpTX.cpp         :   code to display a transaction in very great detail
+            . cb/help.cpp           :   code to dump detailed help for all other commands
+            . cb/pristine.cpp       :   code to show all "pristine" (i.e. unspent) blocks
+            . cb/rewards.cpp        :   code to show all block rewards (including fees)
+            . cb/simpleStats.cpp    :   code to compute simple stats.
+            . cb/sql.cpp            :   code to product an SQL dump of the blockchain
+            . cb/taint.cpp          :   code to compute the taint from a given TX to all TXs.
+            . cb/transactions.cpp   :   code to extract all transactions pertaining to an address.
 
 
         . You can very easily add your own custom command. You can use the existing callbacks in
@@ -133,9 +263,4 @@ blockparser
         . The code makes heavy use of the google dense hash maps. You can switch it to use sparse hash
           maps (see Makefile, search for: DENSE, undef it). Sparse hash maps are slower but save quite a
           bit of RAM.
-
-    License:
-    --------
-
-        Code is in the public domain.
 

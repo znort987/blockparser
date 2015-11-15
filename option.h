@@ -141,6 +141,8 @@ class OptionParser {
     OptionParser& set_defaults(const std::string& dest, const std::string& val) {
       _defaults[dest] = val; return *this;
     }
+    template<typename T>
+    OptionParser& set_defaults(const std::string& dest, T t) { std::ostringstream ss; ss << t; _defaults[dest] = ss.str(); return *this; }
     OptionParser& enable_interspersed_args() { _interspersed_args = true; return *this; }
     OptionParser& disable_interspersed_args() { _interspersed_args = false; return *this; }
     OptionParser& add_option_group(const OptionGroup& group);

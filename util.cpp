@@ -68,8 +68,7 @@ void showHex(
     const uint8_t *p,
     size_t        size,
     bool          rev
-)
-{
+) {
     uint8_t* buf = (uint8_t*)alloca(2*size + 1);
     toHex(buf, p, size, rev);
     printf("%s", buf);
@@ -78,8 +77,7 @@ void showHex(
 uint8_t fromHexDigit(
     uint8_t h,
     bool abortOnErr
-)
-{
+) {
     if(likely('0'<=h && h<='9')) return      (h - '0');
     if(likely('a'<=h && h<='f')) return 10 + (h - 'a');
     if(likely('A'<=h && h<='F')) return 10 + (h - 'A');
@@ -502,8 +500,9 @@ bool addrToHash160(
 }
 
 void hash160ToAddr(
-          uint8_t *addr,    // 32 bytes is safe
+          uint8_t *addr,    // 36 bytes is safe, even with pad on
     const uint8_t *hash160,
+             bool pad,
           uint8_t type
 )
 {
@@ -528,8 +527,7 @@ void hash160ToAddr(
     static BIGNUM *rem = 0;
     static BN_CTX *ctx = 0;
 
-    if(!ctx)
-    {
+    if(!ctx) {
         ctx = BN_CTX_new();
         BN_CTX_init(ctx);
 
@@ -543,8 +541,7 @@ void hash160ToAddr(
     BN_mpi2bn(buf, 4+size, num);
 
     uint8_t *p = addr;
-    while(!BN_is_zero(num))
-    {
+    while(!BN_is_zero(num)) {
         int r = BN_div(div, rem, num, b58, ctx);
         if(!r) errFatal("BN_div failed");
         BN_copy(num, div);
@@ -555,19 +552,30 @@ void hash160ToAddr(
 
     const uint8_t *a =                          (5+buf);
     const uint8_t *e = 1 + kRIPEMD160ByteSize + (5+buf);
-    while(a<e && 0==a[0])
-    {
+    while(a<e && 0==a[0]) {
         *(p++) = b58Digits[0];
         ++a;
     }
-    *(p--) = 0;
+    *p = 0;
 
-    while(addr<p)
-    {
-        uint8_t a = *addr;
-        uint8_t b = *p;
-        *(addr++) = b;
-        *(p--) = a;
+    auto l = addr;
+    auto r = p - 1;
+    while(l<r) {
+        uint8_t a = *l;
+        uint8_t b = *r;
+        *(l++) = b;
+        *(r--) = a;
+    }
+
+    if(pad) {
+        auto sz = p - addr;
+        auto delta = 34 - sz;
+        if(0<delta) {
+            while(delta--) {
+                *(p++) = ' ';
+            }
+            *(p++) = 0;
+        }
     }
 }
 

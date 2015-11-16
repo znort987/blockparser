@@ -1,27 +1,29 @@
 
 #include <map>
-#include <util.h>
 #include <vector>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
+
+#include <util.h>
 #include <common.h>
 #include <errlog.h>
-#include <algorithm>
 #include <callback.h>
+
 static std::vector<Callback*> *callbacks;
 typedef std::map<uintptr_t, Callback*> CBMap;
 
-Callback::Callback()
-{
-    if(0==callbacks) callbacks = new std::vector<Callback*>;
+Callback::Callback() {
+    if(0==callbacks) {
+        callbacks = new std::vector<Callback*>;
+    }
     callbacks->push_back(this);
 }
 
 Callback *Callback::find(
     const char *name,
     bool printList
-)
-{
+) {
     CBMap found;
     size_t sz = strlen(name);
     auto e = callbacks->end();
@@ -91,20 +93,21 @@ Callback *Callback::find(
         printf("\n");
     }
 
-    if(printList || 0==strcmp(name, "help")) return 0;
+    if(printList || 0==strcmp(name, "help")) {
+        return 0;
+    }
+
     printf("use:\n");
     printf("      \"parser man\" for complete documentation of all commands.\n");
     printf("      \"parser help\" for a short summary of available commands.\n\n");
     exit(-1);
 }
 
-struct Cmp
-{
+struct Cmp {
     bool operator()(
         const Callback *a,
         const Callback *b
-    )
-    {
+    ) {
         const char *an = a->name();
         const char *bn = b->name();
         int n = strcmp(an, bn);
@@ -112,26 +115,43 @@ struct Cmp
     }
 };
 
+static void printHelp(
+    const Callback *c,
+    bool longHelp
+) {
+    printf("\n--------------------------------------------------------------------------------------\n");
+    printf("USAGE:\n\n    parser %s ", c->name());
+    const auto parser = c->optionParser();
+    if(parser) {
+        auto usg = parser->usage();
+        printf("%s\n\n", usg.c_str());
+
+        auto opt = parser->format_option_help();
+        if(opt.size()) {
+            printf("OPTIONS:\n\n%s\n", opt.c_str());
+        }
+    }
+}
+
+void Callback::showHelpFor(
+    const char *name,
+    bool longHelp
+) {
+    auto cb = find(name);
+    if(cb) {
+        printHelp(cb, longHelp);
+    }
+}
+
 void Callback::showAllHelps(
     bool longHelp
-)
-{
+) {
     auto e = callbacks->end();
     auto i = callbacks->begin();
     std::sort(i, e, Cmp());
 
     while(i!=e) {
-        Callback *c = *(i++);
-        printf("    USAGE: parser %s ", c->name());
-        const optparse::OptionParser *parser = c->optionParser();
-        if(parser) {
-            printf(
-                "%s\n",
-                longHelp                      ?
-                parser->get_usage().c_str()   :
-                parser->format_help().c_str()
-            );
-        }
+        printHelp(*(i++), longHelp);
     }
     printf("\n");
 }

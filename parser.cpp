@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <fcntl.h>
+#include <malloc.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -31,6 +32,20 @@ static Block *gNullBlock;
 static int64_t gMaxHeight;
 static uint64_t gChainSize;
 static uint256_t gNullHash;
+
+static double getMem() {
+
+    char statFileName[256];
+    sprintf(statFileName, "/proc/%d/statm", (int)getpid());
+
+    uint64_t mem = 0;
+    FILE *f = fopen(statFileName, "r");
+    if(1!=fscanf(f, "%" PRIu64, &mem)) {
+        warning("coudln't read process size");
+    }
+
+    return (1e-9f*mem)*getpagesize();
+}
 
 #if defined BITCOIN
     static const size_t gHeaderSize = 80;
@@ -117,8 +132,9 @@ static uint256_t gNullHash;
 
 static inline void     startMap(const uint8_t *p) { gCallback->startMap(p);               }
 static inline void       endMap(const uint8_t *p) { gCallback->endMap(p);                 }
-static inline void  startBlock(const Block *b)    { gCallback->startBlock(b, gChainSize); }
+static inline void     startBlock(const Block *b) { gCallback->startBlock(b, gChainSize); }
 static inline void       endBlock(const Block *b) { gCallback->endBlock(b);               }
+static inline bool                         done() { return gCallback->done();             }
 
 static inline void endOutput(
     const uint8_t *p,
@@ -394,7 +410,7 @@ static void parseTX(
     }
 }
 
-static void parseBlock(
+static bool parseBlock(
     const Block *block
 ) {
     startBlock(block);
@@ -417,6 +433,9 @@ static void parseBlock(
                 LOAD_VARINT(nbTX, p);
                 for(uint64_t txIndex=0; likely(txIndex<nbTX); ++txIndex) {
                     parseTX<false>(block, p);
+                    if(done()) {
+                        return true;
+                    }
                 }
             endTXs(p);
 
@@ -427,6 +446,7 @@ static void parseBlock(
 
         block->chunk->releaseData();
     endBlock(block);
+    return done();
 }
 
 static void parseLongestChain() {
@@ -443,21 +463,33 @@ static void parseLongestChain() {
 
         while(likely(0!=blk)) {
 
-            if((blk->height % 1000) == 0) {
-                fprintf(
-                    stderr,
-                    " %.2f%% (Block %6d/%6d)            \r",
-                    (100.0 * blk->height) / gMaxHeight,
-                    (int)blk->height,
-                    (int)gMaxHeight);
-                fflush(stderr);
+            if((blk->height % 10) == 0) {
+
+                auto now = usecs();
+                static auto last = -1.0;
+                auto elapsedSinceLastTime = now - last;
+                if((1.0 * 1000 * 1000)<elapsedSinceLastTime) {
+                    fprintf(
+                        stderr,
+                        " %.2f%% (block %6d/%6d) - mem = %.3f Gig           \r",
+                        (100.0 * blk->height) / gMaxHeight,
+                        (int)blk->height,
+                        (int)gMaxHeight,
+                        getMem()
+                    );
+                    fflush(stderr);
+                    last = now;
+                }
             }
 
-            parseBlock(blk);
+            if(parseBlock(blk)) {
+                break;
+            }
+
             blk = blk->next;
         }
 
-    fprintf(stderr, "                                            \r");
+    fprintf(stderr, "                                                          \r");
     gCallback->wrapup();
 
     info("pass 4 -- done.");
@@ -498,7 +530,6 @@ static void initCallback(
         methodName = "help";
     }
     gCallback = Callback::find(methodName);
-    fprintf(stderr, "\n");
 
     info("starting command \"%s\"", gCallback->name());
 
@@ -514,6 +545,11 @@ static void initCallback(
         errFatal("callback init failed");
     }
     gNeedTXHash = gCallback->needTXHash();
+
+    if(done()) {
+        fprintf(stderr, "\n");
+        exit(0);
+    }
 }
 
 static void findBlockParent(
@@ -752,12 +788,13 @@ static void buildBlockHeaders() {
 
     auto elapsed = 1e-6*(usecs() - startTime);
     info(
-        "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs %s                                            ",
+        "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs %s, mem=%.3f Gigs                                            ",
         elapsed,
         (int)nbBlocks,
         (gChainSize * 1e-9),
         (gChainSize * 1e-6) / elapsed,
-        msg
+        msg,
+        getMem()
     );
 }
 
@@ -780,16 +817,19 @@ static void initHashtables() {
         gChainSize += map.size;
     }
 
-    auto txPerBytes = (52149122.0 / 26645195995.0);
-    auto nbTxEstimate = (size_t)(1.1 * txPerBytes * gChainSize);
-    gTXOMap.resize(nbTxEstimate);
+    auto kTXPerBytes = 0.001629959661422393411310473897487741211;
+    auto nbTxEstimate = (size_t)(1.1 * kTXPerBytes * gChainSize);
+    if(gNeedTXHash) {
+        gTXOMap.resize(nbTxEstimate);
+    }
 
-    auto blocksPerBytes = (331284.0 / 26645195995.0);
-    auto nbBlockEstimate = (size_t)(1.1 * blocksPerBytes * gChainSize);
+    auto kBlocksPerBytes = 0.00000676600139054791679077780281050222;
+    auto nbBlockEstimate = (size_t)(1.1 * kBlocksPerBytes * gChainSize);
     gBlockMap.resize(nbBlockEstimate);
 
     info("estimated number of blocks = %.2fK", 1e-3*nbBlockEstimate);
     info("estimated number of transactions = %.2fM", 1e-6*nbTxEstimate);
+    info("done initializing hash tables - mem = %.3f Gigs", getMem());
 }
 
 static std::string getNormalizedDirName(
@@ -909,8 +949,10 @@ int main(
 ) {
 
     auto start = usecs();
-
+    fprintf(stderr, "\n");
     initCallback(argc, argv);
+    info("mem at start = %.3f Gigs", getMem());
+
     makeBlockMaps();
     initHashtables();
     buildNullBlock();
@@ -921,7 +963,8 @@ int main(
     cleanMaps();
 
     auto elapsed = (usecs() - start)*1e-6;
-    info("all done in %.2f seconds\n", elapsed);
+    info("all done in %.2f seconds", elapsed);
+    info("mem at end = %.3f Gigs\n", getMem());
     return 0;
 }
 

@@ -12,8 +12,8 @@ blockparser
 
             1ZnortsoStC1zSTXbW6CUtkvqew8czMMG
 
-        I've also been cherry-picking changes I found useful from numerous github
-        forks. For credits:
+        I've also been cherry-picking changes I found useful from various github forks.
+        Credits for these:
 
              git log | grep Author | grep -iv Znort
 
@@ -99,6 +99,10 @@ blockparser
         codebase is *very* different from that of bitcoin core) verify some of the
         conclusions of other bitcoin implementations, such as how many coins are
         attached to an address.
+
+        Another thing that blockparser is really nice for is to easily reconstruct
+        "snapshots" of the state of the blockchain from a specific time (e.g. the -a
+        option of the "allBalances" command).
 
     How do I build it ?
     -------------------

@@ -7,18 +7,18 @@
 #include <option.h>
 #include <callback.h>
 
-struct Help:public Callback
-{
+struct Help:public Callback {
+
     optparse::OptionParser parser;
 
-    virtual const char             *name() const               { return "help"; }
-    virtual const optparse::OptionParser *optionParser() const { return &parser;}
-    virtual bool                   needTXHash() const          { return false;  }
+    virtual const char                           *name() const { return "help";  }
+    virtual const optparse::OptionParser *optionParser() const { return &parser; }
+    virtual bool                            needTXHash() const { return false;   }
+    virtual bool                                  done()       { return true;    }
 
     virtual void aliases(
         std::vector<const char*> &v
-    ) const
-    {
+    ) const {
         v.push_back("-h");
         v.push_back("-help");
         v.push_back("--help");
@@ -27,8 +27,7 @@ struct Help:public Callback
         v.push_back("doc");
     }
 
-    Help()
-    {
+    Help() {
         parser
             .usage("[options]")
             .version("")
@@ -47,9 +46,7 @@ struct Help:public Callback
     virtual int init(
         int argc,
         const char *argv[]
-    )
-    {
-//for(int i=0; i<argc; ++i) printf("argv[%d] = %s\n", i, argv[i]);
+    ) {
         optparse::Values &values = parser.parse_args(argc, argv);
         bool longHelp = values.get("long");
         longHelp = longHelp || (
@@ -65,40 +62,44 @@ struct Help:public Callback
             'c'==argv[1][2]
         );
 
-
         auto args = parser.args();
-        if(1<=args.size()) {
-            // find callback(s) if they exists
-            // dump help for each of these callback
-            // exit
-        }
-
-        printf("\n");
-        printf("General Usage: parser <command> <options> <command arguments>\n");
-        printf("\n");
-        printf("    Where <command> can be any of:\n");
-        Callback::find("", true);
-        printf("\n");
-        printf("    NOTE: use \"parser help <command>\" or \"parser <command> --help\" to get detailed\n");
-        printf("          help for a specific command.\n");
-        printf("\n");
-        printf("    NOTE: <command> may have multiple aliases and can also be abbreviated. For\n");
-        printf("          example, \"parser tx\", \"parser tr\", and \"parser transactions\" are equivalent.\n");
-        printf("\n");
-        printf("    NOTE: whenever specifying a list of things (e.g. a list of addresses), you can\n");
-        printf("          instead enter \"file:list.txt\" and the list will be read from the file.\n");
-        printf("\n");
-        printf("    NOTE: whenever specifying a list file, you can use \"file:-\" and blockparser\n");
-        printf("          will read the list directly from stdin.\n");
-        printf("\n");
-        printf("\n");
-
-        if(longHelp) {
-            printf("Every available command and its specific usage follows:\n");
+        if(1<args.size()) {
+            for(size_t i=1; i<args.size(); ++i) { // O(N^2), but short lists
+                auto arg = args[i];
+                Callback::showHelpFor(
+                    arg.c_str(),
+                    longHelp
+                );
+            }
+        } else {
             printf("\n");
-            Callback::showAllHelps(false);
+            printf("General Usage: parser <command> <options> <command arguments>\n");
+            printf("\n");
+            printf("    Where <command> can be any of:\n");
+            Callback::find("", true);
+            printf("\n");
+            printf("    NOTE: use \"parser help <command>\" or \"parser <command> --help\" to get detailed\n");
+            printf("          help for a specific command.\n");
+            printf("\n");
+            printf("    NOTE: <command> may have multiple aliases and can also be abbreviated. For\n");
+            printf("          example, \"parser tx\", \"parser tr\", and \"parser transactions\" are equivalent.\n");
+            printf("\n");
+            printf("    NOTE: whenever specifying a list of things (e.g. a list of addresses), you can\n");
+            printf("          instead enter \"file:list.txt\" and the list will be read from the file.\n");
+            printf("\n");
+            printf("    NOTE: whenever specifying a list file, you can use \"file:-\" and blockparser\n");
+            printf("          will read the list directly from stdin.\n");
+            printf("\n");
+            printf("\n");
+
+            if(longHelp) {
+                printf("Every available command and its specific usage follows:\n");
+                printf("\n");
+                Callback::showAllHelps(false);
+            }
         }
-        exit(0);
+
+        return 0;
     }
 };
 

@@ -334,53 +334,54 @@
     void hash160ToAddr(
               uint8_t *addr,
         const uint8_t *hash160,
-
+                  bool pad = false,
+              uint8_t type =
         #if defined(PROTOSHARES)
-            uint8_t type = 56
+              56
         #endif
 
         #if defined(DARKCOIN)
-            uint8_t type = 48 + 28
+              48 + 28
         #endif
 
         #if defined(LITECOIN)
-            uint8_t type = 48
+              48
         #endif
 
         #if defined(BITCOIN)
-            uint8_t type = 0
+              0
         #endif
         
         #if defined(TESTNET3)
-            uint8_t type = 0
+              0
         #endif
         
         #if defined(FEDORACOIN)
-            uint8_t type = 33
+              33
         #endif
 
         #if defined(PEERCOIN)
-            uint8_t type = 48 + 7
+              48 + 7
         #endif
 
         #if defined(CLAM)
-            uint8_t type = 137
+              137
         #endif
 
         #if defined(JUMBUCKS)
-            uint8_t type = 43
+              43
         #endif
 
         #if defined(DOGECOIN)
-            uint8_t type = 30
+              30
         #endif
 
         #if defined(MYRIADCOIN)
-            uint8_t type = 50
+              50
         #endif
 
         #if defined(UNOBTANIUM)
-            uint8_t type = 130
+              130
         #endif
     );
 

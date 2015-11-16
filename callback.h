@@ -13,6 +13,7 @@
         Callback();
         typedef optparse::OptionParser Parser;
         static void showAllHelps(bool longHelp);
+        static void showHelpFor(const char*, bool longHelp);
         static Callback *find(const char *name, bool printList=false);
 
         // Naming, option parsing, construction, etc ...
@@ -45,6 +46,7 @@
         virtual void     endBlock(  const Block *b                     )       {               }  // Called when an end of block is encountered
         virtual void      startLC(                                     )       {               }  // Called when longest chain parse starts
         virtual void       wrapup(                                     )       {               }  // Called when the whole chain has been parsed
+        virtual bool         done(                                     )       { return false; }  // Called after each TX to check if callback is done
 
         // Called when an output has been fully parsed
         virtual void endOutput(
@@ -54,8 +56,7 @@
             uint64_t      outputIndex,          // Index of this output in the current transaction
             const uint8_t *outputScript,        // Raw script (challenge to would-be spender) carried by this output
             uint64_t      outputScriptSize      // Byte size of raw script
-        )
-        {
+        ) {
         }
 
         // Called exactly like startInput, but with a much richer context
@@ -69,8 +70,7 @@
             uint64_t      inputIndex,           // Index of input in downstream transaction
             const uint8_t *inputScript,         // Raw script (answer to challenge) carried by input in downstream transaction
             uint64_t      inputScriptSize       // Byte size of script carried by input in downstream transaction
-        )
-        {
+        ) {
         }
     };
 

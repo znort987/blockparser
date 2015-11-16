@@ -29,8 +29,7 @@ struct Closure:public Callback
     std::vector<uint64_t> vertices;
     std::vector<uint160_t> rootHashes;
 
-    Closure()
-    {
+    Closure() {
         parser
             .usage("[list of addresses to seed the closure]")
             .version("")
@@ -45,8 +44,7 @@ struct Closure:public Callback
 
     virtual void aliases(
         std::vector<const char*> &v
-    ) const
-    {
+    ) const {
         v.push_back("cluster");
         v.push_back("wallet");
     }
@@ -54,8 +52,7 @@ struct Closure:public Callback
     virtual int init(
         int argc,
         const char *argv[]
-    )
-    {
+    ) {
         optparse::Values &values = parser.parse_args(argc, argv);
 
         auto args = parser.args();
@@ -87,8 +84,7 @@ struct Closure:public Callback
         uint64_t      inputIndex,
         const uint8_t *inputScript,
         uint64_t      inputScriptSize
-    )
-    {
+    ) {
         uint8_t addrType[3];
         uint160_t pubKeyHash;
         int type = solveOutputScript(pubKeyHash.v, outputScript, outputScriptSize, addrType);
@@ -108,8 +104,7 @@ struct Closure:public Callback
         vertices.push_back(a);
     }
 
-    virtual void wrapup()
-    {
+    virtual void wrapup() {
         size_t size = boost::num_vertices(graph);
         info(
             "done, %.2f secs, found %" PRIu64 " address(es) \n",
@@ -165,15 +160,13 @@ struct Closure:public Callback
     virtual void startTX(
         const uint8_t *p,
         const uint8_t *
-    )
-    {
+    ) {
         vertices.resize(0);
     }
 
     virtual void endTX(
         const uint8_t *p
-    )
-    {
+    ) {
         size_t size = vertices.size();
         if(likely(1<size)) {
             for(size_t i=1; unlikely(i<size); ++i) {

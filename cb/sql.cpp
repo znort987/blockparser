@@ -11,8 +11,7 @@
 static uint8_t empty[kSHA256ByteSize] = { 0x42 };
 typedef GoogMap<Hash256, uint64_t, Hash256Hasher, Hash256Equal>::Map OutputMap;
 
-struct SQLDump:public Callback
-{
+struct SQLDump:public Callback {
     FILE *txFile;
     FILE *blockFile;
     FILE *inputFile;
@@ -26,8 +25,7 @@ struct SQLDump:public Callback
     OutputMap outputMap;
     optparse::OptionParser parser;
 
-    SQLDump()
-    {
+    SQLDump() {
         parser
             .usage("[options] [list of addresses to restrict output to]")
             .version("")
@@ -49,16 +47,14 @@ struct SQLDump:public Callback
 
     virtual void aliases(
         std::vector<const char*> &v
-    ) const
-    {
+    ) const {
         v.push_back("dump");
     }
 
     virtual int init(
         int argc,
         const char *argv[]
-    )
-    {
+    ) {
         txID = -1;
         blkID = 0;
         inputID = 0;
@@ -162,8 +158,7 @@ struct SQLDump:public Callback
     virtual void startBlock(
         const Block *b,
         uint64_t
-    )
-    {
+    ) {
         if(0<=cutoffBlock && cutoffBlock<b->height) wrapup();
 
         auto p = b->chunk->getData();
@@ -198,8 +193,7 @@ struct SQLDump:public Callback
     virtual void startTX(
         const uint8_t *p,
         const uint8_t *hash
-    )
-    {
+    ) {
         // id BIGINT PRIMARY KEY
         // hash BINARY(32)
         // blockID BIGINT
@@ -218,8 +212,7 @@ struct SQLDump:public Callback
         uint64_t      outputIndex,
         const uint8_t *outputScript,
         uint64_t      outputScriptSize
-    )
-    {
+    ) {
         uint8_t address[40];
         address[0] = 'X';
         address[1] = 0;
@@ -270,8 +263,7 @@ struct SQLDump:public Callback
         uint64_t      inputIndex,
         const uint8_t *inputScript,
         uint64_t      inputScriptSize
-    )
-    {
+    ) {
         uint256_t h;
         uint32_t oi = outputIndex;
         memcpy(h.v, upTXHash, kSHA256ByteSize);
@@ -301,14 +293,12 @@ struct SQLDump:public Callback
         );
     }
 
-    virtual void wrapup()
-    {
+    virtual void wrapup() {
         fclose(outputFile);
         fclose(inputFile);
         fclose(blockFile);
         fclose(txFile);
         info("done\n");
-        exit(0);
     }
 };
 

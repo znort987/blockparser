@@ -9,11 +9,12 @@
 
 typedef GoogMap<Hash256, int, Hash256Hasher, Hash256Equal >::Map TxMap;
 
-struct DumpTX:public Callback
-{
+struct DumpTX:public Callback {
+
     optparse::OptionParser parser;
 
     bool dump;
+    bool isDone;
     TxMap txMap;
     bool isGenTX;
     uint64_t bTime;
@@ -27,8 +28,7 @@ struct DumpTX:public Callback
     const uint8_t *txStart;
     std::vector<uint256_t> rootHashes;
 
-    DumpTX()
-    {
+    DumpTX() {
         parser
             .usage("[list of transaction hashes]")
             .version("")
@@ -42,11 +42,11 @@ struct DumpTX:public Callback
     virtual const char                   *name() const         { return "dumpTX"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;  }
     virtual bool                         needTXHash() const    { return true;     }
+    virtual bool                               done()          { return isDone;   }
 
     virtual void aliases(
         std::vector<const char*> &v
-    ) const
-    {
+    ) const {
         v.push_back("txinfo");
         v.push_back("txshow");
         v.push_back("showtx");
@@ -56,9 +56,10 @@ struct DumpTX:public Callback
     virtual int init(
         int        argc,
         const char *argv[]
-    )
-    {
+    ) {
+
         nbDumped = 0;
+        isDone = false;
 
         optparse::Values &values = parser.parse_args(argc, argv);
 
@@ -130,6 +131,7 @@ struct DumpTX:public Callback
 
             LOAD(uint32_t, version, p);
 
+            fprintf(stderr, "                                                 \n");
             printf("TX = {\n\n");
             printf("    version = %" PRIu32 "\n", version);
             printf("    minted in block = %" PRIu64 "\n", currBlock-1);
@@ -276,8 +278,7 @@ struct DumpTX:public Callback
 
     virtual void endTX(
         const uint8_t *p
-    )
-    {
+    ) {
         if(dump) {
             LOAD(uint32_t, lockTime, p);
             printf("    nbInputs = %" PRIu64 "\n", (uint64_t)nbInputs);
@@ -292,10 +293,7 @@ struct DumpTX:public Callback
             printf("}\n");
             ++nbDumped;
         }
-
-        if(nbDumped==txMap.size()) {
-            exit(0);
-        }
+        isDone = (nbDumped==txMap.size());
     }
 };
 

@@ -95,6 +95,10 @@ blockparser
         compendium (there's so many of the darn things these days), but adding your
         fave alt is very easy.
 
+        Talking about zoo, I've also started to track and document "weird" TXO's
+        in the chain (comments, p2sh, multi-sigs, bugs, etc ...). Not a complete
+        compendium yet, but getting there.
+
         A side goal was also to build something that can independently (as in : the
         codebase is *very* different from that of bitcoin core) verify some of the
         conclusions of other bitcoin implementations, such as how many coins are
@@ -143,6 +147,32 @@ blockparser
 
                  http://askubuntu.com/questions/178712/how-to-increase-swap-space
 
+    How does it blockparser deal with multi-sig transactions ?
+    ----------------------------------------------------------
+
+        AFAIK, there are two types of multi-sig transactions:
+
+            1) Pay-to-script (which is in fact more general than multisig). This one is
+               easy, because it pays to a hash, which can readily be converted to an
+               address that starts with the character '3' instead of '1'
+
+            2) Naked multi-sig transactions. These are harder, because the output of
+               the transactions does not neatly map to a specific bitcoin address. I
+               think I have found a neat work-around: I compute:
+
+                     hash160(M, N, sortedListOfAddresses)
+
+               which can now be properly mapped to a bitcoin address. To mark the fact
+               that this addres is neither a "pay to script" (type '3') nor a
+               "pay to pubkey or pubkeyhash" (type '1'), I prefix them with '4'
+
+               Note : this may be worthy of an actual BIP. If someone writes one,
+               I'll happily adjust the code.
+
+               Note : this trick is only a blockparser thing. This means that these
+               new address types starting with a '4' won't be recognized by other
+               bitcoin implementations (such as blockchain.info)
+
     Examples
     --------
 
@@ -187,6 +217,14 @@ blockparser
         . Track all mined blocks with unspent reward:
 
             ./parser pristine
+
+        . Show the first valid "pay to script hash (P2SH)" transaction in the chain:
+
+            ./parser showtx 9c08a4d78931342b37fd5f72900fb9983087e6f46c4a097d8a1f52c74e28eaf6
+
+        . Show the first valid naked multi-sig transaction in the chain (it's a 1 Of 2 multi-sig)
+
+            ./parser showtx 60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1
 
     NOTE: the general syntax is:
 

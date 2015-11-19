@@ -7,7 +7,12 @@
 #include <string.h>
 #include <callback.h>
 
-typedef GoogMap<Hash256, int, Hash256Hasher, Hash256Equal >::Map TxMap;
+typedef GoogMap<
+    Hash256,
+    int,
+    Hash256Hasher,
+    Hash256Equal
+>::Map TxMap;
 
 struct DumpTX:public Callback {
 
@@ -89,8 +94,7 @@ struct DumpTX:public Callback {
     virtual void startBlock(
         const Block *b,
         uint64_t
-    )
-    {
+    ) {
         currBlock = b->height;
 
         const uint8_t *p = b->chunk->getData();
@@ -104,8 +108,7 @@ struct DumpTX:public Callback {
     virtual void startTX(
         const uint8_t *p,
         const uint8_t *hash
-    )
-    {
+    ) {
         #if defined(CLAM)
             auto pBis = p;
             LOAD(uint32_t, nVersion, pBis);
@@ -144,20 +147,17 @@ struct DumpTX:public Callback {
 
     virtual void startInputs(
         const uint8_t *p
-    )
-    {
+    ) {
     }
 
     virtual void endInputs(
         const uint8_t *p
-    )
-    {
+    ) {
     }
 
     virtual void startInput(
         const uint8_t *p
-    )
-    {
+    ) {
         if(dump) {
             printf(
                 "    input[%" PRIu64 "] = {\n\n",
@@ -192,8 +192,7 @@ struct DumpTX:public Callback {
         uint64_t      inputIndex,
         const uint8_t *inputScript,
         uint64_t      inputScriptSize
-    )
-    {
+    ) {
         if(dump) {
             uint8_t buf[1 + 2*kSHA256ByteSize];
             toHex(buf, upTXHash);
@@ -214,8 +213,7 @@ struct DumpTX:public Callback {
 
     virtual void endInput(
         const uint8_t *p
-    )
-    {
+    ) {
         if(dump) {
             printf("    }\n\n");
         }
@@ -223,8 +221,7 @@ struct DumpTX:public Callback {
 
     virtual void startOutputs(
         const uint8_t *p
-    )
-    {
+    ) {
     }
 
     virtual void endOutputs(
@@ -246,8 +243,7 @@ struct DumpTX:public Callback {
 
     virtual void startOutput(
         const uint8_t *p
-    )
-    {
+    ) {
         if(dump) {
             printf(
                 "\n"
@@ -264,8 +260,7 @@ struct DumpTX:public Callback {
         uint64_t      outputIndex,          // Index of this output in the current transaction
         const uint8_t *outputScript,        // Raw script (challenge to would-be spender) carried by this output
         uint64_t      outputScriptSize      // Byte size of raw script
-    )
-    {
+    ) {
         if(dump) {
             printf("        value = %.8f\n", satoshisToNormaForm(value));
             printf("        challenge script, bytes=%" PRIu64 " :\n", outputScriptSize);

@@ -10,6 +10,7 @@
 #include <string>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include <sys/time.h>
 #include <openssl/bn.h>
 #include <openssl/ecdsa.h>
@@ -116,11 +117,169 @@ bool fromHex(
     return true;
 }
 
+static bool getOpPushData(
+    const uint8_t *&p,
+    uint64_t &dataSize
+) {
+
+    dataSize = 0;
+    LOAD(uint8_t, c, p);
+
+    bool isImmediate = (0<c && c<79);
+    if(!isImmediate) {
+        --p;
+        return false;
+    }
+
+         if(likely(c<=75)) {                       dataSize = c; }
+    else if(likely(76==c)) { LOAD( uint8_t, v, p); dataSize = v; }
+    else if(likely(77==c)) { LOAD(uint16_t, v, p); dataSize = v; }
+    else if(likely(78==c)) { LOAD(uint32_t, v, p); dataSize = v; }
+    if(512*1024<dataSize) {
+        return false;
+    }
+
+    p += dataSize;
+    return true;
+}
+
+// This is a tad arbitrary but works well in practice
+bool isCommentScript(
+    const uint8_t *p,
+    size_t scriptSize
+)
+{
+    const uint8_t *e = scriptSize + p;
+    while(likely(p<e)) {
+        LOAD(uint8_t, c, p);
+        bool isImmediate = (0<c && c<79);
+        if(!isImmediate) {
+            if(0x6A!=c) {
+                return false;
+            }
+        } else {
+
+            --p;
+
+            uint64_t dataSize = 0;
+            auto ok = getOpPushData(p, dataSize);
+            if(!ok) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+struct Compare160 {
+    bool operator()(
+        const uint160_t &a,
+        const uint160_t &b
+    ) const {
+        auto as = a.v;
+        auto bs = b.v;
+        auto ae = kRIPEMD160ByteSize + as;
+        while(as<ae) {
+            int delta = ((int)*(as++)) - ((int)*(bs++));
+            if(delta) {
+                return (delta<0);
+            }
+        }
+        return true;
+    }
+};
+
+static void packMultiSig(
+                   uint8_t *pubKeyHash,
+    std::vector<uint160_t> &addresses,
+                       int m,
+                       int n
+) {
+    std::sort(
+        addresses.begin(),
+        addresses.end(),
+        Compare160()
+    );
+
+    std::vector<uint8_t> data;
+    data.reserve(2 + kRIPEMD160ByteSize*sizeof(addresses));
+    data.push_back((uint8_t)m);
+    data.push_back((uint8_t)n);
+    for(const auto &addr:addresses) {
+        data.insert(
+            data.end(),
+            addr.v,
+            kRIPEMD160ByteSize + addr.v
+        );
+    }
+    rmd160(
+        pubKeyHash,
+        &(data[0]),
+        data.size()
+    );
+}
+
+// Try to pattern match a multisig
+bool isMultiSig(
+    int &_m,
+    int &_n,
+    std::vector<uint160_t> &addresses,
+    const uint8_t *p,
+    size_t scriptSize
+) {
+
+    auto e = scriptSize + p;
+    if(scriptSize<=5) {
+        return false;
+    }
+
+    auto m = (*(p++) - 0x50);             // OP_1 ... OP-16
+    auto isMValid = (1<=m && m<=16);
+    if(!isMValid) {
+        return false;
+    }
+
+    int count = 0;
+    while(1) {
+        uint64_t dataSize = 0;
+        auto ok = getOpPushData(p, dataSize);
+        if(e<=p) {
+            return false;
+        }
+        if(!ok) {
+            break;
+        }
+
+        uint160_t addr;
+        auto sz = sizeof(addr);
+        memcpy(addr.v, p-sz, sz);
+        addresses.push_back(addr);
+        ++count;
+    }
+
+    auto n = (*(p++) - 0x50);             // OP_1 ... OP-16
+    auto isNValid = (1<=n && n<=16);
+    if(!isNValid || n!=count) {
+        return false;
+    }
+
+    auto lastOp = *(p++);
+    bool ok = (0xAE==lastOp) &&          // OP_CHECKMULTISIG
+              (m<=n)         &&
+              (p==e);
+    if(ok) {
+        _m = m;
+        _n = n;
+    }
+    return ok;
+}
+
 void showScript(
     const uint8_t *p,
     size_t        scriptSize,
     const char    *header,
-    const char    *indent
+    const char    *indent,
+    bool          showAscii
 )
 {
     bool first = true;
@@ -137,22 +296,30 @@ void showScript(
                 getOpcodeName(c),
                 (first && header) ? header : ""
             );
-        }
-        else
-        {
+        } else {
             uint64_t dataSize = 0;
                  if(likely(c<=75)) {                       dataSize = c; }
             else if(likely(76==c)) { LOAD( uint8_t, v, p); dataSize = v; }
             else if(likely(77==c)) { LOAD(uint16_t, v, p); dataSize = v; }
             else if(likely(78==c)) { LOAD(uint32_t, v, p); dataSize = v; }
-            printf("         %sOP_PUSHDATA(%" PRIu64 ", 0x", indent, dataSize);
-            showHex(p, dataSize, false);
 
-            printf(
-                ")%s\n",
-                (first && header) ? header : ""
-            );
-            p += dataSize;
+            printf("         %sOP_PUSHDATA(%" PRIu64 ", 0x", indent, dataSize);
+            if(512*1024<dataSize) {
+                printf(" -- dataSize is weird, likely an invalid script -- bailing.\n");
+                return;
+            } else {
+                showHex(p, dataSize, false);
+                printf(
+                    ")%s\n",
+                    (first && header) ? header : ""
+                );
+                if(showAscii) {
+                    printf("ascii version of data:\n");
+                    canonicalHexDump(p, dataSize, "");
+                    printf("\n");
+                }
+                p += dataSize;
+            }
         }
         first = false;
     }
@@ -222,12 +389,13 @@ int solveOutputScript(
           uint8_t *pubKeyHash,
     const uint8_t *script,
     uint64_t      scriptSize,
-    uint8_t       *type
+    uint8_t       *addrType
 )
 {
-    type[0] = 0;
+    // default: if we fail to solve the script, we make it pay to unspendable hash 0 (lost coins)
+    memset(pubKeyHash, 0, kSHA256ByteSize);
 
-    // The most common output script type, pays to hash160(pubKey)
+    // The most common output script type that pays to hash160(pubKey)
     if(
         likely(
             0x76==script[0]              &&  // OP_DUP
@@ -237,36 +405,35 @@ int solveOutputScript(
             0xAC==script[scriptSize-1]   &&  // OP_CHECKSIG
               25==scriptSize
         )
-    )
-    {
+    ) {
         memcpy(pubKeyHash, 3+script, kRIPEMD160ByteSize);
+        addrType[0] = 0;
         return 0;
     }
 
-    // Output script commonly found in block reward TX, pays to explicit pubKey
+    // Output script commonly found in block reward TX, that pays to an explicit pubKey
     if(
         likely(
               65==script[0]             &&  // OP_PUSHDATA(65)
             0xAC==script[scriptSize-1]  &&  // OP_CHECKSIG
               67==scriptSize
         )
-    )
-    {
+    ) {
         uint256_t sha;
         sha256(sha.v, 1+script, 65);
         rmd160(pubKeyHash, sha.v, kSHA256ByteSize);
+        addrType[0] = 0;
         return 1;
     }
 
-    // Unusual output script, pays to explicit compressed pubKeys
+    // A rather unusual output script that pays to and explicit compressed pubKey
     if(
         likely(
               33==script[0]            &&  // OP_PUSHDATA(33)
             0xAC==script[scriptSize-1] &&  // OP_CHECKSIG
               35==scriptSize
         )
-    )
-    {
+    ) {
         //uint8_t pubKey[65];
         //bool ok = decompressPublicKey(pubKey, 1+script);
         //if(!ok) return -3;
@@ -274,10 +441,11 @@ int solveOutputScript(
         uint256_t sha;
         sha256(sha.v, 1+script, 33);
         rmd160(pubKeyHash, sha.v, kSHA256ByteSize);
+        addrType[0] = 0;
         return 2;
     }
 
-    // Recent output script type, pays to hash160(script)
+    // A modern output script type, that pays to hash160(script)
     if(
         likely(
             0xA9==script[0]             &&  // OP_HASH160
@@ -285,29 +453,59 @@ int solveOutputScript(
             0x87==script[scriptSize-1]  &&  // OP_EQUAL
               23==scriptSize
         )
-    )
-    {
+    ) {
         memcpy(pubKeyHash, 2+script, kRIPEMD160ByteSize);
-        type[0] = 'S';
-        type[1] = 0;
+        addrType[0] = 5;
         return 3;
     }
 
-    // Broken output scripts that were created by p2pool for a while -- very likely lost coins
+    int m = 0;
+    int n = 0;
+    std::vector<uint160_t> addresses;
     if(
-        0x73==script[0] && // OP_IFDUP
-        0x63==script[1] && // OP_IF
-        0x72==script[2] && // OP_2SWAP
-        0x69==script[3] && // OP_VERIFY
-        0x70==script[4] && // OP_2OVER
-        0x74==script[5]    // OP_DEPTH
-    )
+        isMultiSig(
+            m,
+            n,
+            addresses,
+            script,
+            scriptSize
+        )
+    ) {
+        packMultiSig(pubKeyHash, addresses, m, n);
+        addrType[0] = 8;
+        return 4;
+    }
+
+    // Broken output scripts that were created by p2pool for a while
+    if(
+        0x73==script[0] &&                  // OP_IFDUP
+        0x63==script[1] &&                  // OP_IF
+        0x72==script[2] &&                  // OP_2SWAP
+        0x69==script[3] &&                  // OP_VERIFY
+        0x70==script[4] &&                  // OP_2OVER
+        0x74==script[5]                     // OP_DEPTH
+    ) {
         return -2;
+    }
+
+    // A non-functional "comment" script
+    if(isCommentScript(script, scriptSize)) {
+        return -3;
+    }
+
+    // A challenge: anyone who can find X such that 0==RIPEMD160(X) stands to earn a bunch of coins
+    if(
+        0x76==script[0] &&                  // OP_DUP
+        0xA9==script[1] &&                  // OP_HASH160
+        0x00==script[2] &&                  // OP_0
+        0x88==script[3] &&                  // OP_EQUALVERIFY
+        0xAC==script[4]                     // OP_CHECKSIG
+    ) {
+        return -4;
+    }
 
 #if 0
-
     // TODO : some scripts are solved by satoshi's client and not by the above. track them
-
     // Unknown output script type -- very likely lost coins, but hit the satoshi script solver to make sure
     int result = extractAddress(pubKeyHash, script, scriptSize);
     if(result) return -1;
@@ -315,6 +513,8 @@ int solveOutputScript(
     printf("EXOTIC OUTPUT SCRIPT:\n");
     showScript(script, scriptSize);
 #endif
+
+    // Something we didn't understand
     return -1;
 }
 
@@ -354,6 +554,58 @@ uint8_t fromB58Digit(
     if('m'<=digit && digit<='z') return (digit - 'm') +  44;
     if(abortOnErr) errFatal("incorrect base58 digit %c", digit);
     return 0xff;
+}
+
+static int getCoinType() {
+    return
+        #if defined(PROTOSHARES)
+            56
+        #endif
+
+        #if defined(DARKCOIN)
+            48 + 28
+        #endif
+
+        #if defined(LITECOIN)
+            48
+        #endif
+
+        #if defined(BITCOIN)
+            0
+        #endif
+        
+        #if defined(TESTNET3)
+            0
+        #endif        
+        
+        #if defined(FEDORACOIN)
+            33
+        #endif
+
+        #if defined(PEERCOIN)
+            48 + 7
+        #endif
+
+        #if defined(CLAM)
+            137
+        #endif
+
+        #if defined(JUMBUCKS)
+            43
+        #endif
+
+        #if defined(DOGECOIN)
+            30
+        #endif
+
+        #if defined(MYRIADCOIN)
+            50
+        #endif
+                
+        #if defined(UNOBTANIUM)
+            130
+        #endif
+    ;
 }
 
 bool addrToHash160(
@@ -428,54 +680,7 @@ bool addrToHash160(
 
         uint8_t data[1+kRIPEMD160ByteSize];
         memcpy(1+data, hash160, kRIPEMD160ByteSize);
-
-        #if defined(PROTOSHARES)
-            uint8_t type = 56
-        #endif
-
-        #if defined(DARKCOIN)
-            data[0] = 48 + 28;
-        #endif
-
-        #if defined(LITECOIN)
-            data[0] = 48;
-        #endif
-
-        #if defined(BITCOIN)
-            data[0] = 0;
-        #endif
-        
-        #if defined(TESTNET3)
-            data[0] = 0;
-        #endif        
-        
-        #if defined(FEDORACOIN)
-            data[0] = 33;
-        #endif
-
-        #if defined(PEERCOIN)
-            data[0] = 48 + 7;
-        #endif
-
-        #if defined(CLAM)
-            data[0] = 137;
-        #endif
-
-        #if defined(JUMBUCKS)
-            data[0] = 43;
-        #endif
-
-        #if defined(DOGECOIN)
-            data[0] = 30;
-        #endif
-
-        #if defined(MYRIADCOIN)
-            data[0] = 50;
-        #endif
-		
-        #if defined(UNOBTANIUM)
-            data[0] = 130;
-        #endif
+        data[0] = getCoinType();
 
         uint8_t sha[kSHA256ByteSize];
         sha256Twice(sha, data, 1+kRIPEMD160ByteSize);
@@ -490,8 +695,14 @@ bool addrToHash160(
             warning(
                 "checksum of address %s failed. Expected 0x%x%x%x%x, got 0x%x%x%x%x.",
                 addr,
-                checkSumStart[0], checkSumStart[1], checkSumStart[2], checkSumStart[3],
-                sha[0],           sha[1],           sha[2],           sha[3]
+                checkSumStart[0],
+                checkSumStart[1],
+                checkSumStart[2],
+                checkSumStart[3],
+                sha[0],
+                sha[1],
+                sha[2],
+                sha[3]
             );
         }
     }
@@ -508,13 +719,13 @@ void hash160ToAddr(
 {
     uint8_t buf[4 + 2 + kRIPEMD160ByteSize + kSHA256ByteSize];
     const uint32_t size = 4 + 2 + kRIPEMD160ByteSize;
+    memcpy(4 + 2 + buf, hash160, kRIPEMD160ByteSize);
     buf[ 0] = (size>>24) & 0xff;
     buf[ 1] = (size>>16) & 0xff;
     buf[ 2] = (size>> 8) & 0xff;
     buf[ 3] = (size>> 0) & 0xff;
     buf[ 4] = 0;
-    buf[ 5] = type;
-    memcpy(4 + 2 + buf, hash160, kRIPEMD160ByteSize);
+    buf[ 5] = getCoinType() + type;
     sha256Twice(
         4 + 2 + kRIPEMD160ByteSize + buf,
         4 + 1 + buf,
@@ -766,7 +977,10 @@ void showFullAddr(
 )
 {
     uint8_t b58[128];
-    if(both) showHex(addr, sizeof(uint160_t), false);
+    if(both) {
+        showHex(addr, sizeof(uint160_t), false);
+    }
+
     hash160ToAddr(b58, addr);
     printf(
         "%s%s",
@@ -909,12 +1123,17 @@ void showScriptInfo(
     const uint8_t *indent
 ) {
 
-    uint8_t type[128];
+    uint8_t addrType[128];
     const char *typeName = "unknown";
     uint8_t pubKeyHash[kSHA256ByteSize];
-    int r = solveOutputScript(pubKeyHash, outputScript, outputScriptSize, type);
+    auto scriptType = solveOutputScript(
+        pubKeyHash,
+        outputScript,
+        outputScriptSize,
+        addrType
+    );
 
-    switch(r) {
+    switch(scriptType) {
         case 0: {
             typeName = "pays to hash160(pubKey)";
             break;
@@ -932,7 +1151,15 @@ void showScriptInfo(
             break;
         }
         case 4: {
-            typeName = "pays to hash160(script)";
+            typeName = "M of N multi-sig";
+            break;
+        }
+        case -4: {
+            typeName = "pays to 0=hash160(X) ... challenge script: anyone who can find X such that 0==RIPEMD160(X) stands to earn a bunch of coins";
+            break;
+        }
+        case -3: {
+            typeName = "non functional comment script - coins lost";
             break;
         }
         case -2: {
@@ -950,9 +1177,9 @@ void showScriptInfo(
         typeName
     );
 
-    if(0<=r) {
+    if(0<=scriptType) {
         uint8_t btcAddr[64];
-        hash160ToAddr(btcAddr, pubKeyHash);
+        hash160ToAddr(btcAddr, pubKeyHash, false, addrType[0]);
         printf(
             "%sscriptPaysToAddr = '%s'\n",
             indent,

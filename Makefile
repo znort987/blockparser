@@ -83,6 +83,13 @@ all:parser
 	@${CPLUS} -MD ${INC} ${COPT}  -c cb/dumpTX.cpp -o .objs/dumpTX.o
 	@mv .objs/dumpTX.d .deps
 
+.objs/txoTypes.o : cb/txoTypes.cpp
+	@echo c++ -- cb/txoTypes.cpp
+	@mkdir -p .deps
+	@mkdir -p .objs
+	@${CPLUS} -MD ${INC} ${COPT}  -c cb/txoTypes.cpp -o .objs/txoTypes.o
+	@mv .objs/txoTypes.d .deps
+
 .objs/pristine.o : cb/pristine.cpp
 	@echo c++ -- cb/pristine.cpp
 	@mkdir -p .deps
@@ -292,6 +299,7 @@ OBJS=                       \
     .objs/sql.o             \
     .objs/taint.o           \
     .objs/transactions.o    \
+    .objs/txoTypes.o        \
                             \
     .objs/blake.o           \
     .objs/bmw.o             \

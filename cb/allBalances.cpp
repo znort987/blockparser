@@ -31,6 +31,7 @@ struct Output {
 typedef std::vector<Output> OutputVec;
 
 struct Addr {
+    uint8_t type;
     uint64_t sum;
     uint64_t nbIn;
     uint64_t nbOut;
@@ -229,8 +230,15 @@ struct AllBalances:public Callback {
     {
         uint8_t addrType[3];
         uint160_t pubKeyHash;
-        int type = solveOutputScript(pubKeyHash.v, script, scriptSize, addrType);
-        if(unlikely(type<0)) return;
+        auto scriptType = solveOutputScript(
+            pubKeyHash.v,
+            script,
+            scriptSize,
+            addrType
+        );
+        if(unlikely(scriptType<0)) {
+            return;
+        }
 
         if(0!=restrictMap.size()) {
             auto r = restrictMap.find(pubKeyHash.v);
@@ -248,6 +256,7 @@ struct AllBalances:public Callback {
             addr = allocAddr();
 
             memcpy(addr->hash.v, pubKeyHash.v, kRIPEMD160ByteSize);
+            addr->type = addrType[0];
             addr->outputVec = 0;
             addr->nbOut = 0;
             addr->nbIn = 0;
@@ -418,7 +427,7 @@ struct AllBalances:public Callback {
             } else {
                 if(i<showAddr || 0!=nbRestricts) {
                     uint8_t buf[64];
-                    hash160ToAddr(buf, addr->hash.v, true);
+                    hash160ToAddr(buf, addr->hash.v, true, addr->type);
                     printf(" %s", buf);
                 } else {
                     printf(" XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");

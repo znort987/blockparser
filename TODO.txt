@@ -1,5 +1,6 @@
 
 TODO:
+    Make ^C global, not per callback
     Better progress in full parse (w/ ETA)
     Fix completion estimates in allBalances
 

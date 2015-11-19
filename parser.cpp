@@ -458,12 +458,15 @@ static void parseLongestChain() {
 
     gCallback->startLC();
 
+        uint64_t bytesSoFar =  0;
         auto blk = gNullBlock->next;
         start(blk, gMaxBlock);
 
         while(likely(0!=blk)) {
 
-            if((blk->height % 10) == 0) {
+            if(0==(blk->height % 10)) {
+   
+                auto progress =  bytesSoFar/(double)gChainSize;
 
                 auto now = usecs();
                 static auto last = -1.0;
@@ -471,10 +474,10 @@ static void parseLongestChain() {
                 if((1.0 * 1000 * 1000)<elapsedSinceLastTime) {
                     fprintf(
                         stderr,
-                        " %.2f%% (block %6d/%6d) - mem = %.3f Gig           \r",
-                        (100.0 * blk->height) / gMaxHeight,
+                        "block %6d/%6d - %.2f%% done - mem = %.3f Gig           \r",
                         (int)blk->height,
                         (int)gMaxHeight,
+                        progress*100.0,
                         getMem()
                     );
                     fflush(stderr);
@@ -486,6 +489,7 @@ static void parseLongestChain() {
                 break;
             }
 
+            bytesSoFar += blk->chunk->getSize();
             blk = blk->next;
         }
 

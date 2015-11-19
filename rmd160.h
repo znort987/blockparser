@@ -7,7 +7,7 @@
     void rmd160(
               uint8_t *result,
         const uint8_t *data,
-               size_t led
+               size_t len
     );
 
 #endif // __RMD160_H__

@@ -278,7 +278,8 @@
         const uint8_t *p,
         size_t        scriptSize,
         const char    *header = 0,
-        const char    *indent = 0
+        const char    *indent = 0,
+        bool          showAscii = false
     );
 
     bool compressPublicKey(
@@ -295,7 +296,7 @@
               uint8_t *pubKeyHash,
         const uint8_t *script,
         uint64_t      scriptSize,
-        uint8_t       *type
+        uint8_t       *addrType
     );
 
     #if defined(DARKCOIN)
@@ -335,54 +336,7 @@
               uint8_t *addr,
         const uint8_t *hash160,
                   bool pad = false,
-              uint8_t type =
-        #if defined(PROTOSHARES)
-              56
-        #endif
-
-        #if defined(DARKCOIN)
-              48 + 28
-        #endif
-
-        #if defined(LITECOIN)
-              48
-        #endif
-
-        #if defined(BITCOIN)
-              0
-        #endif
-        
-        #if defined(TESTNET3)
-              0
-        #endif
-        
-        #if defined(FEDORACOIN)
-              33
-        #endif
-
-        #if defined(PEERCOIN)
-              48 + 7
-        #endif
-
-        #if defined(CLAM)
-              137
-        #endif
-
-        #if defined(JUMBUCKS)
-              43
-        #endif
-
-        #if defined(DOGECOIN)
-              30
-        #endif
-
-        #if defined(MYRIADCOIN)
-              50
-        #endif
-
-        #if defined(UNOBTANIUM)
-              130
-        #endif
+              uint8_t type = 0
     );
 
     static inline double satoshisToNormaForm(

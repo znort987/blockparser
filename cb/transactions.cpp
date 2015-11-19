@@ -100,8 +100,18 @@ struct Transactions:public Callback
     {
         uint8_t addrType[3];
         uint160_t pubKeyHash;
-        int type = solveOutputScript(pubKeyHash.v, script, scriptSize, addrType);
-        if(unlikely(type<0)) return;
+        auto scriptType = solveOutputScript(
+            pubKeyHash.v,
+            script,
+            scriptSize,
+            addrType
+        );
+        if(unlikely(scriptType<0)) {
+            return;
+        }
+
+        uint8_t addrBuf[64];
+        hash160ToAddr(addrBuf, pubKeyHash.v, true, addrType[0]);
 
         bool match = (addrMap.end() != addrMap.find(pubKeyHash.v));
         if(unlikely(match)) {
@@ -132,6 +142,7 @@ struct Transactions:public Callback
 
                 printf("    %s    ", timeBuf);
                 showHex(pubKeyHash.v, kRIPEMD160ByteSize, false);
+                printf(" (%s)", addrBuf);
 
                 printf("    ");
                 showHex(downTXHash ? downTXHash : txHash);
@@ -213,7 +224,7 @@ struct Transactions:public Callback
             printf(
                 "\"Time\","
                 " \"Address\","
-                "                                  \"TXId\","
+                "                                    \"TXId\","
                 "                                                                   \"TXAmount\","
                 "     \"NewBalance\""
                 "\n"
@@ -221,8 +232,8 @@ struct Transactions:public Callback
         }
         else {
             info("Dumping all transactions for %d address(es)\n", (int)addrMap.size());
-            printf("    Time (GMT)                  Address                                     Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
-            printf("    =======================================================================================================================================================================================================================\n");
+            printf("    Time (GMT)                  Address                                                                          Transaction                                                                    OldBalance                     Amount                 NewBalance\n");
+            printf("    ============================================================================================================================================================================================================================================================\n");
         }
     }
 
@@ -230,7 +241,7 @@ struct Transactions:public Callback
     {
         if(false==csv) {
             printf(
-                "    =======================================================================================================================================================================================================================\n"
+                "    ============================================================================================================================================================================================================================================================\n"
             );
 
             info(

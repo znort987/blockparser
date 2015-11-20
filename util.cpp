@@ -42,20 +42,17 @@ void toHex(
     const uint8_t *src,     // size
     size_t        size,
     bool          rev
-)
-{
+) {
     int incr = 1;
     const uint8_t *p = src;
     const uint8_t *e = size + src;
-    if(rev)
-    {
+    if(rev) {
         p = e-1;
         e = src-1;
         incr = -1;
     }
     
-    while(likely(p!=e))
-    {
+    while(likely(p!=e)) {
         uint8_t c = p[0];
         dst[0] = hexDigits[c>>4];
         dst[1] = hexDigits[c&0xF];
@@ -92,18 +89,15 @@ bool fromHex(
     size_t        dstSize,
     bool          rev,
     bool          abortOnErr
-)
-{
+) {
     int incr = 2;
     uint8_t *end = dstSize + dst;
-    if(rev)
-    {
+    if(rev) {
         src += 2*(dstSize-1);
         incr = -2;
     }
 
-    while(likely(dst<end))
-    {
+    while(likely(dst<end)) {
         uint8_t hi = fromHexDigit(src[0], abortOnErr);
         if(unlikely(0xFF==hi)) return false;
 
@@ -147,8 +141,7 @@ static bool getOpPushData(
 bool isCommentScript(
     const uint8_t *p,
     size_t scriptSize
-)
-{
+) {
     const uint8_t *e = scriptSize + p;
     while(likely(p<e)) {
         LOAD(uint8_t, c, p);
@@ -280,8 +273,7 @@ void showScript(
     const char    *header,
     const char    *indent,
     bool          showAscii
-)
-{
+) {
     bool first = true;
     const uint8_t *e = scriptSize + p;
     indent = indent ? indent : "";
@@ -328,8 +320,7 @@ void showScript(
 bool compressPublicKey(
           uint8_t *result,          // 33 bytes
     const uint8_t *decompressedKey  // 65 bytes
-)
-{
+) {
     EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
     if(!key) {
         errFatal("EC_KEY_new_by_curve_name failed");
@@ -358,8 +349,7 @@ bool compressPublicKey(
 bool decompressPublicKey(
           uint8_t *result,          // 65 bytes
     const uint8_t *compressedKey    // 33 bytes
-)
-{
+) {
     EC_KEY *key = EC_KEY_new_by_curve_name(NID_secp256k1);
     if(!key) {
         errFatal("EC_KEY_new_by_curve_name failed");
@@ -390,8 +380,7 @@ int solveOutputScript(
     const uint8_t *script,
     uint64_t      scriptSize,
     uint8_t       *addrType
-)
-{
+) {
     // default: if we fail to solve the script, we make it pay to unspendable hash 0 (lost coins)
     memset(pubKeyHash, 0, kSHA256ByteSize);
 
@@ -520,8 +509,7 @@ int solveOutputScript(
 
 const uint8_t *loadKeyHash(
     const uint8_t *hexHash
-)
-{
+) {
     static bool loaded = false;
     static uint8_t hash[kRIPEMD160ByteSize];
     const char *someHexHash = "0568015a9facccfd09d70d409b6fc1a5546cecc6"; // 1VayNert3x1KzbpzMGt2qdqrAThiRovi8 deepbit's very large address
@@ -544,8 +532,7 @@ const uint8_t *loadKeyHash(
 uint8_t fromB58Digit(
     uint8_t digit,
        bool abortOnErr
-)
-{
+) {
     if('1'<=digit && digit<='9') return (digit - '1') +   0;
     if('A'<=digit && digit<='H') return (digit - 'A') +   9;
     if('J'<=digit && digit<='N') return (digit - 'J') +  17;
@@ -613,8 +600,7 @@ bool addrToHash160(
     const uint8_t *addr,
              bool checkHash,
              bool verbose
-)
-{
+) {
     static BIGNUM *sum = 0;
     static BN_CTX *ctx = 0;
     if(unlikely(!ctx)) {
@@ -715,8 +701,7 @@ void hash160ToAddr(
     const uint8_t *hash160,
              bool pad,
           uint8_t type
-)
-{
+) {
     uint8_t buf[4 + 2 + kRIPEMD160ByteSize + kSHA256ByteSize];
     const uint32_t size = 4 + 2 + kRIPEMD160ByteSize;
     memcpy(4 + 2 + buf, hash160, kRIPEMD160ByteSize);
@@ -794,8 +779,7 @@ bool guessHash160(
           uint8_t *hash160,
     const uint8_t *addr,
              bool verbose
-)
-{
+) {
     const uint8_t *p = addr;
     while(1) {
         uint8_t c = *p;
@@ -817,8 +801,7 @@ static bool addAddr(
     std::vector<uint160_t> &result,
     const uint8_t *buf,
     bool verbose
-)
-{
+) {
     uint160_t h160;
     bool ok = guessHash160(h160.v, buf, verbose);
     if(ok) result.push_back(h160);
@@ -829,8 +812,7 @@ void loadKeyList(
     std::vector<uint160_t> &result,
     const char *str,
     bool verbose
-)
-{
+) {
     bool isFile = (
         'f'==str[0] &&
         'i'==str[1] &&
@@ -894,8 +876,7 @@ void loadHash256List(
     std::vector<uint256_t> &result,
     const char *str,
     bool verbose
-)
-{
+) {
     bool isFile = (
         'f'==str[0] &&
         'i'==str[1] &&
@@ -954,8 +935,7 @@ void loadHash256List(
 
 std::string pr128(
     const uint128_t &y
-)
-{
+) {
     static char result[1024];
     char *p = 1023+result;
     *(p--) = 0;
@@ -974,8 +954,7 @@ std::string pr128(
 void showFullAddr(
     const Hash160 &addr,
     bool both
-)
-{
+) {
     uint8_t b58[128];
     if(both) {
         showHex(addr, sizeof(uint160_t), false);
@@ -990,8 +969,7 @@ void showFullAddr(
 
 uint64_t getBaseReward(
     uint64_t h
-)
-{
+) {
     static const uint64_t kCoin = 100000000;
     uint64_t reward = (50 * kCoin);
     uint64_t shift = (h/210000);
@@ -1209,8 +1187,7 @@ void writeEscapedBinaryBufferRev(
     FILE          *f,
     const uint8_t *p,
     size_t        n
-)
-{
+) {
     p += n;
 
     while(n--) {
@@ -1223,8 +1200,7 @@ void writeEscapedBinaryBuffer(
     FILE          *f,
     const uint8_t *p,
     size_t        n
-)
-{
+) {
     while(n--) {
         uint8_t c = *(p++);
         writeEscapedChar(c, f);

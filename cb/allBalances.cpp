@@ -506,21 +506,13 @@ struct AllBalances:public Callback {
                 startTime = now;
             }
 
-            double progress = offset/(double)chainSize;
-            double elasedSinceStart = 1e-6*(now - startTime);
-            double speed = progress / elasedSinceStart;
             info(
                 "%8" PRIu64 " blocks, "
                 "%8.3f MegaAddrs , "
-                "%6.2f%% , "
-                "elapsed = %5.2fs , "
-                "eta = %5.2fs , "
+                "                                            "
                 ,
                 curBlock->height,
-                addrMap.size()*1e-6,
-                100.0*progress,
-                elasedSinceStart,
-                (1.0/speed) - elasedSinceStart
+                addrMap.size()*1e-6
             );
 
             lastStatTime = now;

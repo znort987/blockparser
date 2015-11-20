@@ -14,8 +14,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-typedef GoogMap<Hash256, Chunk*, Hash256Hasher, Hash256Equal>::Map TXOMap;
-typedef GoogMap<Hash256, Block*, Hash256Hasher, Hash256Equal>::Map BlockMap;
+typedef GoogMap<
+    Hash256,
+    Chunk*,
+    Hash256Hasher,
+    Hash256Equal
+>::Map TXOMap;
+
+typedef GoogMap<
+    Hash256,
+    Block*,
+    Hash256Hasher,
+    Hash256Equal
+>::Map BlockMap;
 
 static bool gNeedTXHash;
 static Callback *gCallback;
@@ -36,7 +47,11 @@ static uint256_t gNullHash;
 static double getMem() {
 
     char statFileName[256];
-    sprintf(statFileName, "/proc/%d/statm", (int)getpid());
+    sprintf(
+        statFileName,
+        "/proc/%d/statm",
+        (int)getpid()
+    );
 
     uint64_t mem = 0;
     FILE *f = fopen(statFileName, "r");
@@ -335,7 +350,12 @@ static void parseInputs(
 
     LOAD_VARINT(nbInputs, p);
     for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
-        parseInput<skip>(block, p, txHash, inputIndex);
+        parseInput<skip>(
+            block,
+            p,
+            txHash,
+            inputIndex
+        );
     }
 
     if(!skip) {
@@ -381,8 +401,8 @@ static void parseTX(
         const uint8_t *outputsStart = p;
         if(gNeedTXHash && !skip) {
             txo = Chunk::alloc();
-            txoOffset = block->chunk->getOffset() + (p - block->chunk->getData());
             gTXOMap[txHash] = txo;
+            txoOffset = block->chunk->getOffset() + (p - block->chunk->getData());
         }
 
         parseOutputs<skip, false>(p, txHash);
@@ -456,6 +476,7 @@ static void parseLongestChain() {
         gNeedTXHash ? "" : "out"
     );
 
+    auto startTime = usecs();
     gCallback->startLC();
 
         uint64_t bytesSoFar =  0;
@@ -471,13 +492,18 @@ static void parseLongestChain() {
                 auto now = usecs();
                 static auto last = -1.0;
                 auto elapsedSinceLastTime = now - last;
+                auto elapsedSinceStart = now - startTime;
+                auto bytesPerSec = bytesSoFar / (elapsedSinceStart*1e-6);
+                auto bytesLeft = gChainSize - bytesSoFar;
+                auto secsLeft = bytesLeft / bytesPerSec;
                 if((1.0 * 1000 * 1000)<elapsedSinceLastTime) {
                     fprintf(
                         stderr,
-                        "block %6d/%6d - %.2f%% done - mem = %.3f Gig           \r",
+                        "block %6d/%6d, %.2f%% done, ETA = %.2fsecs, mem = %.3f Gig           \r",
                         (int)blk->height,
                         (int)gMaxHeight,
                         progress*100.0,
+                        secsLeft,
                         getMem()
                     );
                     fflush(stderr);

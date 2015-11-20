@@ -147,8 +147,8 @@ blockparser
 
                  http://askubuntu.com/questions/178712/how-to-increase-swap-space
 
-    How does it blockparser deal with multi-sig transactions ?
-    ----------------------------------------------------------
+    How does blockparser deal with multi-sig transactions ?
+    --------------------------------------------------------
 
         AFAIK, there are two types of multi-sig transactions:
 

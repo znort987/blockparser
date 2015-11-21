@@ -28,11 +28,11 @@ typedef GoogMap<
     Hash256Equal
 >::Map BlockMap;
 
-static bool gNeedTXHash;
+static bool gNeedUpstream;
 static Callback *gCallback;
 
-static const Map *gCurMap;
-static std::vector<Map> mapVec;
+static const BlockFile *gCurBlockFile;
+static std::vector<BlockFile> blockFiles;
 
 static TXOMap gTXOMap;
 static BlockMap gBlockMap;
@@ -55,10 +55,10 @@ static double getMem() {
 
     uint64_t mem = 0;
     FILE *f = fopen(statFileName, "r");
-    if(1!=fscanf(f, "%" PRIu64, &mem)) {
-        warning("coudln't read process size");
-    }
-
+        if(1!=fscanf(f, "%" PRIu64, &mem)) {
+            warning("coudln't read process size");
+        }
+    fclose(f);
     return (1e-9f*mem)*getpagesize();
 }
 
@@ -129,27 +129,27 @@ static double getMem() {
 #endif
 
 #define DO(x) x
-    static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));    }
-    static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));      }
-    static inline void     startTXs(const uint8_t *p)                      { DO(gCallback->startTXs(p));      }
-    static inline void       endTXs(const uint8_t *p)                      { DO(gCallback->endTXs(p));        }
-    static inline void      startTX(const uint8_t *p, const uint8_t *hash) { DO(gCallback->startTX(p, hash)); }
-    static inline void        endTX(const uint8_t *p)                      { DO(gCallback->endTX(p));         }
-    static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));   }
-    static inline void    endInputs(const uint8_t *p)                      { DO(gCallback->endInputs(p));     }
-    static inline void   startInput(const uint8_t *p)                      { DO(gCallback->startInput(p));    }
-    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInput(p));      }
-    static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p));  }
-    static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));    }
-    static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));   }
-    static inline void        start(const Block *s, const Block *e)        { DO(gCallback->start(s, e));      }
+    static inline void   startBlock(const uint8_t *p)                      { DO(gCallback->startBlock(p));         }
+    static inline void     endBlock(const uint8_t *p)                      { DO(gCallback->endBlock(p));           }
+    static inline void     startTXs(const uint8_t *p)                      { DO(gCallback->startTXs(p));           }
+    static inline void       endTXs(const uint8_t *p)                      { DO(gCallback->endTXs(p));             }
+    static inline void      startTX(const uint8_t *p, const uint8_t *hash) { DO(gCallback->startTX(p, hash));      }
+    static inline void        endTX(const uint8_t *p)                      { DO(gCallback->endTX(p));              }
+    static inline void  startInputs(const uint8_t *p)                      { DO(gCallback->startInputs(p));        }
+    static inline void    endInputs(const uint8_t *p)                      { DO(gCallback->endInputs(p));          }
+    static inline void   startInput(const uint8_t *p)                      { DO(gCallback->startInput(p));         }
+    static inline void     endInput(const uint8_t *p)                      { DO(gCallback->endInput(p));           }
+    static inline void startOutputs(const uint8_t *p)                      { DO(gCallback->startOutputs(p));       }
+    static inline void   endOutputs(const uint8_t *p)                      { DO(gCallback->endOutputs(p));         }
+    static inline void  startOutput(const uint8_t *p)                      { DO(gCallback->startOutput(p));        }
+    static inline void        start(const Block *s, const Block *e)        { DO(gCallback->start(s, e));           }
 #undef DO
 
-static inline void     startMap(const uint8_t *p) { gCallback->startMap(p);               }
-static inline void       endMap(const uint8_t *p) { gCallback->endMap(p);                 }
-static inline void     startBlock(const Block *b) { gCallback->startBlock(b, gChainSize); }
-static inline void       endBlock(const Block *b) { gCallback->endBlock(b);               }
-static inline bool                         done() { return gCallback->done();             }
+static inline void   startBlockFile(const uint8_t *p)                      { gCallback->startBlockFile(p);         }
+static inline void     endBlockFile(const uint8_t *p)                      { gCallback->endBlockFile(p);           }
+static inline void         startBlock(const Block *b)                      { gCallback->startBlock(b, gChainSize); }
+static inline void           endBlock(const Block *b)                      { gCallback->endBlock(b);               }
+static inline bool                             done()                      { return gCallback->done();             }
 
 static inline void endOutput(
     const uint8_t *p,
@@ -298,7 +298,7 @@ static void parseInput(
 
         auto upTXHash = p;
         const Chunk *upTX = 0;
-        if(gNeedTXHash && !skip) {
+        if(gNeedUpstream && !skip) {
             auto isGenTX = (0==memcmp(gNullHash.v, upTXHash, sizeof(gNullHash)));
             if(likely(false==isGenTX)) {
                 auto i = gTXOMap.find(upTXHash);
@@ -373,7 +373,7 @@ static void parseTX(
     auto txStart = p;
     uint8_t *txHash = 0;
 
-    if(gNeedTXHash && !skip) {
+    if(gNeedUpstream && !skip) {
         auto txEnd = p;
         txHash = allocHash256();
         parseTX<true>(block, txEnd);
@@ -399,7 +399,7 @@ static void parseTX(
         Chunk *txo = 0;
         size_t txoOffset = -1;
         const uint8_t *outputsStart = p;
-        if(gNeedTXHash && !skip) {
+        if(gNeedUpstream && !skip) {
             txo = Chunk::alloc();
             gTXOMap[txHash] = txo;
             txoOffset = block->chunk->getOffset() + (p - block->chunk->getData());
@@ -410,7 +410,7 @@ static void parseTX(
         if(txo) {
             size_t txoSize = p - outputsStart;
             txo->init(
-                block->chunk->getMap(),
+                block->chunk->getBlockFile(),
                 txoSize,
                 txoOffset
             );
@@ -473,7 +473,7 @@ static void parseLongestChain() {
 
     info(
         "pass 4 -- full blockchain analysis (with%s index)...",
-        gNeedTXHash ? "" : "out"
+        gNeedUpstream ? "" : "out"
     );
 
     auto startTime = usecs();
@@ -487,12 +487,11 @@ static void parseLongestChain() {
 
             if(0==(blk->height % 10)) {
    
-                auto progress =  bytesSoFar/(double)gChainSize;
-
                 auto now = usecs();
                 static auto last = -1.0;
                 auto elapsedSinceLastTime = now - last;
                 auto elapsedSinceStart = now - startTime;
+                auto progress =  bytesSoFar/(double)gChainSize;
                 auto bytesPerSec = bytesSoFar / (elapsedSinceStart*1e-6);
                 auto bytesLeft = gChainSize - bytesSoFar;
                 auto secsLeft = bytesLeft / bytesPerSec;
@@ -562,7 +561,6 @@ static void initCallback(
     gCallback = Callback::find(methodName);
 
     info("starting command \"%s\"", gCallback->name());
-
     if(argv[1]) {
         auto i = 0;
         while('-'==argv[1][i]) {
@@ -574,7 +572,7 @@ static void initCallback(
     if(ir<0) {
         errFatal("callback init failed");
     }
-    gNeedTXHash = gCallback->needTXHash();
+    gNeedUpstream = gCallback->needUpstream();
 
     if(done()) {
         fprintf(stderr, "\n");
@@ -584,30 +582,29 @@ static void initCallback(
 
 static void findBlockParent(
     Block *b
-)
-{
+) {
     auto where = lseek64(
-        b->chunk->getMap()->fd,
+        b->chunk->getBlockFile()->fd,
         b->chunk->getOffset(),
         SEEK_SET
     );
     if(where!=(signed)b->chunk->getOffset()) {
         sysErrFatal(
             "failed to seek into block chain file %s",
-            b->chunk->getMap()->name.c_str()
+            b->chunk->getBlockFile()->name.c_str()
         );
     }
 
     uint8_t buf[gHeaderSize];
     auto nbRead = read(
-        b->chunk->getMap()->fd,
+        b->chunk->getBlockFile()->fd,
         buf,
         gHeaderSize
     );
     if(nbRead<(signed)gHeaderSize) {
         sysErrFatal(
             "failed to read from block chain file %s",
-            b->chunk->getMap()->name.c_str()
+            b->chunk->getBlockFile()->name.c_str()
         );
     }
 
@@ -673,7 +670,6 @@ static void computeBlockHeight(
         if(block==b) {
             break;
         }
-
         b = next;
     }
 }
@@ -685,7 +681,6 @@ static void computeBlockHeights() {
     for(const auto &pair:gBlockMap) {
         computeBlockHeight(pair.second, lateLinks);
     }
-
     info(
         "pass 2 -- done, did %d late links",
         (int)lateLinks
@@ -693,10 +688,10 @@ static void computeBlockHeights() {
 }
 
 static void getBlockHeader(
-    size_t         &size,
-    Block         *&prev,
-          uint8_t *&hash,
-    size_t         &earlyMissCnt,
+    size_t        &size,
+    Block        *&prev,
+    uint8_t      *&hash,
+    size_t        &earlyMissCnt,
     const uint8_t *p
 ) {
 
@@ -748,13 +743,13 @@ static void buildBlockHeaders() {
     const auto startTime = usecs();
     const auto oneMeg = 1024 * 1024;
 
-    for(const auto &map : mapVec) {
+    for(const auto &blockFile : blockFiles) {
 
-        startMap(0);
+        startBlockFile(0);
 
         while(1) {
 
-            auto nbRead = read(map.fd, buf, sz);
+            auto nbRead = read(blockFile.fd, buf, sz);
             if(nbRead<(signed)sz) {
                 break;
             }
@@ -765,24 +760,30 @@ static void buildBlockHeaders() {
             Block *prevBlock = 0;
             size_t blockSize = 0;
 
-            getBlockHeader(blockSize, prevBlock, hash, earlyMissCnt, buf);
+            getBlockHeader(
+                blockSize,
+                prevBlock,
+                hash,
+                earlyMissCnt,
+                buf
+            );
             if(unlikely(0==hash)) {
                 break;
             }
 
-            auto where = lseek(map.fd, (blockSize + 8) - sz, SEEK_CUR);
+            auto where = lseek(blockFile.fd, (blockSize + 8) - sz, SEEK_CUR);
             auto blockOffset = where - blockSize;
             if(where<0) {
                 break;
             }
 
             auto block = Block::alloc();
-            block->init(hash, &map, blockSize, prevBlock, blockOffset);
+            block->init(hash, &blockFile, blockSize, prevBlock, blockOffset);
             gBlockMap[hash] = block;
             endBlock((uint8_t*)0);
             ++nbBlocks;
         }
-        baseOffset += map.size;
+        baseOffset += blockFile.size;
 
         auto now = usecs();
         auto elapsed = now - startTime;
@@ -802,7 +803,7 @@ static void buildBlockHeaders() {
         );
         fflush(stderr);
 
-        endMap(0);
+        endBlockFile(0);
     }
 
     if(0==nbBlocks) {
@@ -834,7 +835,6 @@ static void buildNullBlock() {
     gNullBlock->height = 0;
 }
 
-
 static void initHashtables() {
 
     info("initializing hash tables");
@@ -842,19 +842,14 @@ static void initHashtables() {
     gTXOMap.setEmptyKey(empty);
     gBlockMap.setEmptyKey(empty);
 
-    gChainSize = 0;
-    for(const auto &map : mapVec) {
-        gChainSize += map.size;
-    }
-
-    auto kTXPerBytes = 0.001629959661422393411310473897487741211;
-    auto nbTxEstimate = (size_t)(1.1 * kTXPerBytes * gChainSize);
-    if(gNeedTXHash) {
+    auto kAvgBytesPerTX = 542.0;
+    auto nbTxEstimate = (size_t)(1.1 * (gChainSize / kAvgBytesPerTX));
+    if(gNeedUpstream) {
         gTXOMap.resize(nbTxEstimate);
     }
 
-    auto kBlocksPerBytes = 0.00000676600139054791679077780281050222;
-    auto nbBlockEstimate = (size_t)(1.1 * kBlocksPerBytes * gChainSize);
+    auto kAvgBytesPerBlock = 140000;
+    auto nbBlockEstimate = (size_t)(1.1 * (gChainSize / kAvgBytesPerBlock));
     gBlockMap.resize(nbBlockEstimate);
 
     info("estimated number of blocks = %.2fK", 1e-3*nbBlockEstimate);
@@ -902,11 +897,13 @@ static std::string getBlockchainDir() {
     );
 }
 
-static void makeBlockMaps() {
+static void findBlockFiles() {
+
+    gChainSize = 0;
 
     auto blockChainDir = getBlockchainDir();
     auto blockDir = blockChainDir + std::string("/blocks");
-    info("loading block chain from: %s", blockChainDir.c_str());
+    info("loading block chain from directory: %s", blockChainDir.c_str());
 
     struct stat statBuf;
     auto r = stat(blockDir.c_str(), &statBuf);
@@ -919,55 +916,53 @@ static void makeBlockMaps() {
         char buf[64];
         sprintf(buf, fmt, blkDatId++);
 
-        auto blockMapFileName =
-            blockChainDir +
-            std::string(buf)
-        ;
-
-        auto blockMapFD = open(blockMapFileName.c_str(), O_RDONLY);
-        if(blockMapFD<0) {
+        auto fileName = blockChainDir + std::string(buf) ;
+        auto fd = open(fileName.c_str(), O_RDONLY);
+        if(fd<0) {
             if(1<blkDatId) {
                 break;
             }
             sysErrFatal(
                 "failed to open block chain file %s",
-                blockMapFileName.c_str()
+                fileName.c_str()
             );
         }
 
         struct stat statBuf;
-        int st0 = fstat(blockMapFD, &statBuf);
-        if(st0<0) {
+        auto r0 = fstat(fd, &statBuf);
+        if(r0<0) {
             sysErrFatal(
                 "failed to fstat block chain file %s",
-                blockMapFileName.c_str()
+                fileName.c_str()
             );
         }
 
-        auto mapSize = statBuf.st_size;
-        auto st1 = posix_fadvise(blockMapFD, 0, mapSize, POSIX_FADV_NOREUSE);
-        if(st1<0) {
+        auto fileSize = statBuf.st_size;
+        auto r1 = posix_fadvise(fd, 0, fileSize, POSIX_FADV_NOREUSE);
+        if(r1<0) {
             warning(
                 "failed to posix_fadvise on block chain file %s",
-                blockMapFileName.c_str()
+                fileName.c_str()
             );
         }
 
-        Map map;
-        map.size = mapSize;
-        map.fd = blockMapFD;
-        map.name = blockMapFileName;
-        mapVec.push_back(map);
+        BlockFile blockFile;
+        blockFile.fd = fd;
+        blockFile.size = fileSize;
+        blockFile.name = fileName;
+        blockFiles.push_back(blockFile);
+        gChainSize += fileSize;
     }
+    info("block chain size = %.3f Gigs", 1e-9*gChainSize);
 }
 
-static void cleanMaps() {
-    for(const auto &map : mapVec) {
-        auto r = close(map.fd);
+static void cleanBlockFiles() {
+    for(const auto &blockFile : blockFiles) {
+        auto r = close(blockFile.fd);
         if(r<0) {
             sysErr(
                 "failed to close block chain file %s",
-                map.name.c_str()
+                blockFile.name.c_str()
             );
         }
     }
@@ -980,17 +975,17 @@ int main(
 
     auto start = usecs();
     fprintf(stderr, "\n");
-    initCallback(argc, argv);
     info("mem at start = %.3f Gigs", getMem());
 
-    makeBlockMaps();
+    initCallback(argc, argv);
+    findBlockFiles();
     initHashtables();
     buildNullBlock();
     buildBlockHeaders();
     computeBlockHeights();
     wireLongestChain();
     parseLongestChain();
-    cleanMaps();
+    cleanBlockFiles();
 
     auto elapsed = (usecs() - start)*1e-6;
     info("all done in %.2f seconds", elapsed);

@@ -46,7 +46,7 @@ struct DumpTX:public Callback {
 
     virtual const char                   *name() const         { return "dumpTX"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;  }
-    virtual bool                         needTXHash() const    { return true;     }
+    virtual bool                       needUpstream() const    { return true;     }
     virtual bool                               done()          { return isDone;   }
 
     virtual void aliases(

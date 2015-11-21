@@ -13,7 +13,7 @@ struct Help:public Callback {
 
     virtual const char                           *name() const { return "help";  }
     virtual const optparse::OptionParser *optionParser() const { return &parser; }
-    virtual bool                            needTXHash() const { return false;   }
+    virtual bool                          needUpstream() const { return false;   }
     virtual bool                                  done()       { return true;    }
 
     virtual void aliases(

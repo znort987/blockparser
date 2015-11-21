@@ -36,7 +36,7 @@ struct RawDump:public Callback {
 
     virtual const char                   *name() const         { return "rawdump";  }
     virtual const optparse::OptionParser *optionParser() const { return &parser;    }
-    virtual bool                         needTXHash() const    { return true;       }
+    virtual bool                       needUpstream() const    { return true;       }
 
     void push() {
         spaces[4*indentLevel] = ' ';
@@ -93,7 +93,7 @@ struct RawDump:public Callback {
         printf(
             "%smap = '%s'\n",
             spaces,
-            b->chunk->getMap()->name.c_str()
+            b->chunk->getBlockFile()->name.c_str()
         );
 
         printf("%sblockHash = '", spaces);

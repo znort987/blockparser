@@ -22,7 +22,7 @@ struct Headers : public Callback {
 
     virtual const char                   *name() const         { return "headers"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser;   }
-    virtual bool                         needTXHash() const    { return false;     }
+    virtual bool                       needUpstream() const    { return false;     }
 
     virtual void startBlock(
         const Block *b,

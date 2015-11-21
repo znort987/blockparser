@@ -21,13 +21,13 @@
         virtual const Parser *optionParser(                            ) const = 0;              // Option parser object for callback
         virtual void               aliases(std::vector<const char *> &v) const {               } // Alternate names for callback
         virtual int                   init(int argc, const char *argv[])       { return 0;     } // Called after callback construction, with command line arguments
-        virtual bool            needTXHash(                            ) const { return false; } // Overload if you need parser to compute TX hashes
+        virtual bool          needUpstream(                            ) const { return false; } // Overload if you need parser to provide upstream to each input (slower + memory hungry)
 
         // Callback for first, shallow parse -- all blocks are seen, including orphaned ones but aren't parsed
-        virtual void     startMap(const uint8_t *p                     )       {               }  // Called when a blockchain file is mapped into memory
-        virtual void       endMap(const uint8_t *p                     )       {               }  // Called when a blockchain file is unmapped from memory
-        virtual void   startBlock(const uint8_t *p                     )       {               }  // Called when a block is encountered during first pass
-        virtual void     endBlock(const uint8_t *p                     )       {               }  // Called when an end of block is encountered during first pass
+        virtual void startBlockFile(const uint8_t *p                   )       {               }  // Called when a blockchain file is mapped into memory
+        virtual void   endBlockFile(const uint8_t *p                   )       {               }  // Called when a blockchain file is unmapped from memory
+        virtual void     startBlock(const uint8_t *p                   )       {               }  // Called when a block is encountered during first pass
+        virtual void       endBlock(const uint8_t *p                   )       {               }  // Called when an end of block is encountered during first pass
 
         // Callback for second, deep parse -- only valid blocks are seen, and are parsed in details
         virtual void        start(  const Block *s, const Block *e     )       {               }  // Called when the second parse of the full chain starts

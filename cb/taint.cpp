@@ -68,7 +68,7 @@ struct Taint : public Callback {
 
     virtual const char                   *name() const         { return "taint"; }
     virtual const optparse::OptionParser *optionParser() const { return &parser; }
-    virtual bool                         needTXHash() const    { return true;    }
+    virtual bool                       needUpstream() const    { return true;    }
 
     virtual void aliases(
         std::vector<const char*> &v

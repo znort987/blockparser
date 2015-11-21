@@ -3,6 +3,7 @@
 
     #include <string>
     #include <vector>
+
     #include <common.h>
     #include <errlog.h>
     #include <rmd160.h>
@@ -78,7 +79,7 @@
     static inline uint8_t *allocHash256() { return PagedAllocator<uint256_t>::alloc(); }
     static inline uint8_t *allocHash160() { return PagedAllocator<uint160_t>::alloc(); }
 
-    struct Map {
+    struct BlockFile {
         int fd;
         uint64_t size;
         std::string name;
@@ -86,37 +87,37 @@
 
     struct Chunk {
     private:
-        const Map *map;
         size_t size;
         size_t offset;
         mutable uint8_t *data;
+        const BlockFile *blockFile;
 
     public:
         void init(
-            const Map *_map,
+            const BlockFile *_blockFile,
             size_t _size,
             size_t _offset
         ) {
             data = 0;
-            map = _map;
             size = _size;
             offset = _offset;
+            blockFile = _blockFile;
         }
 
         const uint8_t *getData() const {
             if(likely(0==data)) {
-                auto where = lseek64(map->fd, offset, SEEK_SET);
+                auto where = lseek64(blockFile->fd, offset, SEEK_SET);
                 if(where!=(signed)offset) {
                     sysErrFatal(
                         "failed to seek into block chain file %s",
-                        map->name.c_str()
+                        blockFile->name.c_str()
                     );
                 }
                 data = (uint8_t*)malloc(size);
 
-                auto sz = read(map->fd, data, size);
+                auto sz = read(blockFile->fd, data, size);
                 if(sz!=(signed)size) {
-                    //fatal("can't map block");
+                    //fatal("can't read block");
                 }
             }
             return data;
@@ -127,9 +128,9 @@
             data = 0;
         }
 
-        size_t getSize() const    { return size;   }
-        size_t getOffset() const  { return offset; }
-        const Map *getMap() const { return map;    }
+        size_t getSize() const                { return size;      }
+        size_t getOffset() const              { return offset;    }
+        const BlockFile *getBlockFile() const { return blockFile; }
 
         static Chunk *alloc() {
             return (Chunk*)PagedAllocator<Chunk>::alloc();
@@ -145,14 +146,14 @@
         Block         *next;
 
         void init(
-            const uint8_t *_hash,
-            const Map     *_map,
-            size_t         _size,
-            Block         *_prev,
-            uint64_t       _offset      
+            const uint8_t   *_hash,
+            const BlockFile *_blockFile,
+            size_t          _size,
+            Block           *_prev,
+            uint64_t        _offset      
         ) {
             chunk = Chunk::alloc();
-            chunk->init(_map, _size, _offset);
+            chunk->init(_blockFile, _size, _offset);
 
             hash = _hash;
             height = -1;

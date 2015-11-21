@@ -3,24 +3,22 @@
 
     #include <errno.h>
     #include <stdio.h>
-    #include <string.h>
     #include <stdarg.h>
     #include <stdlib.h>
+    #include <string.h>
 
     static inline void vError(
         int level,
         bool system,
         const char *format,
         va_list vaList
-    )
-    {
+    ) {
         fflush(stdout);
         fflush(stderr);
 
         bool info = (level==3);
         bool fatal = (level==0);
         bool warning = (level==2);
-
         const char *msgType =
             info    ? "info"    :
             fatal   ? "fatal"   :
@@ -46,14 +44,15 @@
         fflush(stdout);
         fflush(stderr);
 
-        if(fatal) abort();
+        if(fatal) {
+            abort();
+        }
     }
 
     static inline void sysErr(
         const char *format,
         ...
-    )
-    {
+    ) {
         va_list vaList;
         va_start(vaList, format);
             vError(1, true, format, vaList);
@@ -63,8 +62,7 @@
     static inline void errFatal(
         const char *format,
         ...
-    )
-    {
+    ) {
         va_list vaList;
         va_start(vaList, format);
             vError(0, false, format, vaList);
@@ -74,8 +72,7 @@
     static inline void sysErrFatal(
         const char *format,
         ...
-    )
-    {
+    ) {
         va_list vaList;
         va_start(vaList, format);
             vError(0, true, format, vaList);
@@ -85,8 +82,7 @@
     static inline void warning(
         const char *format,
         ...
-    )
-    {
+    ) {
         va_list vaList;
         va_start(vaList, format);
             vError(2, false, format, vaList);
@@ -96,8 +92,7 @@
     static inline void info(
         const char *format,
         ...
-    )
-    {
+    ) {
         va_list vaList;
         va_start(vaList, format);
             vError(3, false, format, vaList);

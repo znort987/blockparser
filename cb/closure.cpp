@@ -15,11 +15,22 @@
 
 typedef uint160_t Addr;
 static uint8_t gEmptyKey[kRIPEMD160ByteSize] = { 0x52 };
-typedef GoogMap<Hash160, uint64_t, Hash160Hasher, Hash160Equal >::Map AddrMap;
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> Graph;
 
-struct Closure:public Callback
-{
+typedef GoogMap<
+    Hash160,
+    uint64_t,
+    Hash160Hasher,
+    Hash160Equal
+>::Map AddrMap;
+
+typedef boost::adjacency_list<
+    boost::vecS,
+    boost::vecS,
+    boost::undirectedS
+> Graph;
+
+struct Closure : public Callback {
+
     optparse::OptionParser parser;
 
     Graph graph;
@@ -70,7 +81,6 @@ struct Closure:public Callback
         allAddrs.reserve(15 * 1000 * 1000);
         info("Building address equivalence graph ...");
         startTime = usecs();
-
         return 0;
     }
 

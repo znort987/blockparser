@@ -7,7 +7,7 @@
 #include <option.h>
 #include <callback.h>
 
-struct Help:public Callback {
+struct Help : public Callback {
 
     optparse::OptionParser parser;
 
@@ -98,7 +98,6 @@ struct Help:public Callback {
                 Callback::showAllHelps(false);
             }
         }
-
         return 0;
     }
 };

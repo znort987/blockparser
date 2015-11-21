@@ -1,12 +1,4 @@
 
-#include <util.h>
-#include <alloca.h>
-#include <common.h>
-#include <errlog.h>
-#include <rmd160.h>
-#include <sha256.h>
-#include <opcodes.h>
-
 #include <string>
 #include <stdio.h>
 #include <string.h>
@@ -15,6 +7,14 @@
 #include <openssl/bn.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
+
+#include <util.h>
+#include <alloca.h>
+#include <common.h>
+#include <errlog.h>
+#include <rmd160.h>
+#include <sha256.h>
+#include <opcodes.h>
 
 const uint8_t hexDigits[] = "0123456789abcdef";
 const uint8_t b58Digits[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -636,7 +636,8 @@ bool addrToHash160(
         (buf[0]<<24)    |
         (buf[1]<<16)    |
         (buf[2]<< 8)    |
-        (buf[3]<< 0);
+        (buf[3]<< 0)
+    ;
     if(size!=(4+recordedSize)) {
         warning(
             "BN_bn2mpi returned bignum size %d, expected %d\n",
@@ -655,7 +656,9 @@ bool addrToHash160(
     ptrdiff_t bigNumSize = bigNumEnd - bigNumStart;
     ptrdiff_t padSize = kRIPEMD160ByteSize - bigNumSize;
     if(0<padSize) {
-        if(0<bigNumSize) memcpy(padSize + hash160, bigNumStart, bigNumSize);
+        if(0<bigNumSize) {
+            memcpy(padSize + hash160, bigNumStart, bigNumSize);
+        }
         memset(hash160, 0, padSize);
     } else {
         memcpy(hash160, bigNumStart - padSize, kRIPEMD160ByteSize);

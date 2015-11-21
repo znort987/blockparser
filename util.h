@@ -86,6 +86,7 @@
     };
 
     struct Chunk {
+
     private:
         size_t size;
         size_t offset;

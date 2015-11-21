@@ -122,8 +122,7 @@
         OPCODE(      INVALIDOPCODE, ff) \
 
     #define OPCODE(x, y) kOP_##x = 0x##y,
-        enum Opcode
-        {
+        enum Opcode {
             OPCODES
             kOP_BOGUS_TO_GET_GCC_TO_STFU
         };

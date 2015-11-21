@@ -9,9 +9,16 @@
 #include <callback.h>
 
 static uint8_t empty[kSHA256ByteSize] = { 0x42 };
-typedef GoogMap<Hash256, uint64_t, Hash256Hasher, Hash256Equal>::Map OutputMap;
 
-struct SQLDump:public Callback {
+typedef GoogMap<
+    Hash256,
+    uint64_t,
+    Hash256Hasher,
+    Hash256Equal
+>::Map OutputMap;
+
+struct SQLDump : public Callback {
+
     FILE *txFile;
     FILE *blockFile;
     FILE *inputFile;
@@ -159,7 +166,9 @@ struct SQLDump:public Callback {
         const Block *b,
         uint64_t
     ) {
-        if(0<=cutoffBlock && cutoffBlock<b->height) wrapup();
+        if(0<=cutoffBlock && cutoffBlock<b->height) {
+            wrapup();
+        }
 
         auto p = b->chunk->getData();
         uint8_t blockHash[kSHA256ByteSize];
@@ -219,8 +228,20 @@ struct SQLDump:public Callback {
 
         uint8_t addrType[3];
         uint160_t pubKeyHash;
-        int type = solveOutputScript(pubKeyHash.v, outputScript, outputScriptSize, addrType);
-        if(likely(0<=type)) hash160ToAddr(address, pubKeyHash.v);
+        int type = solveOutputScript(
+            pubKeyHash.v,
+            outputScript,
+            outputScriptSize,
+            addrType
+        );
+        if(likely(0<=type)) {
+            hash160ToAddr(
+                address,
+                pubKeyHash.v,
+                false,
+                addrType[0]
+            );
+        }
 
         // id BIGINT PRIMARY KEY
         // dstAddress CHAR(36)
@@ -273,7 +294,9 @@ struct SQLDump:public Callback {
         h32[0] ^= oi;
 
         auto src = outputMap.find(h.v);
-        if(outputMap.end()==src) errFatal("unconnected input");
+        if(outputMap.end()==src) {
+            errFatal("unconnected input");
+        }
 
         // id BIGINT PRIMARY KEY
         // outputID BIGINT

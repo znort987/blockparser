@@ -12,6 +12,7 @@
 #include <vector>
 #include <string.h>
 #include <signal.h>
+#include <algorithm>
 
 struct Addr;
 struct AllBalances;

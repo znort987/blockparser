@@ -1,6 +1,6 @@
 
 #include <rmd160.h>
-#include "openssl/ripemd.h"
+#include <openssl/ripemd.h>
 
 void rmd160(
           uint8_t *result,

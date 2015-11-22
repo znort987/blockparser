@@ -943,7 +943,7 @@ std::string pr128(
     char *p = 1023+result;
     *(p--) = 0;
 
-    uint128_t x = y;
+    auto x = y;
     while(1) {
         *(p--) = (char)((x % 10) + '0');
         if(unlikely(0==x)) break;

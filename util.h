@@ -167,10 +167,9 @@
         }
     };
 
-    #if defined(WANT_DENSE)
+    #if defined NO_GOOGLE_MAP
 
-        // Faster, uses more RAM
-        #include <google/dense_hash_map>
+        #include <unordered_map>
 
         template<
             typename Key,
@@ -180,7 +179,7 @@
         >
         struct GoogMap {
 
-            typedef google::dense_hash_map<
+            typedef std::unordered_map<
                 Key,
                 Value,
                 Hasher,
@@ -189,43 +188,78 @@
 
             struct Map:public MapBase {
                 void setEmptyKey(
-                    const Key &empty
-                )
-                {
-                    this->set_empty_key(empty);
+                    const Key &
+                ) {
+                }
+
+                void resize(
+                    const size_t &size
+                ) {
+                    MapBase::reserve(size);
                 }
             };
         };
 
     #else
+        #if defined(WANT_DENSE)
 
-        // Slower, uses less RAM
-        #include <google/sparse_hash_map>
+            // Faster, uses more RAM
+            #include <google/dense_hash_map>
 
-        template<
-            typename Key,
-            typename Value,
-            typename Hasher,
-            typename Equal
-        >
-        struct GoogMap {
+            template<
+                typename Key,
+                typename Value,
+                typename Hasher,
+                typename Equal
+            >
+            struct GoogMap {
 
-            typedef google::sparse_hash_map<
-                Key,
-                Value,
-                Hasher,
-                Equal
-            > MapBase;
+                typedef google::dense_hash_map<
+                    Key,
+                    Value,
+                    Hasher,
+                    Equal
+                > MapBase;
 
-            struct Map:public MapBase {
-
-                void setEmptyKey(
-                    const Key &empty
-                ) {
-                }
+                struct Map:public MapBase {
+                    void setEmptyKey(
+                        const Key &empty
+                    ) {
+                        this->set_empty_key(empty);
+                    }
+                };
             };
-        };
 
+        #else
+
+            // Slower, uses less RAM
+            #include <google/sparse_hash_map>
+
+            template<
+                typename Key,
+                typename Value,
+                typename Hasher,
+                typename Equal
+            >
+            struct GoogMap {
+
+                typedef google::sparse_hash_map<
+                    Key,
+                    Value,
+                    Hasher,
+                    Equal
+                > MapBase;
+
+                struct Map:public MapBase {
+
+                    void setEmptyKey(
+                        const Key &empty
+                    ) {
+                    }
+                };
+            };
+
+        #endif
     #endif
 
     #define SKIP(type, var, p)       \

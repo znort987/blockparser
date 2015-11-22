@@ -1,6 +1,6 @@
 
 #include <sha256.h>
-#include "openssl/sha.h"
+#include <openssl/sha.h>
 
 void sha256(
     uint8_t       *result,

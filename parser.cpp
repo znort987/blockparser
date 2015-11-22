@@ -857,6 +857,20 @@ static void initHashtables() {
     info("done initializing hash tables - mem = %.3f Gigs", getMem());
 }
 
+#if defined(__CYGWIN__)
+    #include <sys/cygwin.h>
+    #include <cygwin/version.h>
+    static char *canonicalize_file_name(
+        const char *fileName
+    ) {
+        auto r = (char*)cygwin_create_path(CCP_WIN_A_TO_POSIX, fileName);
+        if(0==r) {
+            errFatal("can't canonicalize path %s", fileName);
+        }
+        return r;
+    }
+#endif
+
 static std::string getNormalizedDirName(
     const std::string &dirName
 ) {

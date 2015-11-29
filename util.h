@@ -348,6 +348,14 @@
         );
     #endif
 
+    #if defined(PAYCON)
+        void h13(
+                  uint8_t *h9r,
+            const uint8_t *buf,
+            uint64_t      size
+        );
+    #endif
+
     #if defined(CLAM) || defined(JUMBUCKS)
         void scrypt(
                   uint8_t *h9r,

@@ -548,6 +548,10 @@ static int getCoinType() {
             48 + 28
         #endif
 
+        #if defined(PAYCON)
+            55
+        #endif
+
         #if defined(LITECOIN)
             48
         #endif
@@ -1005,6 +1009,10 @@ const char *getInterestingAddr() {
 
         "xQKq1LwJQQkg1A5cmB9znGozCKLkAaKJHW"
 
+    #elif defined(PAYCON)
+
+        "PShpEEfcy8UrBPWoefsNnq8oz6bX7dNxnP"
+
     #elif defined(JUMBUCKS)
 
         "JhbrvAmM7kNpwA6wD5KoAsbtikLWWMNPcM"
@@ -1038,6 +1046,21 @@ const char *getInterestingAddr() {
         uint64_t      size
     ) {
         uint256 hash = Hash9(buf, size + buf);
+        memcpy(h9r, &hash, sizeof(hash));
+    }
+
+#endif
+
+#if defined(PAYCON)
+
+    #include <h9/h13.h>
+
+    void h13(
+        uint8_t       *h9r,
+        const uint8_t *buf,
+        uint64_t      size
+    ) {
+        uint256 hash = Hash13(buf, size + buf);
         memcpy(h9r, &hash, sizeof(hash));
     }
 

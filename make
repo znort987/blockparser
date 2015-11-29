@@ -138,6 +138,8 @@ my(@lib) = qw(
     h9/echo.c
     h9/simd.c
     h9/blake.c
+    h9/fugue.c
+    h9/hamsi.c
     h9/luffa.c
     h9/skein.c
     h9/keccak.c
@@ -197,6 +199,8 @@ my(@inc) = qw(
 );
 
 #-DCLAM
+#-DPAYCON
+#-DBITCOIN
 #-DDARKCOIN
 #-DJUMBUCKS
 #-DLITECOIN

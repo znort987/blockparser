@@ -262,7 +262,14 @@
         #endif
     #endif
 
+    #if defined(DEBUG)
+        #define DEBUG_SKIP(type, var, p) type dummy_##var = *(type*)p;
+    #else
+        #define DEBUG_SKIP(type, var, p)
+    #endif
+
     #define SKIP(type, var, p)       \
+        DEBUG_SKIP(type, var, p)     \
         p += sizeof(type)            \
 
     #define LOAD(type, var, p)       \
@@ -281,8 +288,6 @@
         if(likely(0xFE==r)) { LOAD(uint32_t, v, p); return v; }
                               LOAD(uint64_t, v, p); return v;
     }
-
-    double usecs();
 
     void toHex(
               uint8_t *dst,

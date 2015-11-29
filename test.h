@@ -43,17 +43,21 @@
 
         const std::string   name;
         Func                func;
+        bool                active;
 
     public:
         SimpleTest(
             Func        _func,
-            const char  *_name
+            const char  *_name,
+            bool        _active = true
         )   :   name(_name),
-                func(_func)
+                func(_func),
+                active(_active)
         {
         }
 
         virtual int run()                           { return (*func)(); }
+        virtual bool isActive()                     { return active;    }
         virtual const std::string &getName() const  { return name;      }
     };
 

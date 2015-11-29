@@ -2,6 +2,7 @@
 // Dump balance of all addresses ever used in the blockchain
 
 #include <util.h>
+#include <timer.h>
 #include <common.h>
 #include <errlog.h>
 #include <option.h>
@@ -495,7 +496,7 @@ struct AllBalances:public Callback {
         LOAD(uint32_t, size, sz);
         offset += size;
 
-        double now = usecs();
+        double now = Timer::usecs();
         static double startTime = 0;
         static double lastStatTime = 0;
         double elapsed = now - lastStatTime;

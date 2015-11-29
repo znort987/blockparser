@@ -1,5 +1,6 @@
 
 #include <util.h>
+#include <timer.h>
 #include <common.h>
 #include <errlog.h>
 #include <callback.h>
@@ -476,7 +477,7 @@ static void parseLongestChain() {
         gNeedUpstream ? "" : "out"
     );
 
-    auto startTime = usecs();
+    auto startTime = Timer::usecs();
     gCallback->startLC();
 
         uint64_t bytesSoFar =  0;
@@ -487,7 +488,7 @@ static void parseLongestChain() {
 
             if(0==(blk->height % 10)) {
    
-                auto now = usecs();
+                auto now = Timer::usecs();
                 static auto last = -1.0;
                 auto elapsedSinceLastTime = now - last;
                 auto elapsedSinceStart = now - startTime;
@@ -740,7 +741,7 @@ static void buildBlockHeaders() {
     size_t earlyMissCnt = 0;
     uint8_t buf[8+gHeaderSize];
     const auto sz = sizeof(buf);
-    const auto startTime = usecs();
+    const auto startTime = Timer::usecs();
     const auto oneMeg = 1024 * 1024;
 
     for(const auto &blockFile : blockFiles) {
@@ -785,7 +786,7 @@ static void buildBlockHeaders() {
         }
         baseOffset += blockFile.size;
 
-        auto now = usecs();
+        auto now = Timer::usecs();
         auto elapsed = now - startTime;
         auto bytesPerSec = baseOffset / (elapsed*1e-6);
         auto bytesLeft = gChainSize - baseOffset;
@@ -807,7 +808,7 @@ static void buildBlockHeaders() {
     }
 
     if(0==nbBlocks) {
-        warning("found no blocks - giving up");
+        warning("found no blocks - giving up                                                       ");
         exit(1);
     }
 
@@ -817,7 +818,7 @@ static void buildBlockHeaders() {
         sprintf(msg, ", %d early link misses", (int)earlyMissCnt);
     }
 
-    auto elapsed = 1e-6*(usecs() - startTime);
+    auto elapsed = 1e-6*(Timer::usecs() - startTime);
     info(
         "pass 1 -- took %.0f secs, %6d blocks, %.2f Gigs, %.2f Megs/secs %s, mem=%.3f Gigs                                            ",
         elapsed,
@@ -987,7 +988,7 @@ int main(
     char *argv[]
 ) {
 
-    auto start = usecs();
+    auto start = Timer::usecs();
     fprintf(stderr, "\n");
     info("mem at start = %.3f Gigs", getMem());
 
@@ -1001,7 +1002,7 @@ int main(
     parseLongestChain();
     cleanBlockFiles();
 
-    auto elapsed = (usecs() - start)*1e-6;
+    auto elapsed = (Timer::usecs() - start)*1e-6;
     info("all done in %.2f seconds", elapsed);
     info("mem at end = %.3f Gigs\n", getMem());
     return 0;

@@ -7,6 +7,8 @@
 #include <rmd160.h>
 #include <string.h>
 
+#define TEST_ACTIVE true
+
 #if defined(LITECOIN)
 
     #define EQUIV_LIST                                                                      \
@@ -59,6 +61,11 @@
         X(       "111111111111111111117TDMMQQ", "0000000000000000000000000000000000000039") \
         X(        "11111111111111111111HeBAGj", "0000000000000000000000000000000000000002") \
         X(        "11111111111111111111BZbvjr", "0000000000000000000000000000000000000001") \
+
+    #if !defined(BITCOIN)
+        #undef TEST_ACTIVE
+        #define TEST_ACTIVE false
+    #endif
 
 #endif
 
@@ -168,6 +175,6 @@ static int addr2hash() {
 }
 
 static SimpleTest t0(digit, "base58 digit");
-static SimpleTest t1(h2addr, "hash160 -> addr");
-static SimpleTest t2(addr2hash, "addr -> hash160");
+static SimpleTest t1(h2addr, "hash160 -> addr", TEST_ACTIVE);
+static SimpleTest t2(addr2hash, "addr -> hash160", TEST_ACTIVE);
 

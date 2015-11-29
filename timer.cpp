@@ -3,6 +3,13 @@
 #include <errno.h>
 #include <stdio.h>
 #include <timer.h>
+#include <sys/time.h>
+
+double Timer::usecs() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return t.tv_usec + 1000000*((uint64_t)t.tv_sec);
+}
 
 uint64_t Timer::nanos() {
     struct timespec t;

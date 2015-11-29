@@ -9,6 +9,7 @@
 #include <openssl/obj_mac.h>
 
 #include <util.h>
+#include <timer.h>
 #include <alloca.h>
 #include <common.h>
 #include <errlog.h>
@@ -30,12 +31,6 @@ template<> uint8_t *PagedAllocator<uint160_t>::poolEnd = 0;
 
 template<> uint8_t *PagedAllocator<Chunk>::pool = 0;
 template<> uint8_t *PagedAllocator<Chunk>::poolEnd = 0;
-
-double usecs() {
-    struct timeval t;
-    gettimeofday(&t, 0);
-    return t.tv_usec + 1000000*((uint64_t)t.tv_sec);
-}
 
 void toHex(
           uint8_t *dst,     // 2*size +1
@@ -840,7 +835,7 @@ void loadKeyList(
 
     size_t found = 0;
     size_t lineCount = 0;
-    double start = usecs();
+    double start = Timer::usecs();
     while(1) {
 
         char buf[1024];
@@ -868,7 +863,7 @@ void loadKeyList(
     }
     fclose(f);
 
-    double elapsed = (usecs() - start)*1e-6;
+    double elapsed = (Timer::usecs() - start)*1e-6;
     info(
         "file %s loaded in %.2f secs, found %d addresses",
         fileName,

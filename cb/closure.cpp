@@ -2,6 +2,7 @@
 // Dump the transitive closure of a bunch of addresses
 
 #include <util.h>
+#include <timer.h>
 #include <common.h>
 #include <errlog.h>
 #include <option.h>
@@ -80,7 +81,7 @@ struct Closure : public Callback {
         addrMap.resize(15 * 1000 * 1000);
         allAddrs.reserve(15 * 1000 * 1000);
         info("Building address equivalence graph ...");
-        startTime = usecs();
+        startTime = Timer::usecs();
         return 0;
     }
 
@@ -118,18 +119,18 @@ struct Closure : public Callback {
         size_t size = boost::num_vertices(graph);
         info(
             "done, %.2f secs, found %" PRIu64 " address(es) \n",
-            1e-6*(usecs() - startTime),
+            1e-6*(Timer::usecs() - startTime),
             size
         );
 
         info("Clustering ... ");
-        startTime = usecs();
+        startTime = Timer::usecs();
 
         std::vector<uint64_t> cc(size);
         uint64_t nbCC = boost::connected_components(graph, &cc[0]);
         info(
             "done, %.2f secs, found %" PRIu64 " clusters.\n",
-            1e-6*(usecs() - startTime),
+            1e-6*(Timer::usecs() - startTime),
             nbCC
         );
 

@@ -787,7 +787,9 @@ bool guessHash160(
     while(1) {
         uint8_t c = *p;
         uint8_t h = fromHexDigit(c, false);
-        if(0xff==h) break;
+        if(0xff==h) {
+            break;
+        }
         ++p;
     }
 
@@ -1192,7 +1194,6 @@ void writeEscapedBinaryBufferRev(
     size_t        n
 ) {
     p += n;
-
     while(n--) {
         uint8_t c = *(--p);
         writeEscapedChar(c, f);

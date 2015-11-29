@@ -10,8 +10,7 @@ struct Headers : public Callback {
 
     optparse::OptionParser parser;
 
-    Headers()
-    {
+    Headers() {
         parser
             .usage("")
             .version("")
@@ -27,8 +26,7 @@ struct Headers : public Callback {
     virtual void startBlock(
         const Block *b,
         uint64_t chainSize
-    )
-    {
+    ) {
         uint8_t hash[2*kSHA256ByteSize + 1];
         toHex(hash, b->hash);
 

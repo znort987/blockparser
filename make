@@ -112,6 +112,35 @@ my(@modeNames) =      qw(dbg rel prf  cov clg);
 #my(@modeNames) =      qw(rel dbg);
 my($comboModes, $shortComboModes, $justifiedComboModes) = genModes(\@modeNames, \@shortModeNames);
 
+# Base flags
+# ===========
+my($cc) = "gcc";
+my($cplus) = "g++";
+my($nvcc) = "nvcc";
+my($linker) = "g++ -fno-stack-protector";
+my($fortran) = "gfortran++";
+my(@inc) = qw(
+    -I.
+    -DNDEBUG
+    -DBITCOIN
+    -DWANT_DENSE
+    -D__STDC_FORMAT_MACROS=1
+);
+
+#-DCLAM
+#-DPAYCON
+#-DBITCOIN
+#-DDARKCOIN
+#-DJUMBUCKS
+#-DLITECOIN
+#-DPEERCOIN
+#-DTESTNET3
+#-DFEDORACOIN
+#-DMYRIADCOIN
+#-DUNOBTANIUM
+#-DPROTOSHARES
+
+
 # Libraries
 # =========
 my(@lib) = qw(
@@ -163,6 +192,14 @@ my(@lib) = qw(
     -ldl
 );
 
+# Clean stuff we don't need for bitcoin
+# ======================================
+if(join(' ', @inc) =~ /-DBITCOIN/) {
+    my(@pass0) = grep ! /h9\//, @lib;
+    my(@pass1) = grep ! /scrypt\//, @pass0;
+    @lib = @pass1;
+}
+
 # Normal target and their sources
 # ================================
 my(%targets) = (
@@ -182,34 +219,6 @@ opendir(D, "t");
         }
     }
 closedir(D);
-
-# Base flags
-# ===========
-my($cc) = "gcc";
-my($cplus) = "g++";
-my($nvcc) = "nvcc";
-my($linker) = "g++ -fno-stack-protector";
-my($fortran) = "gfortran++";
-my(@inc) = qw(
-    -I.
-    -DNDEBUG
-    -DBITCOIN
-    -DWANT_DENSE
-    -D__STDC_FORMAT_MACROS=1
-);
-
-#-DCLAM
-#-DPAYCON
-#-DBITCOIN
-#-DDARKCOIN
-#-DJUMBUCKS
-#-DLITECOIN
-#-DPEERCOIN
-#-DTESTNET3
-#-DFEDORACOIN
-#-DMYRIADCOIN
-#-DUNOBTANIUM
-#-DPROTOSHARES
 
 my(@copt) = qw(
     -O6

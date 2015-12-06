@@ -1,6 +1,9 @@
 // Copyright (c) 2013 NovaCoin Developers
 
+#if !defined(BITCOIN)
+
 #include <string.h>
+#include <stdint.h>
 #include "pbkdf2.h"
 
 static inline uint32_t
@@ -145,4 +148,6 @@ PBKDF2_SHA256(const uint8_t * passwd, size_t passwdlen, const uint8_t * salt,
     /* Clean PShctx, since we never called _Final on it. */
     memset(&PShctx, 0, sizeof(HMAC_SHA256_CTX));
 }
+
+#endif // !defined(BITCOIN)
 

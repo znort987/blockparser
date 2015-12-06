@@ -499,7 +499,7 @@ allTargets: $allTargets
 	\@echo all targets are ready.
 
 clean:
-	-rm -r -f *.o .objs .deps *.d $allTargets a.out* *.gcno
+	-rm -r -f *.o .objs .deps *.d $allTargets a.out* *.gcno .vs x64
 
 realclean:clean
 	-rm -r -f ~/.ccache

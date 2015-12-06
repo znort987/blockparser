@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
-#include <sys/time.h>
 #include <openssl/bn.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>

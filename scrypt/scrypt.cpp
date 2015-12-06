@@ -27,6 +27,8 @@
  * online backup system.
  */
 
+#if !defined(BITCOIN)
+
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -191,3 +193,4 @@ uint256 scrypt_blockhash(const void* input)
     return scrypt_nosalt(input, 80, scratchpad);
 }
 
+#endif // !defined(BITCOIN)

@@ -8,14 +8,22 @@
     #include <errlog.h>
     #include <rmd160.h>
     #include <sha256.h>
-    #include <unistd.h>
+
+    #if defined(_WIN64)
+        #include <io.h>
+        #define lseek64 _lseeki64
+        typedef int64_t int128_t;
+        typedef uint64_t uint128_t;
+    #else
+        #include <unistd.h>
+        typedef signed int int128_t __attribute__((mode(TI)));
+        typedef unsigned int uint128_t __attribute__((mode(TI)));
+    #endif
 
     typedef const uint8_t *Hash160;
     typedef const uint8_t *Hash256;
     struct uint160_t { uint8_t v[kRIPEMD160ByteSize]; };
     struct uint256_t { uint8_t v[   kSHA256ByteSize]; };
-    typedef signed int int128_t __attribute__((mode(TI)));
-    typedef unsigned int uint128_t __attribute__((mode(TI)));
     struct Hash160Hasher { uint64_t operator()( const Hash160 &hash160) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash160); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
     struct Hash256Hasher { uint64_t operator()( const Hash256 &hash256) const { uintptr_t i = reinterpret_cast<uintptr_t>(hash256); const uint64_t *p = reinterpret_cast<const uint64_t*>(i); return p[0]; } };
 

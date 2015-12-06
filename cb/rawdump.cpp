@@ -2,7 +2,7 @@
 // Full dump of the blockchain
 
 #include <util.h>
-#include <strings.h>
+#include <string.h>
 #include <callback.h>
 
 struct RawDump:public Callback {

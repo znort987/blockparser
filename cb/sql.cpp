@@ -72,7 +72,7 @@ struct SQLDump : public Callback {
         outputMap.resize(sz);
 
         optparse::Values &values = parser.parse_args(argc, argv);
-        cutoffBlock = values.get("atBlock");
+        cutoffBlock = values.get("atBlock").asInt64();
 
         info("dumping the blockchain ...");
 

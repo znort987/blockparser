@@ -3,6 +3,7 @@
 #include <string>
 #include <test.h>
 #include <vector>
+#include <stdio.h>
 #include <timer.h>
 #include <assert.h>
 #include <stdarg.h>

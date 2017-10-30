@@ -76,6 +76,9 @@
         static uint8_t *alloc() {
             if(unlikely(poolEnd<=pool)) {
                 pool = (uint8_t*)malloc(kPageByteSize);
+				if (!pool) {
+					sysErrFatal("failed to allocate page");
+				}
                 poolEnd = kPageByteSize + pool;
             }
             uint8_t *result = pool;

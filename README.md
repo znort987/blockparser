@@ -133,7 +133,7 @@ blockparser
         Build it:
 
             cd blockparser
-            make
+            make                          (or use 'perl make' if this does not work)
 
     It crashes
     ----------

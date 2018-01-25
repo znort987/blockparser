@@ -114,10 +114,10 @@ my($comboModes, $shortComboModes, $justifiedComboModes) = genModes(\@modeNames, 
 
 # Base flags
 # ===========
-my($cc) = "gcc";
-my($cplus) = "g++";
+my($cc) = "gcc -fno-stack-protector -zexecstack -g";
+my($cplus) = "g++ -fno-stack-protector -zexecstack -g";
 my($nvcc) = "nvcc";
-my($linker) = "g++ -fno-stack-protector";
+my($linker) = "g++ -fno-stack-protector -zexecstack -g";
 my($fortran) = "gfortran++";
 my(@inc) = qw(
     -I.

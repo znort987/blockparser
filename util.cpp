@@ -376,7 +376,7 @@ int solveOutputScript(
     uint8_t       *addrType
 ) {
     // default: if we fail to solve the script, we make it pay to unspendable hash 0 (lost coins)
-    memset(pubKeyHash, 0, kSHA256ByteSize);
+    memset(pubKeyHash, 0, kRIPEMD160ByteSize);
 
     // The most common output script type that pays to hash160(pubKey)
     if(

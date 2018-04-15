@@ -358,12 +358,26 @@ static void parseInputs(
     const Block   *block,
     const uint8_t *&p,
     const uint8_t *txHash
+    #if defined(BITCOIN)
+        , uint64_t* witnessNum
+    #endif
 ) {
     if(!skip) {
         startInputs(p);
     }
 
     LOAD_VARINT(nbInputs, p);
+
+    #if defined(BITCOIN) // segwit support
+    *witnessNum = 0;
+    if(nbInputs == 0)
+    {
+        SKIP(unsigned char, flag, p); // flag is always 1 in current implementation
+        LOAD_VARINT(nbRealInputs, p);
+        nbInputs = nbRealInputs;
+        *witnessNum = nbRealInputs;
+    }
+    #endif
     for(uint64_t inputIndex=0; inputIndex<nbInputs; ++inputIndex) {
         parseInput<skip>(
             block,
@@ -377,6 +391,28 @@ static void parseInputs(
         endInputs(p);
     }
 }
+
+#if defined(BITCOIN)
+static void parseWitness(
+    const uint8_t* &p
+) {
+    LOAD_VARINT(num, p);
+    for(uint64_t i=0; i<num; ++i)
+    {
+        LOAD_VARINT(num2, p);
+        p += num2; // just skip witness data for now
+    }
+}
+
+
+static void parseWitnesses(
+    const uint64_t witnessNum,
+    const uint8_t* &p
+) {
+    for(uint64_t i=0; i<witnessNum; ++i)
+        parseWitness(p);
+}
+#endif
 
 template<
     bool skip
@@ -409,7 +445,12 @@ static void parseTX(
             SKIP(uint32_t, nTime, p);
         #endif
 
+        #if defined(BITCOIN)
+        uint64_t witnessNum = 0;
+        parseInputs<skip>(block, p, txHash, &witnessNum);
+        #else
         parseInputs<skip>(block, p, txHash);
+        #endif
 
         Chunk *txo = 0;
         size_t txoOffset = -1;
@@ -421,6 +462,11 @@ static void parseTX(
         }
 
         parseOutputs<skip, false>(p, txHash);
+
+        #if defined(BITCOIN)
+        if(witnessNum)
+            parseWitnesses(witnessNum, p);
+        #endif
 
         if(txo) {
             size_t txoSize = p - outputsStart;
